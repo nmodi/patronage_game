@@ -3,6 +3,10 @@
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-display: "Cinzel", "Inter", serif;
+
+  --color-prestige-gold: #c9932f;
+  --color-crest-blue: #2f3d63;
 }
 
 html,

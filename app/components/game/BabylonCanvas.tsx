@@ -30,9 +30,9 @@ export function BabylonCanvas() {
     scene.preventDefaultOnPointerDown = false;
     scene.preventDefaultOnPointerUp = false;
     scene.useRightHandedSystem = true;
-    scene.clearColor = Color4.FromColor3(Color3.FromHexString("#87CEEB"), 1);
+    scene.clearColor = Color4.FromColor3(Color3.FromHexString("#e9c98f"), 1);
     scene.fogMode = Scene.FOGMODE_LINEAR;
-    scene.fogColor = Color3.FromHexString("#87CEEB");
+    scene.fogColor = Color3.FromHexString("#e9c98f");
     scene.fogStart = 70;
     scene.fogEnd = 95;
 
@@ -62,8 +62,8 @@ export function BabylonCanvas() {
     ground.position.y = -0.01;
     ground.receiveShadows = true;
     const groundMat = new StandardMaterial("ground-mat", scene);
-    groundMat.diffuseColor = Color3.FromHexString("#4a9460");
-    groundMat.emissiveColor = Color3.FromHexString("#4a9460").scale(0.05);
+    groundMat.diffuseColor = Color3.FromHexString("#6e7d4c");
+    groundMat.emissiveColor = Color3.FromHexString("#6e7d4c").scale(0.05);
     ground.material = groundMat;
 
     const tileRenderer = createTileRenderer(scene, shadowGenerator);
@@ -75,6 +75,7 @@ export function BabylonCanvas() {
       if (state.map.selectedBuilding !== prevState.map.selectedBuilding) {
         if (state.map.selectedBuilding) camera.detachControl();
         else camera.attachControl(true);
+        tileRenderer.setGridVisible(!!state.map.selectedBuilding);
       }
     });
 

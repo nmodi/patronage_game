@@ -12,6 +12,10 @@ import type { Tile } from "~/stores/useGameStore";
 
 const GRID_SIZE = 20;
 const CELL_SIZE = 1;
+const GRID_ALPHA_IDLE = 0.1;
+const GRID_ALPHA_PLACING = 0.8;
+const GRID_COLOR_IDLE = "#ffffff";
+const GRID_COLOR_PLACING = "#ffffff";
 
 function gridToWorld(gridX: number, gridY: number, metadata?: BuildingMetadata) {
   const footprint = metadata?.footprint ?? { width: 1, depth: 1 };
@@ -34,10 +38,17 @@ function createGridLines(scene: Scene) {
     lines.push([new Vector3(-halfGrid, 0.01, p), new Vector3(halfGrid, 0.01, p)]);
     lines.push([new Vector3(p, 0.01, -halfGrid), new Vector3(p, 0.01, halfGrid)]);
   }
-  const grid = MeshBuilder.CreateLineSystem("grid", { lines }, scene);
-  grid.color = Color3.FromHexString("#aaaaaa");
+  const grid = MeshBuilder.CreateLineSystem("grid", { lines, useVertexAlpha: true }, scene);
+  grid.color = Color3.FromHexString(GRID_COLOR_IDLE);
+  grid.alpha = GRID_ALPHA_IDLE;
   grid.isPickable = false;
   return grid;
+}
+
+function desaturate(color: Color3) {
+  const luminance = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
+  const gray = new Color3(luminance, luminance, luminance);
+  return Color3.Lerp(color, gray, 0.75);
 }
 
 type TileMeshEntry = {
@@ -50,14 +61,15 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   const materialCache = new Map<string, StandardMaterial>();
   const active = new Map<string, TileMeshEntry>();
 
-  createGridLines(scene);
+  const gridLines = createGridLines(scene);
 
-  function getMaterial(color: string, type: BuildingType) {
-    const key = `${color}:${type}`;
+  function getMaterial(color: string, type: BuildingType, inactive: boolean) {
+    const key = `${color}:${type}:${inactive ? "inactive" : "active"}`;
     let mat = materialCache.get(key);
     if (mat) return mat;
     mat = new StandardMaterial(`mat-${key}`, scene);
-    mat.diffuseColor = Color3.FromHexString(color);
+    const baseColor = Color3.FromHexString(color);
+    mat.diffuseColor = inactive ? desaturate(baseColor) : baseColor;
     mat.specularColor = type === "road" ? Color3.Black() : new Color3(0.2, 0.2, 0.2);
     materialCache.set(key, mat);
     return mat;
@@ -77,7 +89,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
             { width: width * CELL_SIZE, height, depth: depth * CELL_SIZE },
             scene
           );
-    mesh.material = getMaterial(metadata.color, metadata.type);
+    mesh.material = getMaterial(metadata.color, metadata.type, !tile.isActive);
     mesh.receiveShadows = true;
     if (metadata.type !== "road") shadowGenerator.addShadowCaster(mesh);
     const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
@@ -112,15 +124,17 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         if (entry) disposeEntry(entry);
         entry = { mesh: createMesh(tile, metadata), marker: null, buildingId: tile.buildingId };
         active.set(key, entry);
+      } else {
+        entry.mesh.material = getMaterial(metadata.color, metadata.type, !tile.isActive);
       }
 
       const needsMarker = !tile.isActive && metadata.type !== "road";
       if (needsMarker && !entry.marker) {
-        const marker = MeshBuilder.CreatePlane(`marker-${key}`, { width: 0.6, height: 0.3 }, scene);
+        const marker = MeshBuilder.CreatePlane(`marker-${key}`, { width: 0.35, height: 0.18 }, scene);
         const markerMat = new StandardMaterial(`marker-mat-${key}`, scene);
-        markerMat.diffuseColor = Color3.FromHexString("#ff4d4d");
-        markerMat.emissiveColor = Color3.FromHexString("#ff4d4d");
-        markerMat.alpha = 0.8;
+        markerMat.diffuseColor = Color3.FromHexString("#d97706");
+        markerMat.emissiveColor = Color3.FromHexString("#d97706");
+        markerMat.alpha = 0.9;
         marker.material = markerMat;
         marker.isPickable = false;
         marker.parent = entry.mesh;
@@ -133,12 +147,18 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     }
   }
 
+  function setGridVisible(placing: boolean) {
+    gridLines.alpha = placing ? GRID_ALPHA_PLACING : GRID_ALPHA_IDLE;
+    gridLines.color = Color3.FromHexString(placing ? GRID_COLOR_PLACING : GRID_COLOR_IDLE);
+  }
+
   function dispose() {
     for (const entry of active.values()) disposeEntry(entry);
     active.clear();
     for (const mat of materialCache.values()) mat.dispose();
     materialCache.clear();
+    gridLines.dispose();
   }
 
-  return { sync, dispose };
+  return { sync, dispose, setGridVisible };
 }

@@ -32,7 +32,8 @@ export function createPlacementController(scene: Scene) {
 
   function handleMouseDown(event: MouseEvent) {
     if (event.button !== 0) return;
-    if (event.target instanceof HTMLElement && event.target.closest("[data-hud]")) return;
+    // Element, not HTMLElement: SVG icons inside HUD buttons are SVGElement.
+    if (event.target instanceof Element && event.target.closest("[data-hud]")) return;
     isMouseDown = true;
     lastPlacedPosition = null;
   }

@@ -7,7 +7,7 @@ export const BUILDING_TYPES = [
     name: "Plaza",
     baseCost: 250,
     size: { width: 1.9, height: 0.05, depth: 1.9 },
-    color: "#d4b483",
+    color: "#d9b877",
     footprint: { width: 2, depth: 2 },
     generates: {
       inspiration: 4,
@@ -22,7 +22,7 @@ export const BUILDING_TYPES = [
     name: "Workshop",
     baseCost: 100,
     size: { width: 1, height: 1, depth: 1 },
-    color: "#777777",
+    color: "#c9a876",
     footprint: { width: 1, depth: 1 },
     workersRequired: 2,
     maxWorkers: 4,
@@ -33,7 +33,7 @@ export const BUILDING_TYPES = [
     name: "Cottage",
     baseCost: 150,
     size: { width: 0.85, height: 0.8, depth: 0.85 },
-    color: "#4a9eff",
+    color: "#c1694f",
     footprint: { width: 1, depth: 1 },
     // generates: {
     //   income: 5,
@@ -48,7 +48,7 @@ export const BUILDING_TYPES = [
     name: "Townhouse",
     baseCost: 400,
     size: { width: 0.85, height: 1.2, depth: 0.85 },
-    color: "#4a9eff",
+    color: "#a8503a",
     footprint: { width: 1, depth: 1 },
     // generates: {
     //   income: 5,
@@ -63,7 +63,7 @@ export const BUILDING_TYPES = [
     name: "Pigment Trader",
     baseCost: 200,
     size: { width: 0.8, height: 1.5, depth: 0.8 },
-    color: "#4aff4a",
+    color: "#b98d54",
     footprint: { width: 1, depth: 1 },
     workersRequired: 2,
     maxWorkers: 4,
@@ -74,7 +74,7 @@ export const BUILDING_TYPES = [
     name: "Market",
     baseCost: 200,
     size: { width: 1.8, height: 0.8, depth: 1.8 },
-    color: "#366036",
+    color: "#a9432f",
     footprint: { width: 2, depth: 2 },
     generates: {
       income: 10,
@@ -88,7 +88,7 @@ export const BUILDING_TYPES = [
     name: "Road",
     baseCost: 50,
     size: { width: 1, height: 0.02, depth: 1 },
-    color: "#aa9077",
+    color: "#9c8570",
     footprint: { width: 1, depth: 1 },
   },
   {
@@ -97,7 +97,7 @@ export const BUILDING_TYPES = [
     name: "Tree",
     baseCost: 25,
     size: { width: 0.5, height: 0.7, depth: 0.5 },
-    color: "#90EE90",
+    color: "#3f6b3a",
     footprint: { width: 1, depth: 1 },
   },
 ] as const satisfies ReadonlyArray<BuildingMetadata>;
