@@ -1,18 +1,21 @@
 import { create } from "zustand";
 import type { StateCreator } from "zustand";
-import { Vector2 } from "three";
 
 import type { BuildingType } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
 import { createTick } from "~/game/tick";
 import { BASE_TICK_INTERVAL } from "~/game/constants";
 
+export interface GridPos {
+  x: number;
+  y: number;
+}
 
 export interface Tile {
   type: BuildingType;
   buildingId: BuildingId;
-  position: Vector2;  // Grid position for this cell
-  origin: Vector2;    // Top-left cell of the structure
+  position: GridPos;  // Grid position for this cell
+  origin: GridPos;    // Top-left cell of the structure
   isOrigin: boolean;
   isActive: boolean;
   variant?: number;   // For different building styles
@@ -42,9 +45,9 @@ export type GameState = {
   tickInterval: number;
   setTickInterval: (value: number) => void;
   setSelectedBuilding: (id: BuildingId | null) => void;
-  placeTile: (position: Vector2, buildingId: BuildingId) => void;
-  removeTile: (position: Vector2) => void;
-  getTileAt: (position: Vector2) => Tile | undefined;
+  placeTile: (position: GridPos, buildingId: BuildingId) => void;
+  removeTile: (position: GridPos) => void;
+  getTileAt: (position: GridPos) => Tile | undefined;
   getPopulationCapacity: () => number;
   getCalendarLabel: () => string;
 };
@@ -113,7 +116,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       }
 
       const newTiles = { ...s.map.tiles };
-      const originVector = new Vector2(originX, originY);
+      const originVector: GridPos = { x: originX, y: originY };
 
       for (let dx = 0; dx < width; dx += 1) {
         for (let dy = 0; dy < depth; dy += 1) {
@@ -123,8 +126,8 @@ const initializer: StateCreator<GameState> = (set, get) => ({
           newTiles[key] = {
             buildingId,
             type,
-            position: new Vector2(cellX, cellY),
-            origin: originVector.clone(),
+            position: { x: cellX, y: cellY },
+            origin: { ...originVector },
             isOrigin: dx === 0 && dy === 0,
             isActive: workersRequired === 0,
             workers: 0,

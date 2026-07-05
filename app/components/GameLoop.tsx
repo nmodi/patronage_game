@@ -1,26 +1,15 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect } from "react";
 
-import { useGameStore } from '~/stores/useGameStore';
+import { useGameStore } from "~/stores/useGameStore";
 
+export function useGameLoop() {
+  const tick = useGameStore((s) => s.tick);
+  const isPaused = useGameStore((s) => s.paused);
+  const tickInterval = useGameStore((s) => s.tickInterval);
 
-function GameLoop() {
-
-    const tick = useGameStore(state => state.tick);
-    const isPaused = useGameStore(state => state.paused);
-    const tickInterval = useGameStore(state => state.tickInterval);
-    const lastTickRef = useRef(0);
-  
-  useFrame((state) => {
-    const currentTime = state.clock.elapsedTime * 1000;
-
-    if (!isPaused && currentTime - lastTickRef.current >= tickInterval) {
-      tick();
-      lastTickRef.current = currentTime;
-    }
-  });
-  
-  return null;
+  useEffect(() => {
+    if (isPaused) return;
+    const id = setInterval(tick, tickInterval);
+    return () => clearInterval(id);
+  }, [tick, isPaused, tickInterval]);
 }
-
-export { GameLoop };

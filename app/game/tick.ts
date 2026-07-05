@@ -32,6 +32,7 @@ const updateBuildings = (tiles: GameState["map"]["tiles"], totalPopulation: numb
 
   for (const [key, tile] of Object.entries(tiles)) {
     const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+    updatedTiles[key] = tile;
 
     // assign workers to buildings
     if (!!metadata.workersRequired && metadata.workersRequired > 0) {
