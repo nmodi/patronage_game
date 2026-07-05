@@ -5,25 +5,28 @@ import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
-import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { Scene } from "@babylonjs/core/scene";
 
 import { useGameStore } from "~/stores/useGameStore";
+import { disposeAssetLibrary, preloadModels, scatterEnvironmentTrees } from "./assetLibrary";
 import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
+import { createTerrain } from "./terrain";
 
 const PAN_SPEED = 1;
 
 export function BabylonCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const labelLayerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const engine = new Engine(canvas, true);
+    // preserveDrawingBuffer so canvas readback (screenshots) works
+    const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
     const scene = new Scene(engine);
     // ponytail: Scene defaults to preventDefault()-ing pointerdown/up, which suppresses the
     // browser's compat mousedown/mouseup events that placement.ts listens for on window.
@@ -37,7 +40,7 @@ export function BabylonCanvas() {
     scene.fogEnd = 95;
 
     const camera = new ArcRotateCamera("camera", 0, 0, 10, Vector3.Zero(), scene);
-    camera.setPosition(new Vector3(10, 10, 10));
+    camera.setPosition(new Vector3(14, 12, 14));
     camera.fov = (50 * Math.PI) / 180;
     camera.lowerRadiusLimit = 3;
     camera.upperRadiusLimit = 60;
@@ -58,18 +61,31 @@ export function BabylonCanvas() {
     const shadowGenerator = new ShadowGenerator(1024, dirLight);
     shadowGenerator.useBlurExponentialShadowMap = true;
 
-    const ground = MeshBuilder.CreateGround("ground", { width: 10000, height: 10000 }, scene);
-    ground.position.y = -0.01;
-    ground.receiveShadows = true;
-    const groundMat = new StandardMaterial("ground-mat", scene);
-    groundMat.diffuseColor = Color3.FromHexString("#6e7d4c");
-    groundMat.emissiveColor = Color3.FromHexString("#6e7d4c").scale(0.05);
-    ground.material = groundMat;
+    // Warm cinematic grade: slight saturation/contrast lift plus a gentle vignette
+    const pipeline = new DefaultRenderingPipeline("grade", false, scene, [camera]);
+    pipeline.imageProcessingEnabled = true;
+    pipeline.imageProcessing.contrast = 1.12;
+    pipeline.imageProcessing.exposure = 1.02;
+    pipeline.imageProcessing.vignetteEnabled = true;
+    pipeline.imageProcessing.vignetteWeight = 1.4;
+    pipeline.imageProcessing.vignetteColor = new Color4(0.35, 0.22, 0.08, 0);
+
+    const terrain = createTerrain(scene);
 
     const tileRenderer = createTileRenderer(scene, shadowGenerator);
     const placementController = createPlacementController(scene);
 
     tileRenderer.sync(useGameStore.getState().map.tiles);
+    let disposed = false;
+    let treeScatter: { dispose: () => void } | null = null;
+    preloadModels(scene)
+      .catch((error) => console.error("Model preload failed:", error))
+      .finally(() => {
+        if (disposed) return;
+        // Re-sync so anything placed before models finished loading swaps its fallback box.
+        tileRenderer.sync(useGameStore.getState().map.tiles);
+        treeScatter = scatterEnvironmentTrees(scene, terrain.heightAt, terrain.rand);
+      });
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
       if (state.map.tiles !== prevState.map.tiles) tileRenderer.sync(state.map.tiles);
       if (state.map.selectedBuilding !== prevState.map.selectedBuilding) {
@@ -108,19 +124,70 @@ export function BabylonCanvas() {
     }
     window.addEventListener("keydown", handleKeyDown);
 
+    // Landmark labels: DOM pills projected from hub-building world positions.
+    const labelLayer = labelLayerRef.current;
+    const labelDivs = new Map<string, HTMLDivElement>();
+    const labelObserver = scene.onAfterRenderObservable.add(() => {
+      if (!labelLayer) return;
+      const anchors = tileRenderer.getLabelAnchors();
+      const seen = new Set<string>();
+      for (const anchor of anchors) {
+        seen.add(anchor.key);
+        let div = labelDivs.get(anchor.key);
+        if (!div) {
+          div = document.createElement("div");
+          div.className =
+            "absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md " +
+            "bg-[#f7f1e3]/95 px-2 py-0.5 text-[11px] font-semibold text-stone-700 shadow-md";
+          div.textContent = anchor.name;
+          labelLayer.appendChild(div);
+          labelDivs.set(anchor.key, div);
+        }
+        const projected = Vector3.Project(
+          new Vector3(anchor.x, anchor.y, anchor.z),
+          Matrix.Identity(),
+          scene.getTransformMatrix(),
+          camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+        );
+        const onScreen = projected.z > 0 && projected.z < 1;
+        div.style.display = onScreen ? "block" : "none";
+        if (onScreen) {
+          div.style.left = `${(projected.x / engine.getRenderWidth()) * 100}%`;
+          div.style.top = `${(projected.y / engine.getRenderHeight()) * 100}%`;
+        }
+      }
+      for (const [key, div] of labelDivs) {
+        if (!seen.has(key)) {
+          div.remove();
+          labelDivs.delete(key);
+        }
+      }
+    });
+
     const handleResize = () => engine.resize();
     window.addEventListener("resize", handleResize);
     engine.runRenderLoop(() => scene.render());
 
     return () => {
+      disposed = true;
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", handleResize);
       unsubscribe();
+      scene.onAfterRenderObservable.remove(labelObserver);
+      for (const div of labelDivs.values()) div.remove();
+      labelDivs.clear();
       placementController.dispose();
       tileRenderer.dispose();
+      treeScatter?.dispose();
+      disposeAssetLibrary();
       engine.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="w-full h-full outline-none touch-none" />;
+  return (
+    <div className="relative w-full h-full">
+      <canvas ref={canvasRef} className="w-full h-full outline-none touch-none" />
+      <div ref={labelLayerRef} className="absolute inset-0 overflow-hidden pointer-events-none" />
+    </div>
+  );
 }

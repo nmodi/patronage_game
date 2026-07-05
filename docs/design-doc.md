@@ -441,6 +441,18 @@ The feeling to aim for: *you made it, and now you get to live in what you built.
 - Fire festival event + celebration cinematic + title card
 - Continue play; enable Golden Age unlocks (legacy, second-generation artists, rival city-state commissions)
 
+### Graphics track (parallel to the systems phases)
+
+Art direction: free CC0 packs — Kenney Fantasy Town Kit (buildings/props, kitbashed per building) + Kenney Nature Kit (trees), retinted to the Mediterranean palette by editing the kits' shared `colormap.png` (see `scripts/retint-colormap.py`; models in `public/models/`).
+
+- **G1 — Model pipeline** *(done)*: `@babylonjs/loaders` glTF; `assetLibrary.ts` manifest maps each buildingId to a kitbashed prefab (parts, variants, seeded rotation/scale), footprint-fit scaling, fallback to colored box for unmapped buildings; PBR→Standard material conversion with an active + desaturated material set per model (inactive buildings swap to a desaturated colormap); model placement ghost.
+- **G2 — Terrain** *(done)*: single flat-shaded ground mesh — flat plain under the grid, rolling hills beyond, per-face grass tones + farmland patches as vertex colors; instanced cypress/olive tree scatter on the hills; fog-as-sky horizon.
+- **G3 — Ground dressing** *(done)*: road tiles use kit path pieces; plaza composed of paving + fountain + lanterns; placement grid hidden except while placing.
+- **G4 — Life & polish** *(done)*: chimney-smoke particles on active production buildings (stops when inactive — the activity-animation requirement); DOM landmark label pins projected over hub buildings; DefaultRenderingPipeline grade (contrast + warm vignette).
+- **G5 — Stretch** *(open)*: river + bridge on one map edge, decorative citizens idling near the piazza (cosmetic only — must not grow simulation meaning), boats, animated banners, obelisk as the Memorial Column building.
+
+Dev helpers: `/?demo` seeds a visual test city, `&pause` freezes the tick for stable screenshots.
+
 ---
 
 ## Key Design Principles (do not violate these)

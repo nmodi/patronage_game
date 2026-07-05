@@ -7,17 +7,22 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import type { BuildingMetadata, BuildingType } from "~/game/types";
 import type { Tile } from "~/stores/useGameStore";
+import {
+  hasModel,
+  instantiateBuilding,
+  setBuildingActive,
+  type BuildingModel,
+} from "./assetLibrary";
+import { createSmokePlume, type SmokePlume } from "./smoke";
 
-const GRID_SIZE = 20;
-const CELL_SIZE = 1;
-const GRID_ALPHA_IDLE = 0.1;
+const GRID_ALPHA_IDLE = 0;
 const GRID_ALPHA_PLACING = 0.8;
-const GRID_COLOR_IDLE = "#ffffff";
-const GRID_COLOR_PLACING = "#ffffff";
+const GRID_COLOR = "#ffffff";
 
-function gridToWorld(gridX: number, gridY: number, metadata?: BuildingMetadata) {
+export function gridToWorld(gridX: number, gridY: number, metadata?: BuildingMetadata) {
   const footprint = metadata?.footprint ?? { width: 1, depth: 1 };
   const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
   const xOffset = ((footprint.width - 1) * CELL_SIZE) / 2;
@@ -39,7 +44,7 @@ function createGridLines(scene: Scene) {
     lines.push([new Vector3(p, 0.01, -halfGrid), new Vector3(p, 0.01, halfGrid)]);
   }
   const grid = MeshBuilder.CreateLineSystem("grid", { lines, useVertexAlpha: true }, scene);
-  grid.color = Color3.FromHexString(GRID_COLOR_IDLE);
+  grid.color = Color3.FromHexString(GRID_COLOR);
   grid.alpha = GRID_ALPHA_IDLE;
   grid.isPickable = false;
   return grid;
@@ -52,10 +57,15 @@ function desaturate(color: Color3) {
 }
 
 type TileMeshEntry = {
-  mesh: Mesh;
+  box: Mesh | null;
+  model: BuildingModel | null;
   marker: Mesh | null;
+  smoke: SmokePlume | null;
   buildingId: BuildingId;
+  isActive: boolean;
 };
+
+export type LabelAnchor = { key: string; name: string; x: number; y: number; z: number };
 
 export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerator) {
   const materialCache = new Map<string, StandardMaterial>();
@@ -75,7 +85,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     return mat;
   }
 
-  function createMesh(tile: Tile, metadata: BuildingMetadata) {
+  function createBoxMesh(tile: Tile, metadata: BuildingMetadata) {
     const { width, height, depth } = metadata.size;
     const mesh =
       metadata.type === "road"
@@ -97,9 +107,55 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     return mesh;
   }
 
+  function createEntry(tile: Tile, metadata: BuildingMetadata): TileMeshEntry {
+    const model = instantiateBuilding(
+      tile.buildingId,
+      metadata.footprint ?? { width: 1, depth: 1 },
+      tile.position,
+      scene
+    );
+    if (model) {
+      const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
+      model.root.position.x = x;
+      model.root.position.z = z;
+      if (metadata.type === "road") model.root.position.y += 0.001;
+      // ponytail: models cast onto the ground but don't receive — blur-ESM self-shadow
+      // acne turns the glTF walls to mud; switch to PCF shadows if receiving ever matters
+      for (const mesh of model.meshes) {
+        if (metadata.type !== "road") shadowGenerator.addShadowCaster(mesh);
+      }
+      setBuildingActive(model, tile.isActive);
+
+      let smoke: SmokePlume | null = null;
+      const chimney = model.meshes.find((mesh) => mesh.name.includes("chimney"));
+      if (chimney) {
+        chimney.computeWorldMatrix(true);
+        const top = chimney.getBoundingInfo().boundingBox.maximumWorld;
+        smoke = createSmokePlume(scene, new Vector3(top.x - 0.08, top.y, top.z - 0.08));
+        smoke.setActive(tile.isActive);
+      }
+      return { box: null, model, marker: null, smoke, buildingId: tile.buildingId, isActive: tile.isActive };
+    }
+    return {
+      box: createBoxMesh(tile, metadata),
+      model: null,
+      marker: null,
+      smoke: null,
+      buildingId: tile.buildingId,
+      isActive: tile.isActive,
+    };
+  }
+
   function disposeEntry(entry: TileMeshEntry) {
     entry.marker?.dispose();
-    entry.mesh.dispose();
+    entry.box?.dispose();
+    entry.smoke?.dispose();
+    entry.model?.root.dispose();
+  }
+
+  function markerHeight(entry: TileMeshEntry, metadata: BuildingMetadata) {
+    if (entry.model) return entry.model.height + 0.35;
+    return metadata.size.height + 0.4;
   }
 
   function sync(tiles: Record<string, Tile>) {
@@ -120,12 +176,16 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       if (!metadata) continue;
 
       let entry = active.get(key);
-      if (!entry || entry.buildingId !== tile.buildingId) {
+      const staleBox = entry?.box && hasModel(tile.buildingId); // placed before models finished loading
+      if (!entry || entry.buildingId !== tile.buildingId || staleBox) {
         if (entry) disposeEntry(entry);
-        entry = { mesh: createMesh(tile, metadata), marker: null, buildingId: tile.buildingId };
+        entry = createEntry(tile, metadata);
         active.set(key, entry);
-      } else {
-        entry.mesh.material = getMaterial(metadata.color, metadata.type, !tile.isActive);
+      } else if (entry.isActive !== tile.isActive) {
+        entry.isActive = tile.isActive;
+        if (entry.model) setBuildingActive(entry.model, tile.isActive);
+        if (entry.box) entry.box.material = getMaterial(metadata.color, metadata.type, !tile.isActive);
+        entry.smoke?.setActive(tile.isActive);
       }
 
       const needsMarker = !tile.isActive && metadata.type !== "road";
@@ -137,8 +197,9 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         markerMat.alpha = 0.9;
         marker.material = markerMat;
         marker.isPickable = false;
-        marker.parent = entry.mesh;
-        marker.position.set(0, 0.5, 0);
+        const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
+        marker.position.set(x, markerHeight(entry, metadata), z);
+        marker.billboardMode = 7; // BILLBOARDMODE_ALL
         entry.marker = marker;
       } else if (!needsMarker && entry.marker) {
         entry.marker.dispose();
@@ -149,7 +210,19 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
   function setGridVisible(placing: boolean) {
     gridLines.alpha = placing ? GRID_ALPHA_PLACING : GRID_ALPHA_IDLE;
-    gridLines.color = Color3.FromHexString(placing ? GRID_COLOR_PLACING : GRID_COLOR_IDLE);
+  }
+
+  /** World-space anchor points for hub-building DOM labels. */
+  function getLabelAnchors(): LabelAnchor[] {
+    const anchors: LabelAnchor[] = [];
+    for (const [key, entry] of active) {
+      const metadata = BUILDING_METADATA_BY_ID[entry.buildingId];
+      if (!metadata?.isHub) continue;
+      const [gx, gy] = key.split(",").map(Number);
+      const { x, z } = gridToWorld(gx, gy, metadata);
+      anchors.push({ key, name: metadata.name, x, y: markerHeight(entry, metadata) + 0.5, z });
+    }
+    return anchors;
   }
 
   function dispose() {
@@ -160,5 +233,5 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     gridLines.dispose();
   }
 
-  return { sync, dispose, setGridVisible };
+  return { sync, dispose, setGridVisible, getLabelAnchors };
 }
