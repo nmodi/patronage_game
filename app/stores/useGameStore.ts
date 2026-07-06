@@ -4,7 +4,7 @@ import type { StateCreator } from "zustand";
 import type { BuildingType } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
 import { createTick } from "~/game/tick";
-import { BASE_TICK_INTERVAL } from "~/game/constants";
+import { BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
 
 export interface GridPos {
   x: number;
@@ -45,7 +45,8 @@ export type GameState = {
   tickInterval: number;
   setTickInterval: (value: number) => void;
   setSelectedBuilding: (id: BuildingId | null) => void;
-  placeTile: (position: GridPos, buildingId: BuildingId) => void;
+  placeTile: (position: GridPos, buildingId: BuildingId) => boolean;
+  placeTiles: (positions: GridPos[], buildingId: BuildingId) => boolean;
   removeTile: (position: GridPos) => void;
   getTileAt: (position: GridPos) => Tile | undefined;
   getPopulationCapacity: () => number;
@@ -88,61 +89,84 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setSelectedBuilding: (id) =>
     set((s) => ({ map: { ...s.map, selectedBuilding: id } })),
 
-  placeTile: (position, buildingId) =>
+  placeTile: (position, buildingId) => get().placeTiles([position], buildingId),
+
+  placeTiles: (positions, buildingId) => {
+    let placed = false;
     set((s) => {
       const metadata = BUILDING_METADATA_BY_ID[buildingId];
-      if (!metadata) {
+      if (!metadata || positions.length === 0) {
         return s;
       }
       const type = metadata.type;
       const { baseCost: cost, footprint } = metadata;
       const width = footprint?.width ?? 1;
       const depth = footprint?.depth ?? 1;
-      const originX = position.x;
-      const originY = position.y;
       const workersRequired = metadata.workersRequired ?? 0;
+      const batchCells = new Set<string>();
 
-      for (let dx = 0; dx < width; dx += 1) {
-        for (let dy = 0; dy < depth; dy += 1) {
-          const key = `${originX + dx},${originY + dy}`;
-          if (s.map.tiles[key]) {
-            return s;
+      for (const position of positions) {
+        if (
+          position.x < 0 ||
+          position.y < 0 ||
+          position.x + width > GRID_SIZE ||
+          position.y + depth > GRID_SIZE
+        ) {
+          return s;
+        }
+
+        for (let dx = 0; dx < width; dx += 1) {
+          for (let dy = 0; dy < depth; dy += 1) {
+            const key = `${position.x + dx},${position.y + dy}`;
+            if (s.map.tiles[key] || batchCells.has(key)) {
+              return s;
+            }
+            batchCells.add(key);
           }
         }
       }
 
-      if (s.florins < cost) {
+      const totalCost = cost * positions.length;
+      if (s.florins < totalCost) {
         return s;
       }
 
       const newTiles = { ...s.map.tiles };
-      const originVector: GridPos = { x: originX, y: originY };
 
-      for (let dx = 0; dx < width; dx += 1) {
-        for (let dy = 0; dy < depth; dy += 1) {
-          const cellX = originX + dx;
-          const cellY = originY + dy;
-          const key = `${cellX},${cellY}`;
-          newTiles[key] = {
-            buildingId,
-            type,
-            position: { x: cellX, y: cellY },
-            origin: { ...originVector },
-            isOrigin: dx === 0 && dy === 0,
-            isActive: workersRequired === 0,
-            workers: 0,
-          };
+      for (const position of positions) {
+        const originX = position.x;
+        const originY = position.y;
+        const originVector: GridPos = { x: originX, y: originY };
+
+        for (let dx = 0; dx < width; dx += 1) {
+          for (let dy = 0; dy < depth; dy += 1) {
+            const cellX = originX + dx;
+            const cellY = originY + dy;
+            const key = `${cellX},${cellY}`;
+            newTiles[key] = {
+              buildingId,
+              type,
+              position: { x: cellX, y: cellY },
+              origin: { ...originVector },
+              isOrigin: dx === 0 && dy === 0,
+              isActive: workersRequired === 0,
+              workers: 0,
+            };
+          }
         }
       }
 
+      placed = true;
       return {
-        florins: s.florins - cost,
+        florins: s.florins - totalCost,
         map: {
           ...s.map,
           tiles: newTiles,
         }
       };
-    }),
+    });
+    return placed;
+  },
 
   removeTile: (position) =>
     set((s) => {

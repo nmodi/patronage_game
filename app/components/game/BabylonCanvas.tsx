@@ -5,7 +5,7 @@ import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
 import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
-import { Matrix, Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { Scene } from "@babylonjs/core/scene";
 
@@ -19,7 +19,6 @@ const PAN_SPEED = 1;
 
 export function BabylonCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const labelLayerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -124,46 +123,6 @@ export function BabylonCanvas() {
     }
     window.addEventListener("keydown", handleKeyDown);
 
-    // Landmark labels: DOM pills projected from hub-building world positions.
-    const labelLayer = labelLayerRef.current;
-    const labelDivs = new Map<string, HTMLDivElement>();
-    const labelObserver = scene.onAfterRenderObservable.add(() => {
-      if (!labelLayer) return;
-      const anchors = tileRenderer.getLabelAnchors();
-      const seen = new Set<string>();
-      for (const anchor of anchors) {
-        seen.add(anchor.key);
-        let div = labelDivs.get(anchor.key);
-        if (!div) {
-          div = document.createElement("div");
-          div.className =
-            "absolute -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-md " +
-            "bg-[#f7f1e3]/95 px-2 py-0.5 text-[11px] font-semibold text-stone-700 shadow-md";
-          div.textContent = anchor.name;
-          labelLayer.appendChild(div);
-          labelDivs.set(anchor.key, div);
-        }
-        const projected = Vector3.Project(
-          new Vector3(anchor.x, anchor.y, anchor.z),
-          Matrix.Identity(),
-          scene.getTransformMatrix(),
-          camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
-        );
-        const onScreen = projected.z > 0 && projected.z < 1;
-        div.style.display = onScreen ? "block" : "none";
-        if (onScreen) {
-          div.style.left = `${(projected.x / engine.getRenderWidth()) * 100}%`;
-          div.style.top = `${(projected.y / engine.getRenderHeight()) * 100}%`;
-        }
-      }
-      for (const [key, div] of labelDivs) {
-        if (!seen.has(key)) {
-          div.remove();
-          labelDivs.delete(key);
-        }
-      }
-    });
-
     const handleResize = () => engine.resize();
     window.addEventListener("resize", handleResize);
     engine.runRenderLoop(() => scene.render());
@@ -173,9 +132,6 @@ export function BabylonCanvas() {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("resize", handleResize);
       unsubscribe();
-      scene.onAfterRenderObservable.remove(labelObserver);
-      for (const div of labelDivs.values()) div.remove();
-      labelDivs.clear();
       placementController.dispose();
       tileRenderer.dispose();
       treeScatter?.dispose();
@@ -187,7 +143,6 @@ export function BabylonCanvas() {
   return (
     <div className="relative w-full h-full">
       <canvas ref={canvasRef} className="w-full h-full outline-none touch-none" />
-      <div ref={labelLayerRef} className="absolute inset-0 overflow-hidden pointer-events-none" />
     </div>
   );
 }

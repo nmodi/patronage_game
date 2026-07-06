@@ -65,8 +65,6 @@ type TileMeshEntry = {
   isActive: boolean;
 };
 
-export type LabelAnchor = { key: string; name: string; x: number; y: number; z: number };
-
 export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerator) {
   const materialCache = new Map<string, StandardMaterial>();
   const active = new Map<string, TileMeshEntry>();
@@ -212,19 +210,6 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     gridLines.alpha = placing ? GRID_ALPHA_PLACING : GRID_ALPHA_IDLE;
   }
 
-  /** World-space anchor points for hub-building DOM labels. */
-  function getLabelAnchors(): LabelAnchor[] {
-    const anchors: LabelAnchor[] = [];
-    for (const [key, entry] of active) {
-      const metadata = BUILDING_METADATA_BY_ID[entry.buildingId];
-      if (!metadata?.isHub) continue;
-      const [gx, gy] = key.split(",").map(Number);
-      const { x, z } = gridToWorld(gx, gy, metadata);
-      anchors.push({ key, name: metadata.name, x, y: markerHeight(entry, metadata) + 0.5, z });
-    }
-    return anchors;
-  }
-
   function dispose() {
     for (const entry of active.values()) disposeEntry(entry);
     active.clear();
@@ -233,5 +218,5 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     gridLines.dispose();
   }
 
-  return { sync, dispose, setGridVisible, getLabelAnchors };
+  return { sync, dispose, setGridVisible };
 }

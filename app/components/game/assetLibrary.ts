@@ -10,7 +10,7 @@ import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { Scene } from "@babylonjs/core/scene";
 import { registerBuiltInLoaders } from "@babylonjs/loaders/dynamic";
 
-import { CELL_SIZE } from "~/game/constants";
+import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import type { BuildingId } from "~/game/buildings";
 
 registerBuiltInLoaders();
@@ -309,6 +309,9 @@ export function overrideMaterials(model: BuildingModel, material: Material) {
 
 const SCATTER_CYPRESS = [NATURE + "tree_pineTallA.glb", NATURE + "tree_pineTallB.glb"];
 const SCATTER_OLIVE = [NATURE + "tree_default.glb", NATURE + "tree_fat.glb", NATURE + "tree_oak.glb"];
+const ENV_TREE_COUNT = 120;
+const ENV_TREE_CLEARANCE = 4;
+const ENV_TREE_DEPTH = 60;
 
 /** Decorative trees on the hills outside the buildable grid. Instanced, no shadows. */
 export function scatterEnvironmentTrees(
@@ -317,12 +320,15 @@ export function scatterEnvironmentTrees(
   rand: () => number
 ) {
   const roots: TransformNode[] = [];
-  for (let i = 0; i < 120; i += 1) {
+  const buildHalfExtent = (GRID_SIZE * CELL_SIZE) / 2;
+  const minDistance = buildHalfExtent + ENV_TREE_CLEARANCE;
+
+  for (let attempts = 0; roots.length < ENV_TREE_COUNT && attempts < ENV_TREE_COUNT * 4; attempts += 1) {
     const angle = rand() * Math.PI * 2;
-    const dist = 12.5 + rand() * 60;
+    const dist = minDistance + rand() * ENV_TREE_DEPTH;
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
-    if (Math.max(Math.abs(x), Math.abs(z)) < 12) continue; // keep off the buildable plain
+    if (Math.max(Math.abs(x), Math.abs(z)) < minDistance) continue;
     const files = rand() < 0.4 ? SCATTER_CYPRESS : SCATTER_OLIVE;
     const container = containers.get(files[Math.floor(rand() * files.length)]);
     if (!container) continue;
