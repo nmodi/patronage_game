@@ -15,7 +15,8 @@ import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
 import { createTerrain } from "./terrain";
 
-const PAN_SPEED = 1;
+const PAN_SPEED = 10; // world units per second
+const ROTATE_SPEED = 1.5; // radians per second
 
 export function BabylonCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -88,48 +89,57 @@ export function BabylonCanvas() {
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
       if (state.map.tiles !== prevState.map.tiles) tileRenderer.sync(state.map.tiles);
       if (state.map.selectedBuilding !== prevState.map.selectedBuilding) {
-        if (state.map.selectedBuilding) camera.detachControl();
-        else camera.attachControl(true);
+        // Only detach pointer drag (it fights placement); wheel zoom stays live.
+        if (state.map.selectedBuilding) camera.inputs.attached.pointers.detachControl();
+        else camera.inputs.attached.pointers.attachControl(true);
         tileRenderer.setGridVisible(!!state.map.selectedBuilding);
       }
     });
 
-    function handleKeyDown(e: KeyboardEvent) {
+    // Pan per-frame while keys are held instead of per keydown, so movement
+    // isn't tied to the OS key-repeat rate.
+    const heldKeys = new Set<string>();
+    const handleKeyDown = (e: KeyboardEvent) => heldKeys.add(e.key.toLowerCase());
+    const handleKeyUp = (e: KeyboardEvent) => heldKeys.delete(e.key.toLowerCase());
+    const handleBlur = () => heldKeys.clear();
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    window.addEventListener("blur", handleBlur);
+
+    function panCamera() {
+      if (heldKeys.size === 0) return;
+      const step = (PAN_SPEED * engine.getDeltaTime()) / 1000;
       const forward = camera.target.subtract(camera.position);
       forward.y = 0;
       forward.normalize();
       const right = Vector3.Cross(forward, Vector3.Up()).normalize();
 
-      switch (e.key.toLowerCase()) {
-        case "w":
-        case "arrowup":
-          camera.target.addInPlace(forward.scale(PAN_SPEED));
-          break;
-        case "s":
-        case "arrowdown":
-          camera.target.addInPlace(forward.scale(-PAN_SPEED));
-          break;
-        case "a":
-        case "arrowleft":
-          camera.target.addInPlace(right.scale(-PAN_SPEED));
-          break;
-        case "d":
-        case "arrowright":
-          camera.target.addInPlace(right.scale(PAN_SPEED));
-          break;
-        default:
-          return;
-      }
+      if (heldKeys.has("w") || heldKeys.has("arrowup"))
+        camera.target.addInPlace(forward.scale(step));
+      if (heldKeys.has("s") || heldKeys.has("arrowdown"))
+        camera.target.addInPlace(forward.scale(-step));
+      if (heldKeys.has("a") || heldKeys.has("arrowleft"))
+        camera.target.addInPlace(right.scale(-step));
+      if (heldKeys.has("d") || heldKeys.has("arrowright"))
+        camera.target.addInPlace(right.scale(step));
+
+      const turn = (ROTATE_SPEED * engine.getDeltaTime()) / 1000;
+      if (heldKeys.has("q")) camera.alpha += turn;
+      if (heldKeys.has("e")) camera.alpha -= turn;
     }
-    window.addEventListener("keydown", handleKeyDown);
 
     const handleResize = () => engine.resize();
     window.addEventListener("resize", handleResize);
-    engine.runRenderLoop(() => scene.render());
+    engine.runRenderLoop(() => {
+      panCamera();
+      scene.render();
+    });
 
     return () => {
       disposed = true;
       window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      window.removeEventListener("blur", handleBlur);
       window.removeEventListener("resize", handleResize);
       unsubscribe();
       placementController.dispose();

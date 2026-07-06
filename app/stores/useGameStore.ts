@@ -19,6 +19,7 @@ export interface Tile {
   isOrigin: boolean;
   isActive: boolean;
   variant?: number;   // For different building styles
+  rotation?: number;  // Player-chosen quarter turns (0-3); undefined = seeded random
   workers: number;   // Number of workers assigned to this tile
 }
 
@@ -45,8 +46,8 @@ export type GameState = {
   tickInterval: number;
   setTickInterval: (value: number) => void;
   setSelectedBuilding: (id: BuildingId | null) => void;
-  placeTile: (position: GridPos, buildingId: BuildingId) => boolean;
-  placeTiles: (positions: GridPos[], buildingId: BuildingId) => boolean;
+  placeTile: (position: GridPos, buildingId: BuildingId, rotation?: number) => boolean;
+  placeTiles: (positions: GridPos[], buildingId: BuildingId, rotation?: number) => boolean;
   removeTile: (position: GridPos) => void;
   getTileAt: (position: GridPos) => Tile | undefined;
   getPopulationCapacity: () => number;
@@ -89,9 +90,9 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setSelectedBuilding: (id) =>
     set((s) => ({ map: { ...s.map, selectedBuilding: id } })),
 
-  placeTile: (position, buildingId) => get().placeTiles([position], buildingId),
+  placeTile: (position, buildingId, rotation) => get().placeTiles([position], buildingId, rotation),
 
-  placeTiles: (positions, buildingId) => {
+  placeTiles: (positions, buildingId, rotation) => {
     let placed = false;
     set((s) => {
       const metadata = BUILDING_METADATA_BY_ID[buildingId];
@@ -150,6 +151,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
               origin: { ...originVector },
               isOrigin: dx === 0 && dy === 0,
               isActive: workersRequired === 0,
+              rotation,
               workers: 0,
             };
           }

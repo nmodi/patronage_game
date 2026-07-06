@@ -3,12 +3,27 @@ import type { BuildingType, BuildingMetadata } from "./types";
 export const BUILDING_TYPES = [
   {
     type: "city",
+    id: "town_center_plaza",
+    name: "Town Center Plaza",
+    baseCost: 600,
+    size: { width: 4.9, height: 0.05, depth: 4.9 },
+    color: "#d9b877",
+    footprint: { width: 5, depth: 5 },
+    generates: {
+      inspiration: 8,
+    },
+    isHub: true,
+    workersRequired: 0,
+    maxWorkers: 0,
+  },
+  {
+    type: "city",
     id: "plaza",
     name: "Plaza",
     baseCost: 250,
-    size: { width: 1.9, height: 0.05, depth: 1.9 },
+    size: { width: 2.9, height: 0.05, depth: 2.9 },
     color: "#d9b877",
-    footprint: { width: 2, depth: 2 },
+    footprint: { width: 3, depth: 3 },
     generates: {
       inspiration: 4,
     },

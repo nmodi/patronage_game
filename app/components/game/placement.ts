@@ -18,6 +18,7 @@ export function createPlacementController(scene: Scene) {
   let ghostModel: BuildingModel | null = null;
   let ghostModelBaseY = 0;
   let ghostBuildingId: BuildingId | null = null;
+  let ghostRotation: number | null = null; // quarter turns; null = seeded random
   let ghostIsValid = true;
   let pendingClick = false;
   let roadAnchor: GridPos | null = null;
@@ -43,10 +44,16 @@ export function createPlacementController(scene: Scene) {
     pendingClick = true;
   }
   function handleKeyDown(event: KeyboardEvent) {
-    if (event.key !== "Escape") return;
-    roadAnchor = null;
-    clearRoadPreview();
-    useGameStore.getState().setSelectedBuilding(null);
+    if (event.key === "Escape") {
+      roadAnchor = null;
+      clearRoadPreview();
+      useGameStore.getState().setSelectedBuilding(null);
+      return;
+    }
+    if (event.key.toLowerCase() === "r" && ghostModel) {
+      ghostRotation = ((ghostRotation ?? 0) + 1) % 4;
+      ghostModel.root.rotation.y = (Math.PI / 2) * ghostRotation;
+    }
   }
   window.addEventListener("mousedown", handleMouseDown);
   window.addEventListener("keydown", handleKeyDown);
@@ -213,6 +220,7 @@ export function createPlacementController(scene: Scene) {
 
     if (selectedBuilding !== lastSelectedBuilding) {
       roadAnchor = null;
+      ghostRotation = null;
       clearRoadPreview();
       lastSelectedBuilding = selectedBuilding;
     }
@@ -280,7 +288,7 @@ export function createPlacementController(scene: Scene) {
     }
 
     if (pendingClick && canPlaceHere) {
-      state.placeTile(currentPosition, selectedBuilding);
+      state.placeTile(currentPosition, selectedBuilding, ghostRotation ?? undefined);
     }
     pendingClick = false;
   });

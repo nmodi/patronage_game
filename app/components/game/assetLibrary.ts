@@ -38,6 +38,16 @@ type ModelDef = {
 const TOWN = "/models/town/";
 const NATURE = "/models/nature/";
 
+/** size×size grid of paving tiles centered on the footprint. */
+function paving(size: number): Part[] {
+  const parts: Part[] = [];
+  const start = -(size - 1) / 2;
+  for (let x = 0; x < size; x += 1)
+    for (let z = 0; z < size; z += 1)
+      parts.push({ file: TOWN + "road.glb", position: [start + x, 0, start + z] });
+  return parts;
+}
+
 // Flat-color material tints per file (Nature Kit has no texture; defaults are teal/orange).
 const MATERIAL_TINTS: Record<string, Record<string, string>> = {
   [NATURE + "tree_default.glb"]: { leafsGreen: "#6b7d46", woodBark: "#7a5a40" },
@@ -93,17 +103,24 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     ],
     fit: 0.95,
   },
+  town_center_plaza: {
+    // Fountain with a central column (mockup: obelisk rising from the water);
+    // the rest stays open paving so future citizens/stalls have room.
+    parts: [
+      ...paving(5),
+      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 1.2 },
+      { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 1.6 },
+    ],
+    fit: 1,
+  },
   plaza: {
     parts: [
-      { file: TOWN + "road.glb", position: [-0.5, 0, -0.5] },
-      { file: TOWN + "road.glb", position: [0.5, 0, -0.5] },
-      { file: TOWN + "road.glb", position: [-0.5, 0, 0.5] },
-      { file: TOWN + "road.glb", position: [0.5, 0, 0.5] },
-      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0] },
-      { file: TOWN + "lantern.glb", position: [-0.85, 0.02, -0.85] },
-      { file: TOWN + "lantern.glb", position: [0.85, 0.02, -0.85] },
-      { file: TOWN + "lantern.glb", position: [-0.85, 0.02, 0.85] },
-      { file: TOWN + "lantern.glb", position: [0.85, 0.02, 0.85] },
+      ...paving(3),
+      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.7 },
+      { file: TOWN + "lantern.glb", position: [-1.35, 0.02, -1.35] },
+      { file: TOWN + "lantern.glb", position: [1.35, 0.02, -1.35] },
+      { file: TOWN + "lantern.glb", position: [-1.35, 0.02, 1.35] },
+      { file: TOWN + "lantern.glb", position: [1.35, 0.02, 1.35] },
     ],
     fit: 1,
   },
@@ -252,7 +269,8 @@ export function instantiateBuilding(
   buildingId: BuildingId,
   footprint: { width: number; depth: number },
   gridPos: { x: number; y: number },
-  scene: Scene
+  scene: Scene,
+  rotation?: number // player-chosen quarter turns; overrides seeded randomRotate
 ): BuildingModel | null {
   const def = MODEL_MANIFEST[buildingId];
   if (!def) return null;
@@ -287,7 +305,8 @@ export function instantiateBuilding(
   root.scaling.setAll(scale);
   root.position.y = -min.y * scale;
 
-  if (def.randomRotate === "quarter") root.rotation.y = (Math.PI / 2) * (hash % 4);
+  if (rotation != null) root.rotation.y = (Math.PI / 2) * rotation;
+  else if (def.randomRotate === "quarter") root.rotation.y = (Math.PI / 2) * (hash % 4);
   else if (def.randomRotate === "free") root.rotation.y = (hash / 4096) * Math.PI * 2;
 
   return { root, meshes, height: (max.y - min.y) * scale };

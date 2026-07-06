@@ -110,7 +110,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       tile.buildingId,
       metadata.footprint ?? { width: 1, depth: 1 },
       tile.position,
-      scene
+      scene,
+      tile.rotation
     );
     if (model) {
       const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
