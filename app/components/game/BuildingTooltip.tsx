@@ -1,7 +1,40 @@
 import { useEffect, useRef } from "react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
+import type { BuildingMetadata } from "~/game/types";
 import { useGameStore } from "~/stores/useGameStore";
+
+function getProductionMultiplier(metadata: BuildingMetadata, workers: number) {
+  const required = metadata.workersRequired ?? 0;
+  const max = metadata.maxWorkers ?? 0;
+
+  if (required <= 0 || max <= required) return 1;
+  return 1 + (0.5 * Math.max(0, workers - required)) / (max - required);
+}
+
+function formatAmount(value: number) {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+}
+
+function getActiveEffects(metadata: BuildingMetadata, workers: number) {
+  const effects: string[] = [];
+  const multiplier = getProductionMultiplier(metadata, workers);
+
+  if (metadata.generates?.income) {
+    effects.push(`+${formatAmount(metadata.generates.income * multiplier)} Florins / month`);
+  }
+  if (metadata.generates?.inspiration) {
+    effects.push(`+${formatAmount(metadata.generates.inspiration * multiplier)} Inspiration / month`);
+  }
+  if (metadata.serviceCapacity) {
+    effects.push(`+${metadata.serviceCapacity} service capacity`);
+  }
+  if (metadata.populationCapacity) {
+    effects.push(`+${metadata.populationCapacity} population capacity`);
+  }
+
+  return effects;
+}
 
 export function BuildingTooltip() {
   const tile = useGameStore((s) =>
@@ -23,10 +56,13 @@ export function BuildingTooltip() {
   if (!tile) return null;
   const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
   if (!metadata) return null;
+  if (metadata.type === "decoration") return null;
 
   const required = metadata.workersRequired ?? 0;
-  const missing = required - tile.workers;
-  const isActive = missing <= 0;
+  const canBeInactive = required > 0;
+  const missing = Math.max(0, required - tile.workers);
+  const isActive = tile.isActive;
+  const activeEffects = isActive ? getActiveEffects(metadata, tile.workers) : [];
 
   return (
     <div
@@ -34,7 +70,7 @@ export function BuildingTooltip() {
       className="pointer-events-none fixed left-0 top-0 z-50"
       style={{ transform: `translate(${mouse.current.x + 14}px, ${mouse.current.y + 14}px)` }}
     >
-      <div className="rounded-md bg-stone-900/90 px-3 py-2 text-stone-100 shadow-lg">
+      <div className="max-w-56 rounded-md bg-stone-900/90 px-3 py-2 text-stone-100 shadow-lg">
         <div className="text-xs font-semibold">{metadata.name}</div>
         {required > 0 && (
           <div className="text-[10px] text-stone-300">
@@ -42,9 +78,20 @@ export function BuildingTooltip() {
             {(metadata.maxWorkers ?? 0) > required ? ` (max ${metadata.maxWorkers})` : ""}
           </div>
         )}
-        <div className={`text-[10px] ${isActive ? "text-emerald-400" : "text-amber-400"}`}>
-          {isActive ? "Active" : `Needs ${missing} more worker${missing === 1 ? "" : "s"}`}
-        </div>
+        {canBeInactive && (
+          <div className={`text-[10px] ${isActive ? "text-emerald-400" : "text-amber-400"}`}>
+            {isActive ? "Active" : `Needs ${missing} more worker${missing === 1 ? "" : "s"}`}
+          </div>
+        )}
+        {activeEffects.length > 0 && (
+          <div className="mt-1 space-y-0.5 border-t border-stone-700 pt-1">
+            {activeEffects.map((effect) => (
+              <div key={effect} className="text-[10px] text-stone-200">
+                {effect}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
