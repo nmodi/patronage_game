@@ -400,33 +400,37 @@ The feeling to aim for: *you made it, and now you get to live in what you built.
 - Two-pass worker allocation algorithm
 - Inactive building visual feedback
 
-### Phase 5 — Piazza & Inspiration Radius
-- Piazza generates Inspiration
-- Visible radius indicator
-- Buildings within radius draw Inspiration; buildings outside do not
-- Placing Masterworks in Piazza boosts output
+### Phase 5 — Artists & Ateliers
+- Artist data model: type, skill level, status, assigned commission
+- Atelier building hosts artists
+- different types of artists include painters, sculptors, etc. Maybe even scientists? Architects? 
 
-### Phase 6 — Factions UI
+### Phase 6 - Creating Artworks 
+- Artists can be tasks to create works 
+- Artists gain experience when works are complete and progress from apparentice -> journeyman -> master
+
+
+### Phase 6 — Material Suppliers & Scarcity
+- Supplier buildings with capacity limits
+- Artists are blocked when supplies are at capacity
+
+### Phase 8 — Factions UI
 - Three faction relationship bars
 - Faction state in Zustand
 - Left panel UI component
-
-### Phase 7 — Artists & Ateliers
-- Artist data model: type, skill level, status, assigned commission
-- Atelier building hosts artists
-- Artists require workers + material supplier access
-- Master-apprentice relationship tracking
-
-### Phase 8 — Material Suppliers & Scarcity
-- Supplier buildings with capacity limits
-- Artists blocked when supplier at capacity
-- Tooltip feedback for blocked artists
 
 ### Phase 9 — Commissions
 - Commission data model
 - Commission panel UI (right side)
 - Progress tracking per tick
 - Completion triggers Masterwork creation + rewards
+
+### Phase 7 — Piazza & Inspiration Radius
+- Piazza already generates Inspiration
+- placing works in the plaza increases inspiration output
+- Visible radius indicator when clicking plaza
+- buildings within the radius get increased performance due to the inspiration 
+
 
 ### Phase 10 — Road System
 - Cluster detection (proximity threshold)
