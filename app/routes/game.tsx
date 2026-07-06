@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import type { MetaFunction } from "react-router";
 
-import { BabylonCanvas } from "~/components/game/BabylonCanvas";
-import { GameHUD } from "~/components/game/GameHUD";
-import { useGameLoop } from "~/components/GameLoop";
+import { BabylonCanvas } from "~/game/render/BabylonCanvas";
+import { GameHUD } from "~/game/ui/GameHUD";
+import { useGameLoop } from "~/game/ui/useGameLoop";
 import { seedDemoCity } from "~/game/demoCity";
 import { useGameStore } from "~/stores/useGameStore";
 

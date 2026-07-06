@@ -143,6 +143,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
 // Active/inactive material pairs, shared by every clone of a container.
 const materialPairs = new Map<Material, { on: Material; off: Material }>();
 const containers = new Map<string, AssetContainer>();
+const containerLoads = new Map<string, Promise<AssetContainer | null>>();
 // Shared gamma-space colormaps. The loader's own albedo textures are sRGB buffers meant
 // for the PBR pipeline; sampling them from StandardMaterial renders too dark.
 let townColormap: Texture | null = null;
@@ -201,14 +202,23 @@ function convertMaterials(container: AssetContainer, file: string, scene: Scene)
   }
 }
 
+// Cache the in-flight promise, not just the resolved container: concurrent callers
+// (e.g. StrictMode double-mount) must share one load instead of racing duplicate ones.
 async function getContainer(file: string, scene: Scene) {
-  let container = containers.get(file);
-  if (!container) {
-    container = await LoadAssetContainerAsync(file, scene);
-    convertMaterials(container, file, scene);
-    containers.set(file, container);
+  let load = containerLoads.get(file);
+  if (!load) {
+    load = LoadAssetContainerAsync(file, scene).then((container) => {
+      if (scene.isDisposed) {
+        container.dispose();
+        return null;
+      }
+      convertMaterials(container, file, scene);
+      containers.set(file, container);
+      return container;
+    });
+    containerLoads.set(file, load);
   }
-  return container;
+  return load;
 }
 
 /** Load every manifest + scatter model up front so instantiation can stay synchronous. */
@@ -372,6 +382,7 @@ export function scatterEnvironmentTrees(
 export function disposeAssetLibrary() {
   for (const container of containers.values()) container.dispose();
   containers.clear();
+  containerLoads.clear();
   materialPairs.clear();
   townColormap?.dispose();
   townColormap = null;

@@ -2,7 +2,7 @@
 // Run: node --experimental-strip-types app/game/workers.check.ts
 import assert from "node:assert";
 
-import { allocateWorkers, type StaffableBuilding } from "./workers.ts";
+import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./workers.ts";
 
 const b = (
   key: string,
@@ -44,6 +44,14 @@ const b = (
 {
   const out = allocateWorkers([b("plaza", "city", 0, 0)], 5);
   assert.equal(out.size, 0);
+}
+
+// Efficiency: 1x at minimum, linear ramp to 1.5x at maxWorkers, clamped at/below minimum.
+{
+  assert.equal(staffingEfficiency(2, 4, 2), 1);
+  assert.equal(staffingEfficiency(2, 4, 4), 1.5);
+  assert.equal(staffingEfficiency(2, 4, 3), 1.25);
+  assert.equal(staffingEfficiency(0, 0, 5), 1);
 }
 
 console.log("workers.check: all assertions passed");

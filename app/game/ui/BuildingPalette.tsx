@@ -3,7 +3,7 @@ import { Hammer, Home, Landmark, Palette, Route, TreePine, Wheat, type LucideIco
 import { BUILDING_METADATA_BY_TYPE, type BuildingId } from "~/game/buildings";
 import type { BuildingType } from "~/game/types";
 import { useGameStore } from "~/stores/useGameStore";
-import { Panel } from "./ui/Panel";
+import { Panel } from "./Panel";
 
 const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }> = [
   { type: "residential", label: "Housing", icon: Home },
@@ -18,6 +18,7 @@ const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }>
 export function BuildingPalette() {
   const selectedBuilding = useGameStore((s) => s.map.selectedBuilding);
   const setSelectedBuilding = useGameStore((s) => s.setSelectedBuilding);
+  const florins = useGameStore((s) => s.florins);
 
   return (
     <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
@@ -35,6 +36,7 @@ export function BuildingPalette() {
                 {buildings.map(({ id, name, baseCost }) => {
                   const buildingId = id as BuildingId;
                   const isSelected = selectedBuilding === buildingId;
+                  const canAfford = florins >= baseCost;
                   return (
                     <button
                       key={id}
@@ -42,7 +44,7 @@ export function BuildingPalette() {
                         isSelected
                           ? "border-amber-600 bg-amber-100 text-stone-900"
                           : "border-stone-300/60 bg-white/60 text-stone-700 hover:bg-amber-50"
-                      }`}
+                      } ${canAfford ? "" : "opacity-50"}`}
                       onClick={() => setSelectedBuilding(isSelected ? null : buildingId)}
                     >
                       <span className="text-xs font-semibold">{name}</span>

@@ -2,8 +2,8 @@ import { Coins, Pause, Play, Sparkles, Users } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
-import { Panel } from "./ui/Panel";
-import { ResourceStat } from "./ui/ResourceStat";
+import { Panel } from "./Panel";
+import { ResourceStat } from "./ResourceStat";
 
 export function TopBar() {
   const florins = useGameStore((s) => s.florins);

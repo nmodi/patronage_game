@@ -71,6 +71,12 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
   const gridLines = createGridLines(scene);
 
+  // Shared by every inactive-building marker — they're all identical amber diamonds.
+  const markerMaterial = new StandardMaterial("marker-mat", scene);
+  markerMaterial.diffuseColor = Color3.FromHexString("#d97706");
+  markerMaterial.emissiveColor = Color3.FromHexString("#d97706");
+  markerMaterial.alpha = 0.9;
+
   function getMaterial(color: string, type: BuildingType, inactive: boolean) {
     const key = `${color}:${type}:${inactive ? "inactive" : "active"}`;
     let mat = materialCache.get(key);
@@ -190,11 +196,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       const needsMarker = !tile.isActive && metadata.type !== "road";
       if (needsMarker && !entry.marker) {
         const marker = MeshBuilder.CreatePlane(`marker-${key}`, { width: 0.35, height: 0.18 }, scene);
-        const markerMat = new StandardMaterial(`marker-mat-${key}`, scene);
-        markerMat.diffuseColor = Color3.FromHexString("#d97706");
-        markerMat.emissiveColor = Color3.FromHexString("#d97706");
-        markerMat.alpha = 0.9;
-        marker.material = markerMat;
+        marker.material = markerMaterial;
         marker.isPickable = false;
         const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
         marker.position.set(x, markerHeight(entry, metadata), z);
@@ -216,6 +218,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     active.clear();
     for (const mat of materialCache.values()) mat.dispose();
     materialCache.clear();
+    markerMaterial.dispose();
     gridLines.dispose();
   }
 

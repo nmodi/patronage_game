@@ -10,6 +10,20 @@ export interface StaffableBuilding {
   maxWorkers: number;
 }
 
+/**
+ * Linear output multiplier for staffing above the minimum: 1x at workersRequired,
+ * up to 1.5x at maxWorkers. Shared by tick.ts (applies it) and BuildingTooltip.tsx
+ * (previews it) so they can't drift apart.
+ */
+export function staffingEfficiency(
+  workersRequired: number,
+  maxWorkers: number,
+  workers: number
+): number {
+  if (workersRequired <= 0 || maxWorkers <= workersRequired) return 1;
+  return 1 + (0.5 * Math.max(0, workers - workersRequired)) / (maxWorkers - workersRequired);
+}
+
 // essential > production > luxury (design doc); unlisted types trail.
 const TYPE_PRIORITY: Partial<Record<BuildingType, number>> = {
   service: 0,

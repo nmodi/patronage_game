@@ -34,10 +34,3 @@ export interface BuildingMetadata {
   workersRequired?: number;
   maxWorkers?: number;
 }
-
-export interface Citizen {
-    id: string;
-    name: string;
-    age: number;
-    occupation: string;
-}

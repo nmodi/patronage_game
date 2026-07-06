@@ -2,15 +2,8 @@ import { useEffect, useRef } from "react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import type { BuildingMetadata } from "~/game/types";
+import { staffingEfficiency } from "~/game/workers";
 import { useGameStore } from "~/stores/useGameStore";
-
-function getProductionMultiplier(metadata: BuildingMetadata, workers: number) {
-  const required = metadata.workersRequired ?? 0;
-  const max = metadata.maxWorkers ?? 0;
-
-  if (required <= 0 || max <= required) return 1;
-  return 1 + (0.5 * Math.max(0, workers - required)) / (max - required);
-}
 
 function formatAmount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -18,7 +11,11 @@ function formatAmount(value: number) {
 
 function getActiveEffects(metadata: BuildingMetadata, workers: number) {
   const effects: string[] = [];
-  const multiplier = getProductionMultiplier(metadata, workers);
+  const multiplier = staffingEfficiency(
+    metadata.workersRequired ?? 0,
+    metadata.maxWorkers ?? 0,
+    workers
+  );
 
   if (metadata.generates?.income) {
     effects.push(`+${formatAmount(metadata.generates.income * multiplier)} Florins / month`);

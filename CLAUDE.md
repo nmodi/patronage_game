@@ -14,4 +14,4 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 
 ## Current state vs. doc phases
 
-Implementation is early — `app/game/` has building defs, a tick loop, and basic Zustand store (roughly doc Phase 0–2). Check `app/game/` and `app/stores/useGameStore.ts` before assuming a system exists.
+Implementation is early — roughly doc Phase 0–2. Layout: `app/game/` = sim logic (building defs, tick loop, worker allocation), `app/game/render/` = Babylon rendering, `app/game/ui/` = DOM overlay UI, `app/stores/useGameStore.ts` = Zustand store. Check there before assuming a system exists.

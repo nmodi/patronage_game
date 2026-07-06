@@ -277,7 +277,8 @@ export function createPlacementController(scene: Scene) {
         }
       }
     }
-    const canPlaceHere = fitsFootprint && areaFree;
+    const canAfford = state.florins >= metadata.baseCost;
+    const canPlaceHere = fitsFootprint && areaFree && canAfford;
 
     const xOffset = ((footprint.width - 1) * CELL_SIZE) / 2;
     const zOffset = ((footprint.depth - 1) * CELL_SIZE) / 2;

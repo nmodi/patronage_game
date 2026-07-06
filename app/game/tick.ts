@@ -3,7 +3,7 @@ import type { StateCreator } from "zustand";
 import type { GameState } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_POPULATION_CAP } from "~/game/constants";
-import { allocateWorkers, type StaffableBuilding } from "~/game/workers";
+import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "~/game/workers";
 
 type StoreSet = Parameters<StateCreator<GameState>>[0];
 type StoreGet = Parameters<StateCreator<GameState>>[1];
@@ -59,12 +59,11 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
       if (!tile.isOrigin || !tile.isActive) continue;
       const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
       if (!metadata?.generates) continue;
-      const required = metadata.workersRequired ?? 0;
-      const max = metadata.maxWorkers ?? 0;
-      const efficiency =
-        required > 0 && max > required
-          ? 1 + (0.5 * (tile.workers - required)) / (max - required)
-          : 1;
+      const efficiency = staffingEfficiency(
+        metadata.workersRequired ?? 0,
+        metadata.maxWorkers ?? 0,
+        tile.workers
+      );
       florinDelta += (metadata.generates.income ?? 0) * efficiency;
       inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
     }
