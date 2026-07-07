@@ -2,7 +2,7 @@ import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
-import type { Artist, Artwork, BuildingType } from "~/game/types";
+import type { Artist, Artwork, BuildingType, Commission } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { createArtist } from "~/game/artists";
 import { getSupply } from "~/game/materials";
@@ -43,7 +43,8 @@ export type GameState = {
   population: number;
   artists: Artist[];
   artworks: Artwork[];
-  startArtwork: (tileKey: string) => void;
+  commissions: Commission[];
+  assignCommission: (commissionId: string, workshopKey: string) => void;
   addFlorins: (amount: number) => void;
   setFlorins: (value: number) => void;
   setPopulation: (value: number) => void;
@@ -74,6 +75,7 @@ const createInitialState = () => ({
   population: 0,
   artists: [] as Artist[],
   artworks: [] as Artwork[],
+  commissions: [] as Commission[],
   hoveredTileKey: null as string | null,
   map: { tiles: {}, selectedBuilding: null } as MapState,
   time: { tickCount: 0 },
@@ -92,15 +94,20 @@ const initializer: StateCreator<GameState> = (set, get) => ({
 
   resetGame: () => set(createInitialState()),
 
-  startArtwork: (tileKey) =>
+  assignCommission: (commissionId, workshopKey) =>
     set((s) => {
+      const commission = s.commissions.find((c) => c.id === commissionId);
+      if (!commission || commission.workshopKey) return s;
       // Founder = first artist homed at the workshop; work is tracked on them.
-      const founder = s.artists.find((a) => a.homeTileKey === tileKey);
-      if (!founder || founder.workProgress != null) return s;
+      const founder = s.artists.find((a) => a.homeTileKey === workshopKey);
+      if (!founder || founder.type !== commission.artistType || founder.workProgress != null) {
+        return s;
+      }
       const supply = getSupply(s.map.tiles, s.artists)[founder.type];
       if (supply && supply.inUse >= supply.capacity) return s; // at capacity, or no supplier (0 >= 0)
       return {
         artists: s.artists.map((a) => (a === founder ? { ...a, workProgress: 0 } : a)),
+        commissions: s.commissions.map((c) => (c === commission ? { ...c, workshopKey } : c)),
       };
     }),
 
@@ -277,9 +284,10 @@ const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    // v2: building footprints rescaled (cottage 1x1 -> 2x2 etc.) — v1 tile maps
-    // would overlap under the new sizes, so old saves are discarded.
-    version: 2,
+    // v3: commissions replace the free-play "Create artwork" flow — old saves
+    // could hold workProgress with no commission behind it, so they're discarded.
+    // (v2: building footprints rescaled, same policy.)
+    version: 3,
     // SSR: hydrate manually from the game route's client effect
     skipHydration: true,
     storage: createJSONStorage(() => (isDemo() ? noopStorage : localStorage)),
@@ -290,6 +298,7 @@ export const useGameStore = create<GameState>()(
       population: s.population,
       artists: s.artists,
       artworks: s.artworks,
+      commissions: s.commissions,
       map: { tiles: s.map.tiles, selectedBuilding: null },
       time: s.time,
       tickInterval: s.tickInterval,

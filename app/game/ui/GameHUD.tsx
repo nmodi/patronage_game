@@ -1,6 +1,7 @@
 import { ArtistsPanel } from "./ArtistsPanel";
 import { BuildingPalette } from "./BuildingPalette";
 import { BuildingTooltip } from "./BuildingTooltip";
+import { CommissionsPanel } from "./CommissionsPanel";
 import { TopBar } from "./TopBar";
 
 export function GameHUD() {
@@ -8,6 +9,7 @@ export function GameHUD() {
     <>
       <TopBar />
       <ArtistsPanel />
+      <CommissionsPanel />
       <BuildingPalette />
       <BuildingTooltip />
     </>

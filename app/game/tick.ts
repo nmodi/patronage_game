@@ -5,6 +5,7 @@ import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_POPULATION_CAP } from "~/game/constants";
 import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "~/game/workers";
 import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "~/game/artists";
+import { maybeOfferCommission, reconcileCommissions } from "~/game/commissions";
 import { getSupply } from "~/game/materials";
 
 type StoreSet = Parameters<StateCreator<GameState>>[0];
@@ -120,19 +121,38 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
       artistsChanged = true;
     }
 
-    const work = progressArtworks(artists, workshops, inspiration, state.time.tickCount);
+    // Commissions (Phase 8): expire stale offers and re-open orphaned
+    // assignments, then roll a periodic new offer — same cadence pattern as
+    // artist arrivals.
+    const workshopKeys = new Set(workshops.map((w) => w.key));
+    const reconciled = reconcileCommissions(state.commissions, workshopKeys, state.time.tickCount);
+    let commissions = reconciled.commissions;
+    let commissionsChanged = reconciled.changed;
+    const offer = maybeOfferCommission(commissions, artists, state.time.tickCount);
+    if (offer) {
+      commissions = [...commissions, offer];
+      commissionsChanged = true;
+    }
+
+    const work = progressArtworks(artists, workshops, commissions, inspiration, state.time.tickCount);
     if (work.changed) {
       artists = work.artists;
       artistsChanged = true;
     }
+    if (work.finishedCommissionIds.length > 0) {
+      const finished = new Set(work.finishedCommissionIds);
+      commissions = commissions.filter((c) => !finished.has(c.id));
+      commissionsChanged = true;
+    }
 
     set((s) => ({
-      florins: s.florins + Math.round(florinDelta),
+      florins: s.florins + Math.round(florinDelta) + work.florins,
       inspiration: s.inspiration + Math.round(inspirationDelta),
       prestige: s.prestige + work.prestige,
       population,
       artists: artistsChanged ? artists : s.artists,
       artworks: work.completed.length ? [...s.artworks, ...work.completed] : s.artworks,
+      commissions: commissionsChanged ? commissions : s.commissions,
       time: { tickCount: s.time.tickCount + 1 },
       map: tilesChanged ? { ...s.map, tiles: updatedTiles } : s.map,
     }));

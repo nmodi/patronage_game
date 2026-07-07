@@ -1,4 +1,4 @@
-import type { Artist, ArtistRank, ArtistType, Artwork } from "./types";
+import type { Artist, ArtistRank, ArtistType, Artwork, Commission } from "./types";
 
 // No runtime imports here: artists.check.ts runs this file under plain Node
 // (type-only imports are stripped), mirroring workers.ts.
@@ -35,7 +35,7 @@ const NAMES = [
 
 const SPAWNABLE_TYPES: ArtistType[] = ["painter", "sculptor"];
 
-function pick<T>(items: T[], rng: () => number): T {
+export function pick<T>(items: T[], rng: () => number): T {
   return items[Math.floor(rng() * items.length)]!;
 }
 
@@ -125,7 +125,7 @@ export const RANK_XP: { rank: ArtistRank; xp: number }[] = [
   { rank: "journeyman", xp: 4 },
 ];
 
-const RANK_ORDER: Record<ArtistRank, number> = {
+export const RANK_ORDER: Record<ArtistRank, number> = {
   apprentice: 0,
   journeyman: 1,
   artisan: 2,
@@ -136,7 +136,7 @@ const RANK_ORDER: Record<ArtistRank, number> = {
 };
 
 // ponytail: fixed pool, duplicate titles tolerated — same deal as NAMES.
-const TITLES: Record<ArtistType, string[]> = {
+export const TITLES: Record<ArtistType, string[]> = {
   painter: [
     "Madonna of the Lilies",
     "The Annunciation",
@@ -169,10 +169,10 @@ function gainXp(a: Artist): Pick<Artist, "xp" | "rank"> {
  * Advance every working workshop one month (design doc, Phase 6). An workshop's
  * work is tracked on its founding artist and progresses only while the workshop
  * is active and city inspiration > 0, at 1 + 0.5×(members − 1) months per tick
- * (more artists work faster, with diminishing returns). The founder's rank sets
- * duration and prestige; completion mints an Artwork and grants every member
- * 1 xp (each may rank up). Pure; unchanged artists keep object identity. rng
- * only names artworks.
+ * (more artists work faster, with diminishing returns). The assigned commission
+ * sets duration, name, and payout; completion mints an Artwork, pays the
+ * commission's florins + prestige, and grants every member 1 xp (each may rank
+ * up). Pure; unchanged artists keep object identity.
  */
 // ponytail: work progress rides on the founder artist — 1:1 with the workshop,
 // avoids a new persisted map. Founder = first artist homed at the key; nothing
@@ -180,12 +180,31 @@ function gainXp(a: Artist): Pick<Artist, "xp" | "rank"> {
 export function progressArtworks(
   artists: Artist[],
   workshops: WorkshopSlot[],
+  commissions: Commission[],
   inspiration: number,
-  currentTick: number,
-  rng: () => number = Math.random
-): { artists: Artist[]; completed: Artwork[]; prestige: number; changed: boolean } {
-  const idle = { artists, completed: [], prestige: 0, changed: false };
+  currentTick: number
+): {
+  artists: Artist[];
+  completed: Artwork[];
+  finishedCommissionIds: string[];
+  prestige: number;
+  florins: number;
+  changed: boolean;
+} {
+  const idle = {
+    artists,
+    completed: [],
+    finishedCommissionIds: [],
+    prestige: 0,
+    florins: 0,
+    changed: false,
+  };
   if (inspiration <= 0) return idle;
+
+  const byKey = new Map<string, Commission>();
+  for (const c of commissions) {
+    if (c.workshopKey) byKey.set(c.workshopKey, c);
+  }
 
   const activeKeys = new Set(workshops.filter((at) => at.isActive).map((at) => at.key));
   const founders = new Map<string, Artist>();
@@ -198,24 +217,31 @@ export function progressArtworks(
   const advancing = new Map<string, number>(); // key → new progress
   const completedKeys = new Set<string>();
   const completed: Artwork[] = [];
+  const finishedCommissionIds: string[] = [];
   let prestige = 0;
+  let florins = 0;
 
   for (const [key, founder] of founders) {
     if (founder.workProgress == null || !activeKeys.has(key)) continue;
+    const commission = byKey.get(key);
+    if (!commission) continue; // orphaned progress; reconcile re-opens the offer
     const progress = founder.workProgress + 1 + 0.5 * ((counts.get(key) ?? 1) - 1);
-    if (progress < WORK_DURATION_MONTHS[founder.rank]) {
+    if (progress < commission.durationMonths) {
       advancing.set(key, progress);
       continue;
     }
     completedKeys.add(key);
     completed.push({
       id: crypto.randomUUID(),
-      name: pick(TITLES[founder.type], rng),
+      name: commission.title,
+      requester: commission.requester,
       artistId: founder.id,
       artistType: founder.type,
       completedTick: currentTick,
     });
-    prestige += ARTWORK_PRESTIGE[founder.rank];
+    finishedCommissionIds.push(commission.id);
+    prestige += commission.prestige;
+    florins += commission.florins;
   }
 
   if (advancing.size === 0 && completedKeys.size === 0) return idle;
@@ -232,5 +258,5 @@ export function progressArtworks(
     return a;
   });
 
-  return { artists: next, completed, prestige, changed: true };
+  return { artists: next, completed, finishedCommissionIds, prestige, florins, changed: true };
 }

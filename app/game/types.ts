@@ -31,9 +31,22 @@ export interface Artist {
 export interface Artwork {
   id: string;
   name: string;
+  requester?: string; // who commissioned it; optional for pre-Phase-8 saves
   artistId: string;
   artistType: ArtistType;
   completedTick: number;
+}
+
+export interface Commission {
+  id: string;
+  title: string; // artwork name, chosen at offer time
+  requester: string; // flavor: "The Church", "House Medici", …
+  artistType: ArtistType;
+  durationMonths: number;
+  florins: number; // payout on completion
+  prestige: number;
+  expiresTick: number; // open offer vanishes after this tick
+  workshopKey?: string; // set on assignment; undefined = open offer
 }
 
 export interface BuildingMetadata {

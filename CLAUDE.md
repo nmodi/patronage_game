@@ -13,6 +13,8 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 - Spatial effects are soft: plaza proximity is a flat bonus, never a hard in/out radius.
 - Renaissance = prestige milestone soft ending; play continues afterward.
 
+- After implementing a phase in the design doc, update that phase to note that it is DONE. 
+
 ## Current state vs. doc phases
 
 Phases 0–7 done (placement, tick loop, workers, artists + ranks, artworks, supplier capacity gating) plus graphics G1–G4. Next up: Phase 8 commissions. Roads and houses are player-placed individually — that's intentional current scope (zoning is a later phase; auto-roads were cut).

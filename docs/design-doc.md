@@ -251,7 +251,7 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 
 ## Development Phases
 
-### Done (Phases 0–7)
+### Done (Phases 0–8)
 - **0 Setup** — project scaffold, empty scene, camera
 - **1 Placement** — grid placement, costs, build menu, ghost
 - **2 Time** — tick loop, calendar, pause/speed
@@ -260,10 +260,10 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 - **5 Artists** — arrival, workshops, types
 - **6 Artworks** — work progress, XP ranks, prestige on completion
 - **7 Suppliers** — capacity gating, blocked-artist feedback
+- **8 Commissions** — DONE. System-generated offers (per-month chance, capped open offers, 12-month offer expiry; requesters are flavor strings that skew the florin/prestige mix); one-step assign-to-workshop UI in the right panel; progress per tick; completion mints the named artwork and pays out. Replaced the click-to-start artwork flow. Faction-driven offer generation is a later phase.
 
 ### Next
-- **8 — Commissions** *(core)*: commission data model + offer generation (requester flavor, artist type, material, duration, reward, optional deadline); accept/assign UI (right panel); progress per tick; completion mints a named Masterwork. **Replaces the click-to-start artwork flow.**
-- **9 — Masterwork display**: place completed works in the plaza; permanent inspiration boost.
+- **9 — Masterwork display**: place completed works in the plaza; permanent inspiration boost. Additionally, create a menu to open a gallery for completed works to be viewed in a codex. 
 - **10 — Soft spatial inspiration**: flat efficiency bonus for workshops near a plaza.
 - **11 — Light teaching**: master-in-workshop XP multiplier for co-housed apprentices.
 - **12 — Renaissance milestone**: prestige threshold → festival event + title card; play continues.
