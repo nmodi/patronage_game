@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Coins, Pause, Play, RotateCcw, Settings, Sparkles, Users } from "lucide-react";
+import { Coins, Crown, Pause, Play, RotateCcw, Settings, Sparkles, Users } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
@@ -9,6 +9,7 @@ import { ResourceStat } from "./ResourceStat";
 export function TopBar() {
   const florins = useGameStore((s) => s.florins);
   const inspiration = useGameStore((s) => s.inspiration);
+  const prestige = useGameStore((s) => s.prestige);
   const addFlorins = useGameStore((s) => s.addFlorins);
   const calendarLabel = useGameStore((s) => s.getCalendarLabel());
   const paused = useGameStore((s) => s.paused);
@@ -57,6 +58,7 @@ export function TopBar() {
         <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} />
         <ResourceStat icon={Users} label="Population" value={`${population}/${housing}`} />
         <ResourceStat icon={Sparkles} label="Inspiration" value={inspiration} />
+        <ResourceStat icon={Crown} label="Prestige" value={prestige} />
       </Panel>
 
       <div className="relative flex flex-col items-end gap-2">

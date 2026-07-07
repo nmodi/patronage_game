@@ -15,8 +15,18 @@ export interface Artist {
   id: string;
   name: string;
   type: ArtistType;
-  rank: ArtistRank; // Phase 5 only ever spawns "apprentice"
+  rank: ArtistRank;
   homeTileKey: string; // origin key "x,y" of the hosting atelier
+  xp?: number; // completed artworks; undefined = 0 (pre-Phase-6 saves)
+  workProgress?: number; // fractional months of the atelier's current artwork; set only on the founding artist
+}
+
+export interface Artwork {
+  id: string;
+  name: string;
+  artistId: string;
+  artistType: ArtistType;
+  completedTick: number;
 }
 
 export interface BuildingMetadata {

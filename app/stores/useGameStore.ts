@@ -2,8 +2,9 @@ import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
-import type { Artist, BuildingType } from "~/game/types";
+import type { Artist, Artwork, BuildingType } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { createArtist } from "~/game/artists";
 import { createTick } from "~/game/tick";
 import { BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
 
@@ -37,8 +38,11 @@ export interface TimeState {
 export type GameState = {
   florins: number;
   inspiration: number;
+  prestige: number;
   population: number;
   artists: Artist[];
+  artworks: Artwork[];
+  startArtwork: (tileKey: string) => void;
   addFlorins: (amount: number) => void;
   setFlorins: (value: number) => void;
   setPopulation: (value: number) => void;
@@ -65,8 +69,10 @@ export type GameState = {
 const createInitialState = () => ({
   florins: 500,
   inspiration: 0,
+  prestige: 0,
   population: 0,
   artists: [] as Artist[],
+  artworks: [] as Artwork[],
   hoveredTileKey: null as string | null,
   map: { tiles: {}, selectedBuilding: null } as MapState,
   time: { tickCount: 0 },
@@ -84,6 +90,16 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   tick: createTick(set, get),
 
   resetGame: () => set(createInitialState()),
+
+  startArtwork: (tileKey) =>
+    set((s) => {
+      // Founder = first artist homed at the atelier; work is tracked on them.
+      const founder = s.artists.find((a) => a.homeTileKey === tileKey);
+      if (!founder || founder.workProgress != null) return s;
+      return {
+        artists: s.artists.map((a) => (a === founder ? { ...a, workProgress: 0 } : a)),
+      };
+    }),
 
   togglePause: () =>
     set((s) => ({
@@ -146,11 +162,22 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       }
 
       const newTiles = { ...s.map.tiles };
+      const founders: Artist[] = [];
 
       for (const position of positions) {
         const originX = position.x;
         const originY = position.y;
         const originVector: GridPos = { x: originX, y: originY };
+
+        // Ateliers open with a founding artist. Guard: demolish + rebuild on the
+        // same origin within one tick leaves the old crew homed there (prune lags
+        // a tick) — don't spawn a second founder into an occupied key.
+        if (metadata.artistCapacity != null) {
+          const key = `${originX},${originY}`;
+          if (!s.artists.some((a) => a.homeTileKey === key)) {
+            founders.push(createArtist(key));
+          }
+        }
 
         for (let dx = 0; dx < width; dx += 1) {
           for (let dy = 0; dy < depth; dy += 1) {
@@ -175,6 +202,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       placed = true;
       return {
         florins: s.florins - totalCost,
+        ...(founders.length ? { artists: [...s.artists, ...founders] } : {}),
         map: {
           ...s.map,
           tiles: newTiles,
@@ -253,8 +281,10 @@ export const useGameStore = create<GameState>()(
     partialize: (s) => ({
       florins: s.florins,
       inspiration: s.inspiration,
+      prestige: s.prestige,
       population: s.population,
       artists: s.artists,
+      artworks: s.artworks,
       map: { tiles: s.map.tiles, selectedBuilding: null },
       time: s.time,
       tickInterval: s.tickInterval,
