@@ -87,22 +87,53 @@ export function maybeArriveArtist(
 export const WORK_DURATION_MONTHS: Record<ArtistRank, number> = {
   apprentice: 6,
   journeyman: 5,
+  artisan: 5,
+  virtuoso: 4,
   master: 4,
+  renowned_master: 3,
+  grand_master: 3,
 };
 
 export const ARTWORK_PRESTIGE: Record<ArtistRank, number> = {
   apprentice: 1,
   journeyman: 2,
-  master: 4,
+  artisan: 3,
+  virtuoso: 4,
+  master: 6,
+  renowned_master: 8,
+  grand_master: 10,
 };
 
-// xp = completed works: 2 → journeyman, 5 → master.
+export const RANK_LABEL: Record<ArtistRank, string> = {
+  apprentice: "Apprentice",
+  journeyman: "Journeyman",
+  artisan: "Artisan",
+  virtuoso: "Virtuoso",
+  master: "Master",
+  renowned_master: "Renowned Master",
+  grand_master: "Grand Master",
+};
+
+// xp = completed works, cumulative thresholds with escalating steps so each
+// promotion takes years of game time and top ranks stay rare.
 export const RANK_XP: { rank: ArtistRank; xp: number }[] = [
-  { rank: "master", xp: 5 },
-  { rank: "journeyman", xp: 2 },
+  { rank: "grand_master", xp: 40 },
+  { rank: "renowned_master", xp: 30 },
+  { rank: "master", xp: 22 },
+  { rank: "virtuoso", xp: 15 },
+  { rank: "artisan", xp: 9 },
+  { rank: "journeyman", xp: 4 },
 ];
 
-const RANK_ORDER: Record<ArtistRank, number> = { apprentice: 0, journeyman: 1, master: 2 };
+const RANK_ORDER: Record<ArtistRank, number> = {
+  apprentice: 0,
+  journeyman: 1,
+  artisan: 2,
+  virtuoso: 3,
+  master: 4,
+  renowned_master: 5,
+  grand_master: 6,
+};
 
 // ponytail: fixed pool, duplicate titles tolerated — same deal as NAMES.
 const TITLES: Record<ArtistType, string[]> = {
@@ -123,12 +154,6 @@ const TITLES: Record<ArtistType, string[]> = {
     "Loggia of the Silk Guild",
     "Plan for a Riverside Villa",
     "Facade of San Marco",
-  ],
-  illuminator: [
-    "Book of Hours",
-    "Gilded Psalter",
-    "Herbal of the Apothecaries",
-    "Chronicle of the City",
   ],
 };
 

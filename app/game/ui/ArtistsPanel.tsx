@@ -1,5 +1,5 @@
 import { useGameStore } from "~/stores/useGameStore";
-import { WORK_DURATION_MONTHS } from "~/game/artists";
+import { RANK_LABEL, WORK_DURATION_MONTHS } from "~/game/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materials";
 import { Panel } from "./Panel";
@@ -45,7 +45,7 @@ export function ArtistsPanel() {
                 Bottega di {founder.name}
               </span>
               <span className="text-xs text-stone-500">
-                {capitalize(founder.rank)} {capitalize(founder.type)} · {members.length}{" "}
+                {RANK_LABEL[founder.rank]} {capitalize(founder.type)} · {members.length}{" "}
                 {members.length === 1 ? "artist" : "artists"}
               </span>
               {working ? (

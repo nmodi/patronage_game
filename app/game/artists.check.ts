@@ -159,7 +159,7 @@ const painter = (extra: Partial<Artist> = {}): Artist => ({
   ];
   const out = progressArtworks(crew, [workshop("5,5")], 3, 10, win);
   assert.equal(out.completed.length, 1);
-  assert.equal(out.prestige, 4);
+  assert.equal(out.prestige, 6);
 }
 
 // Rank-ups at the xp thresholds; never demotes below current rank.
@@ -183,6 +183,13 @@ const painter = (extra: Partial<Artist> = {}): Artist => ({
     [workshop("5,5")], 3, 10, win
   );
   assert.equal(lowXpMaster.artists[0]!.rank, "master");
+
+  const grandXp = RANK_XP.find((r) => r.rank === "grand_master")!.xp;
+  const toGrand = progressArtworks(
+    [painter({ rank: "renowned_master", workProgress: WORK_DURATION_MONTHS.renowned_master - 1, xp: grandXp - 1 })],
+    [workshop("5,5")], 3, 10, win
+  );
+  assert.equal(toGrand.artists[0]!.rank, "grand_master");
 }
 
 // Workshop with no artists at all → no progress, no crash.

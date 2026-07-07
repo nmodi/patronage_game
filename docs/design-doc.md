@@ -103,12 +103,13 @@ Commissions arrive from flavorful requesters: **the Church**, **named noble fami
 ## Artists
 
 ### Types
-Painters, Sculptors, Architects, Illuminators *(painters + sculptors spawnable today)*
+Painters, Sculptors, Architects *(painters + sculptors spawnable today)*
 
 ### Progression
-- Ranks: Apprentice → Journeyman → Master, earned by completing works (XP thresholds: 2 → journeyman, 5 → master)
-- Higher rank = faster work, more prestige per completion
-- **Light teaching:** a Master housed in a workshop accelerates the XP gain of co-housed apprentices. One multiplier — no lineage tracking, no death events.
+- Seven ranks, earned by completing works: **Apprentice → Journeyman → Artisan → Virtuoso → Master → Renowned Master → Grand Master** (XP thresholds: 4 / 9 / 15 / 22 / 30 / 40 completed works)
+- Steps escalate — each promotion takes years of game time, and top ranks are rare; an artist's full career runs roughly a dozen game years
+- Higher rank = faster work, more prestige per completion (every tier changes at least one)
+- **Light teaching:** a Master-or-above housed in a workshop accelerates the XP gain of co-housed apprentices. One multiplier — no lineage tracking, no death events.
 
 ### Needs
 - A staffed workshop with a free slot (artists arrive passively when the city has inspiration)
@@ -125,9 +126,9 @@ Suppliers have **limited capacity** — the primary scarcity mechanic:
 |---|---|
 | Pigment Trader | Painters |
 | Marble Supplier | Sculptors |
-| Goldsmith | Illuminators, luxury commissions |
+| Goldsmith | Luxury commissions |
 | Timber Yard | Construction, woodworkers |
-| Paper Mill | Scholars, illuminators |
+| Paper Mill | Scholars, printed works |
 
 Materials are not consumed — a working artist holds a supplier slot until the work completes. When demand exceeds capacity, additional artists of that type cannot work (oldest workshops keep their slots). Players build more suppliers to expand capacity. This forces the core prioritization: which artists get materials?
 
@@ -171,14 +172,13 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 ### Civic / Landmark
 - **Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Masterworks
 - **Cathedral** — unlocks religious commissions
-- **Market** *(built)* — generates Florins
+- **Market** *(built)* — generates Florins for now. **Planned repurpose:** once a richer economy system takes over money-making, the Market becomes an overflow supply source — spend florins there for extra material capacity when your suppliers are at their limits.
 - **Guildhall** — unlocks craft commissions
 - **Palazzo** — unlocks noble-family commissions
 - **Banking House** — enables larger noble commissions, boosts florins
 
 ### Production / Artistic
 - **Workshop** *(built)* — hosts artists; requires workers and material access
-- **Scriptorium** — illuminators
 - **Sculpture Workshop** — sculptors
 
 ### Suppliers (capacity-limited)
@@ -269,6 +269,8 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 - **12 — Renaissance milestone**: prestige threshold → festival event + title card; play continues.
 
 ### Later / stretch
+- Richer economy system (replaces the Market as the primary florin source; Market repurposed as overflow material supply, bought with florins when suppliers are maxed)
+- Seed system — a run seed randomizes the map/terrain, which resources/suppliers are available, the requester roster, and commission offers
 - Neighborhood zoning (zones auto-fill with tier-appropriate housing)
 - Housing tiers 3–5; named family palazzos
 - Expanded building roster (religious, trade, social categories)

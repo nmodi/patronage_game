@@ -8,8 +8,15 @@ export type BuildingType =
   | "city"
   | "decoration";
 
-export type ArtistType = "painter" | "sculptor" | "architect" | "illuminator";
-export type ArtistRank = "apprentice" | "journeyman" | "master";
+export type ArtistType = "painter" | "sculptor" | "architect";
+export type ArtistRank =
+  | "apprentice"
+  | "journeyman"
+  | "artisan"
+  | "virtuoso"
+  | "master"
+  | "renowned_master"
+  | "grand_master";
 
 export interface Artist {
   id: string;
