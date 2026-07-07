@@ -16,9 +16,9 @@ export interface Artist {
   name: string;
   type: ArtistType;
   rank: ArtistRank;
-  homeTileKey: string; // origin key "x,y" of the hosting atelier
+  homeTileKey: string; // origin key "x,y" of the hosting workshop
   xp?: number; // completed artworks; undefined = 0 (pre-Phase-6 saves)
-  workProgress?: number; // fractional months of the atelier's current artwork; set only on the founding artist
+  workProgress?: number; // fractional months of the workshop's current artwork; set only on the founding artist
 }
 
 export interface Artwork {
@@ -54,5 +54,6 @@ export interface BuildingMetadata {
   isHub?: boolean;
   workersRequired?: number;
   maxWorkers?: number;
-  artistCapacity?: number; // how many artists this atelier can host
+  artistCapacity?: number; // how many artists this workshop can host
+  supplies?: { artistType: ArtistType; capacity: number }; // supplier: N concurrently-working artists
 }

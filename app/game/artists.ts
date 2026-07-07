@@ -6,7 +6,7 @@ import type { Artist, ArtistRank, ArtistType, Artwork } from "./types";
 export const ARTIST_ARRIVAL_CHANCE = 0.1; // per month, when a slot is open
 export const ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2;
 
-export interface AtelierSlot {
+export interface WorkshopSlot {
   key: string; // origin key "x,y"
   capacity: number;
   isActive: boolean;
@@ -39,7 +39,7 @@ function pick<T>(items: T[], rng: () => number): T {
   return items[Math.floor(rng() * items.length)]!;
 }
 
-/** Mint a fresh apprentice homed at the given atelier origin key. */
+/** Mint a fresh apprentice homed at the given workshop origin key. */
 export function createArtist(homeTileKey: string, rng: () => number = Math.random): Artist {
   return {
     id: crypto.randomUUID(),
@@ -52,13 +52,13 @@ export function createArtist(homeTileKey: string, rng: () => number = Math.rando
 
 /**
  * Passive artist arrival (design doc, Phase 5). Each month, if the city has any
- * inspiration and at least one active atelier with a free slot, there's a
- * chance one apprentice arrives, bound to the first open atelier by key sort
+ * inspiration and at least one active workshop with a free slot, there's a
+ * chance one apprentice arrives, bound to the first open workshop by key sort
  * (same deterministic tiebreak as allocateWorkers). Returns null when nothing
  * arrives. rng is injectable for the self-test.
  */
 export function maybeArriveArtist(
-  ateliers: AtelierSlot[],
+  workshops: WorkshopSlot[],
   artists: Artist[],
   inspiration: number,
   currentTick: number,
@@ -71,7 +71,7 @@ export function maybeArriveArtist(
     counts.set(a.homeTileKey, (counts.get(a.homeTileKey) ?? 0) + 1);
   }
 
-  const open = ateliers
+  const open = workshops
     .filter((at) => {
       const isCooledDown = currentTick - at.builtTick >= ARTIST_ARRIVAL_COOLDOWN_MONTHS;
       return isCooledDown && at.isActive && (counts.get(at.key) ?? 0) < at.capacity;
@@ -141,20 +141,20 @@ function gainXp(a: Artist): Pick<Artist, "xp" | "rank"> {
 }
 
 /**
- * Advance every working atelier one month (design doc, Phase 6). An atelier's
- * work is tracked on its founding artist and progresses only while the atelier
+ * Advance every working workshop one month (design doc, Phase 6). An workshop's
+ * work is tracked on its founding artist and progresses only while the workshop
  * is active and city inspiration > 0, at 1 + 0.5×(members − 1) months per tick
  * (more artists work faster, with diminishing returns). The founder's rank sets
  * duration and prestige; completion mints an Artwork and grants every member
  * 1 xp (each may rank up). Pure; unchanged artists keep object identity. rng
  * only names artworks.
  */
-// ponytail: work progress rides on the founder artist — 1:1 with the atelier,
+// ponytail: work progress rides on the founder artist — 1:1 with the workshop,
 // avoids a new persisted map. Founder = first artist homed at the key; nothing
 // removes a single artist, so array order keeps that stable.
 export function progressArtworks(
   artists: Artist[],
-  ateliers: AtelierSlot[],
+  workshops: WorkshopSlot[],
   inspiration: number,
   currentTick: number,
   rng: () => number = Math.random
@@ -162,7 +162,7 @@ export function progressArtworks(
   const idle = { artists, completed: [], prestige: 0, changed: false };
   if (inspiration <= 0) return idle;
 
-  const activeKeys = new Set(ateliers.filter((at) => at.isActive).map((at) => at.key));
+  const activeKeys = new Set(workshops.filter((at) => at.isActive).map((at) => at.key));
   const founders = new Map<string, Artist>();
   const counts = new Map<string, number>();
   for (const a of artists) {

@@ -4,7 +4,8 @@ import type { GameState } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_POPULATION_CAP } from "~/game/constants";
 import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "~/game/workers";
-import { maybeArriveArtist, progressArtworks, type AtelierSlot } from "~/game/artists";
+import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "~/game/artists";
+import { getSupply } from "~/game/materials";
 
 type StoreSet = Parameters<StateCreator<GameState>>[0];
 type StoreGet = Parameters<StateCreator<GameState>>[1];
@@ -42,6 +43,26 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
       }
     }
 
+    // Material gating (Phase 7): working workshops beyond supply capacity stall —
+    // same visual and progress freeze as losing workers. Oldest workshops keep
+    // their materials. ponytail: blocked folds into tile.isActive; side effect:
+    // blocked workshops also stop attracting arrivals (maybeArriveArtist checks
+    // the same flag).
+    const supply = getSupply(updatedTiles, state.artists);
+    const blockedOrigins = new Set<string>();
+    for (const a of state.artists) {
+      if (a.workProgress == null) continue;
+      const s = supply[a.type];
+      if (s && !s.allowed.has(a.homeTileKey)) blockedOrigins.add(a.homeTileKey);
+    }
+    if (blockedOrigins.size > 0) {
+      for (const [key, tile] of Object.entries(updatedTiles)) {
+        if (!tile.isActive || !blockedOrigins.has(`${tile.origin.x},${tile.origin.y}`)) continue;
+        updatedTiles[key] = { ...tile, isActive: false };
+        tilesChanged = true;
+      }
+    }
+
     // Population drifts one per month toward min(housing, amenities). Staffed
     // service buildings raise the ceiling past the unserviced base — the doc's
     // "services unlock population thresholds", no supply chains.
@@ -69,37 +90,37 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
       inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
     }
 
-    // Artists live in ateliers on top of the worker pool. Prune any whose home
-    // atelier is gone (covers demolition, one-tick lag — no removeTile change),
-    // then roll a passive monthly arrival into a cooled-down active atelier
+    // Artists live in workshops on top of the worker pool. Prune any whose home
+    // workshop is gone (covers demolition, one-tick lag — no removeTile change),
+    // then roll a passive monthly arrival into a cooled-down active workshop
     // with a free slot.
     const inspiration = state.inspiration + Math.round(inspirationDelta);
-    const isAtelier = (key: string) => {
+    const isWorkshop = (key: string) => {
       const tile = updatedTiles[key];
       return !!tile?.isOrigin && BUILDING_METADATA_BY_ID[tile.buildingId]?.artistCapacity != null;
     };
-    let artists = state.artists.filter((a) => isAtelier(a.homeTileKey));
+    let artists = state.artists.filter((a) => isWorkshop(a.homeTileKey));
     let artistsChanged = artists.length !== state.artists.length;
 
-    const ateliers: AtelierSlot[] = [];
+    const workshops: WorkshopSlot[] = [];
     for (const tile of Object.values(updatedTiles)) {
       if (!tile.isOrigin) continue;
       const capacity = BUILDING_METADATA_BY_ID[tile.buildingId]?.artistCapacity;
       if (capacity == null) continue;
-      ateliers.push({
+      workshops.push({
         key: `${tile.position.x},${tile.position.y}`,
         capacity,
         isActive: tile.isActive,
         builtTick: tile.builtTick ?? 0,
       });
     }
-    const arrival = maybeArriveArtist(ateliers, artists, inspiration, state.time.tickCount);
+    const arrival = maybeArriveArtist(workshops, artists, inspiration, state.time.tickCount);
     if (arrival) {
       artists = [...artists, arrival];
       artistsChanged = true;
     }
 
-    const work = progressArtworks(artists, ateliers, inspiration, state.time.tickCount);
+    const work = progressArtworks(artists, workshops, inspiration, state.time.tickCount);
     if (work.changed) {
       artists = work.artists;
       artistsChanged = true;

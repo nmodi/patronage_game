@@ -7,6 +7,7 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [5, 19, "plaza"], // secondary plaza (4x4) in the residential quarter
   [19, 12, "market"], // 4x4
   [19, 8, "pigment_trader"], // 2x2
+  [23, 8, "marble_supplier"], // 2x2
   [19, 17, "workshop"], // 3x2
   [24, 12, "bakery"], // 2x2
   [19, 19, "tavern"], // 3x2

@@ -7,8 +7,8 @@ import { Panel } from "./Panel";
 
 const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }> = [
   { type: "residential", label: "Housing", icon: Home },
-  { type: "artist", label: "Ateliers", icon: Palette },
-  { type: "materials", label: "Workshops", icon: Hammer },
+  { type: "artist", label: "Workshops", icon: Palette },
+  { type: "materials", label: "Supplies", icon: Hammer },
   { type: "service", label: "Services", icon: Wheat },
   { type: "city", label: "Civic", icon: Landmark },
   { type: "decoration", label: "Decorations", icon: TreePine },

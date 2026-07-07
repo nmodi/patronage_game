@@ -34,7 +34,7 @@ export const BUILDING_TYPES = [
   {
     type: "artist",
     id: "workshop",
-    name: "Atelier",
+    name: "Workshop",
     baseCost: 100,
     size: { width: 2.6, height: 1.6, depth: 1.7 },
     color: "#c9a876",
@@ -83,6 +83,19 @@ export const BUILDING_TYPES = [
     footprint: { width: 2, depth: 2 },
     workersRequired: 2,
     maxWorkers: 4,
+    supplies: { artistType: "painter", capacity: 3 },
+  },
+  {
+    type: "materials",
+    id: "marble_supplier",
+    name: "Marble Supplier",
+    baseCost: 250,
+    size: { width: 1.8, height: 1.2, depth: 1.8 },
+    color: "#c8c2b6",
+    footprint: { width: 2, depth: 2 },
+    workersRequired: 2,
+    maxWorkers: 4,
+    supplies: { artistType: "sculptor", capacity: 2 },
   },
   {
     type: "materials",

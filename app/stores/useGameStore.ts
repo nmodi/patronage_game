@@ -5,6 +5,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 import type { Artist, Artwork, BuildingType } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { createArtist } from "~/game/artists";
+import { getSupply } from "~/game/materials";
 import { createTick } from "~/game/tick";
 import { BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
 
@@ -93,9 +94,11 @@ const initializer: StateCreator<GameState> = (set, get) => ({
 
   startArtwork: (tileKey) =>
     set((s) => {
-      // Founder = first artist homed at the atelier; work is tracked on them.
+      // Founder = first artist homed at the workshop; work is tracked on them.
       const founder = s.artists.find((a) => a.homeTileKey === tileKey);
       if (!founder || founder.workProgress != null) return s;
+      const supply = getSupply(s.map.tiles, s.artists)[founder.type];
+      if (supply && supply.inUse >= supply.capacity) return s; // at capacity, or no supplier (0 >= 0)
       return {
         artists: s.artists.map((a) => (a === founder ? { ...a, workProgress: 0 } : a)),
       };
@@ -168,7 +171,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         const originY = position.y;
         const originVector: GridPos = { x: originX, y: originY };
 
-        // Ateliers open with a founding artist. Guard: demolish + rebuild on the
+        // Workshops open with a founding artist. Guard: demolish + rebuild on the
         // same origin within one tick leaves the old crew homed there (prune lags
         // a tick) — don't spawn a second founder into an occupied key.
         if (metadata.artistCapacity != null) {

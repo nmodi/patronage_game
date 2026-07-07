@@ -99,6 +99,19 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     fit: 0.75,
     randomRotate: "quarter",
   },
+  // Marble yard: low flat-roofed cutting shed, rough blocks and a finished
+  // column in the yard beside it.
+  marble_supplier: {
+    parts: [
+      { file: TOWN + "wall-block.glb", position: [-0.4, 0, -0.3] },
+      { file: TOWN + "roof-flat.glb", position: [-0.4, 1, -0.3] },
+      { file: TOWN + "rock-large.glb", position: [0.5, 0, 0.5], scale: 0.55 },
+      { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.7], scale: 0.7 },
+      { file: TOWN + "pillar-stone.glb", position: [0.65, 0, -0.35], scale: 0.6 },
+    ],
+    fit: 0.8,
+    randomRotate: "quarter",
+  },
   // Long tavern hall: two bays under one continuous gable roof (3x2 footprint).
   tavern: {
     parts: [
