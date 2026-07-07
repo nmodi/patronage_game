@@ -3,7 +3,7 @@ import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
 import type { Artist, Artwork, BuildingType } from "~/game/types";
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { createArtist } from "~/game/artists";
 import { createTick } from "~/game/tick";
 import { BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
@@ -129,9 +129,8 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         return s;
       }
       const type = metadata.type;
-      const { baseCost: cost, footprint } = metadata;
-      const width = footprint?.width ?? 1;
-      const depth = footprint?.depth ?? 1;
+      const { baseCost: cost } = metadata;
+      const { width, depth } = rotatedFootprint(metadata, rotation);
       const workersRequired = metadata.workersRequired ?? 0;
       const batchCells = new Set<string>();
 
@@ -222,8 +221,9 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
       const originX = tile.origin.x;
       const originY = tile.origin.y;
-      const width = metadata?.footprint.width ?? 1;
-      const depth = metadata?.footprint.depth ?? 1;
+      const { width, depth } = metadata
+        ? rotatedFootprint(metadata, tile.rotation)
+        : { width: 1, depth: 1 };
 
       for (let dx = 0; dx < width; dx += 1) {
         for (let dy = 0; dy < depth; dy += 1) {
@@ -274,7 +274,9 @@ const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    version: 1,
+    // v2: building footprints rescaled (cottage 1x1 -> 2x2 etc.) — v1 tile maps
+    // would overlap under the new sizes, so old saves are discarded.
+    version: 2,
     // SSR: hydrate manually from the game route's client effect
     skipHydration: true,
     storage: createJSONStorage(() => (isDemo() ? noopStorage : localStorage)),

@@ -1,11 +1,11 @@
-# Rinascimento — Game Design Document
+# Patronage — Game Design Document
 *Seed prompt for coding agent / implementation reference*
 
 ---
 
 ## Overview
 
-**Rinascimento** is a cozy city builder set in Renaissance Italy (1400s–1500s). The player acts as a patron-ruler whose goal is to create a city where art and culture can flourish. It is not a survival game, not a logistics puzzle, and not a pathfinding optimizer. The core loop is about **managing relationships, priorities, and resources** to commission and produce great works of art.
+**Patronage** is a cozy city builder set in Renaissance Italy (1400s–1500s). The player acts as a patron-ruler whose goal is to create a city where art and culture can flourish. It is not a survival game, not a logistics puzzle, and not a pathfinding optimizer. The core loop is about **managing relationships, priorities, and resources** to commission and produce great works of art.
 
 The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, warm and inviting. The UI reference is the attached mockup: faction panel on the left, active commissions on the right, resource bar across the top, building palette across the bottom, and the city occupying the center.
 

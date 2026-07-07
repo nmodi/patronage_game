@@ -28,6 +28,14 @@ export function BabylonCanvas() {
     // preserveDrawingBuffer so canvas readback (screenshots) works
     const engine = new Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
     const scene = new Scene(engine);
+    // ponytail: dev-only hooks for headless screenshot verification (see memory: dev-verification-workflow)
+    if (import.meta.env.DEV) {
+      (window as unknown as { __scene: Scene }).__scene = scene;
+      // &synccompile: block on shader compiles so virtual-time captures don't miss meshes
+      if (window.location.search.includes("synccompile")) {
+        engine.getCaps().parallelShaderCompile = undefined;
+      }
+    }
     // ponytail: Scene defaults to preventDefault()-ing pointerdown/up, which suppresses the
     // browser's compat mousedown/mouseup events that placement.ts listens for on window.
     scene.preventDefaultOnPointerDown = false;

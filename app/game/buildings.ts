@@ -6,9 +6,9 @@ export const BUILDING_TYPES = [
     id: "town_center_plaza",
     name: "Town Center Plaza",
     baseCost: 600,
-    size: { width: 4.9, height: 0.05, depth: 4.9 },
+    size: { width: 5.9, height: 0.05, depth: 5.9 },
     color: "#d9b877",
-    footprint: { width: 5, depth: 5 },
+    footprint: { width: 6, depth: 6 },
     generates: {
       inspiration: 8,
     },
@@ -21,9 +21,9 @@ export const BUILDING_TYPES = [
     id: "plaza",
     name: "Plaza",
     baseCost: 250,
-    size: { width: 2.9, height: 0.05, depth: 2.9 },
+    size: { width: 3.9, height: 0.05, depth: 3.9 },
     color: "#d9b877",
-    footprint: { width: 3, depth: 3 },
+    footprint: { width: 4, depth: 4 },
     generates: {
       inspiration: 4,
     },
@@ -36,9 +36,9 @@ export const BUILDING_TYPES = [
     id: "workshop",
     name: "Atelier",
     baseCost: 100,
-    size: { width: 1, height: 1, depth: 1 },
+    size: { width: 2.6, height: 1.6, depth: 1.7 },
     color: "#c9a876",
-    footprint: { width: 1, depth: 1 },
+    footprint: { width: 3, depth: 2 },
     workersRequired: 2,
     maxWorkers: 4,
     artistCapacity: 2,
@@ -48,9 +48,9 @@ export const BUILDING_TYPES = [
     id: "cottage",
     name: "Cottage",
     baseCost: 150,
-    size: { width: 0.85, height: 0.8, depth: 0.85 },
+    size: { width: 1.7, height: 1.4, depth: 1.7 },
     color: "#c1694f",
-    footprint: { width: 1, depth: 1 },
+    footprint: { width: 2, depth: 2 },
     // generates: {
     //   income: 5,
     // },
@@ -63,9 +63,9 @@ export const BUILDING_TYPES = [
     id: "townhouse",
     name: "Townhouse",
     baseCost: 400,
-    size: { width: 0.85, height: 1.2, depth: 0.85 },
+    size: { width: 1.7, height: 2.2, depth: 1.7 },
     color: "#a8503a",
-    footprint: { width: 1, depth: 1 },
+    footprint: { width: 2, depth: 2 },
     // generates: {
     //   income: 5,
     // },
@@ -78,9 +78,9 @@ export const BUILDING_TYPES = [
     id: "pigment_trader",
     name: "Pigment Trader",
     baseCost: 200,
-    size: { width: 0.8, height: 1.5, depth: 0.8 },
+    size: { width: 1.6, height: 2.4, depth: 1.6 },
     color: "#b98d54",
-    footprint: { width: 1, depth: 1 },
+    footprint: { width: 2, depth: 2 },
     workersRequired: 2,
     maxWorkers: 4,
   },
@@ -89,9 +89,9 @@ export const BUILDING_TYPES = [
     id: "market",
     name: "Market",
     baseCost: 200,
-    size: { width: 1.8, height: 0.8, depth: 1.8 },
+    size: { width: 3.8, height: 0.9, depth: 3.8 },
     color: "#a9432f",
-    footprint: { width: 2, depth: 2 },
+    footprint: { width: 4, depth: 4 },
     generates: {
       income: 10,
     },
@@ -103,9 +103,9 @@ export const BUILDING_TYPES = [
     id: "bakery",
     name: "Bakery",
     baseCost: 150,
-    size: { width: 0.8, height: 0.9, depth: 0.8 },
+    size: { width: 1.6, height: 1.5, depth: 1.6 },
     color: "#d9a066",
-    footprint: { width: 1, depth: 1 },
+    footprint: { width: 2, depth: 2 },
     amenities: 20,
     workersRequired: 1,
     maxWorkers: 2,
@@ -115,9 +115,9 @@ export const BUILDING_TYPES = [
     id: "tavern",
     name: "Tavern",
     baseCost: 200,
-    size: { width: 0.9, height: 1, depth: 0.9 },
+    size: { width: 2.6, height: 1.6, depth: 1.7 },
     color: "#8c5a3c",
-    footprint: { width: 1, depth: 1 },
+    footprint: { width: 3, depth: 2 },
     amenities: 25,
     workersRequired: 1,
     maxWorkers: 2,
@@ -143,6 +143,14 @@ export const BUILDING_TYPES = [
 ] as const satisfies ReadonlyArray<BuildingMetadata>;
 
 export type BuildingId = (typeof BUILDING_TYPES)[number]["id"];
+
+/** Footprint in grid space; odd quarter turns swap width/depth for rectangular buildings. */
+export function rotatedFootprint(metadata: BuildingMetadata, rotation?: number) {
+  const footprint = metadata.footprint ?? { width: 1, depth: 1 };
+  return (rotation ?? 0) % 2 === 1
+    ? { width: footprint.depth, depth: footprint.width }
+    : footprint;
+}
 
 export const BUILDING_METADATA_BY_ID = BUILDING_TYPES.reduce(
   (acc, metadata) => {

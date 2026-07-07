@@ -6,7 +6,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import type { BuildingMetadata, BuildingType } from "~/game/types";
 import type { Tile } from "~/stores/useGameStore";
@@ -22,8 +22,13 @@ const GRID_ALPHA_IDLE = 0;
 const GRID_ALPHA_PLACING = 0.8;
 const GRID_COLOR = "#ffffff";
 
-export function gridToWorld(gridX: number, gridY: number, metadata?: BuildingMetadata) {
-  const footprint = metadata?.footprint ?? { width: 1, depth: 1 };
+export function gridToWorld(
+  gridX: number,
+  gridY: number,
+  metadata?: BuildingMetadata,
+  rotation?: number
+) {
+  const footprint = metadata ? rotatedFootprint(metadata, rotation) : { width: 1, depth: 1 };
   const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
   const xOffset = ((footprint.width - 1) * CELL_SIZE) / 2;
   const zOffset = ((footprint.depth - 1) * CELL_SIZE) / 2;
@@ -106,7 +111,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     mesh.material = getMaterial(metadata.color, metadata.type, !tile.isActive);
     mesh.receiveShadows = true;
     if (metadata.type !== "road") shadowGenerator.addShadowCaster(mesh);
-    const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
+    const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
     mesh.position.set(x, y, z);
     return mesh;
   }
@@ -114,13 +119,13 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   function createEntry(tile: Tile, metadata: BuildingMetadata): TileMeshEntry {
     const model = instantiateBuilding(
       tile.buildingId,
-      metadata.footprint ?? { width: 1, depth: 1 },
+      rotatedFootprint(metadata, tile.rotation),
       tile.position,
       scene,
       tile.rotation
     );
     if (model) {
-      const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
+      const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
       model.root.position.x = x;
       model.root.position.z = z;
       if (metadata.type === "road") model.root.position.y += 0.001;
@@ -198,7 +203,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         const marker = MeshBuilder.CreatePlane(`marker-${key}`, { width: 0.35, height: 0.18 }, scene);
         marker.material = markerMaterial;
         marker.isPickable = false;
-        const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata);
+        const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
         marker.position.set(x, markerHeight(entry, metadata), z);
         marker.billboardMode = 7; // BILLBOARDMODE_ALL
         entry.marker = marker;

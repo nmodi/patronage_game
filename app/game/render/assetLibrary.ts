@@ -30,6 +30,8 @@ type ModelDef = {
   variants?: Part[];
   /** Fraction of the footprint the composed bounding box fills. Default 0.9. */
   fit?: number;
+  /** Scale x/z independently to fill both footprint axes (rectangular prefabs). */
+  stretch?: boolean;
   /** "quarter" = random 90° steps, "free" = any angle. Seeded by grid position. */
   randomRotate?: "quarter" | "free";
   randomScale?: [number, number];
@@ -63,7 +65,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "roof-gable.glb", position: [0, 1, 0] },
     ],
-    fit: 0.82,
+    fit: 0.75,
     randomRotate: "quarter",
   },
   townhouse: {
@@ -73,17 +75,20 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "banner-red.glb", position: [0, 1, 0] },
       { file: TOWN + "roof-gable.glb", position: [0, 2, 0] },
     ],
-    fit: 0.82,
+    fit: 0.65,
     randomRotate: "quarter",
   },
+  // Long workshop hall: two bays under a flat roof, chimney on the far bay (3x2 footprint).
   workshop: {
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
-      { file: TOWN + "roof-flat.glb", position: [0, 1, 0] },
-      { file: TOWN + "chimney.glb", position: [0, 0.55, 0] },
+      { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
+      { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
+      { file: TOWN + "roof-flat.glb", position: [-0.5, 1, 0] },
+      { file: TOWN + "roof-flat.glb", position: [0.5, 1, 0] },
+      { file: TOWN + "chimney.glb", position: [0.5, 0.55, 0] },
     ],
-    fit: 0.82,
-    randomRotate: "quarter",
+    fit: 0.85,
+    stretch: true,
   },
   pigment_trader: {
     parts: [
@@ -91,36 +96,65 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0] },
       { file: TOWN + "roof-point.glb", position: [0, 1, 0] },
     ],
-    fit: 0.82,
+    fit: 0.75,
     randomRotate: "quarter",
   },
+  // Long tavern hall: two bays under one continuous gable roof (3x2 footprint).
+  tavern: {
+    parts: [
+      { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
+      { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
+      { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI },
+      { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0] },
+      { file: TOWN + "banner-red.glb", position: [0.5, 0.25, 0] },
+    ],
+    fit: 0.85,
+    stretch: true,
+  },
+  bakery: {
+    parts: [
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
+      { file: TOWN + "roof-gable.glb", position: [0, 1, 0] },
+      { file: TOWN + "chimney.glb", position: [0, 0.55, 0] },
+    ],
+    fit: 0.75,
+    randomRotate: "quarter",
+  },
+  // Open market square: stalls sit small on a paved pad (the paving sets the
+  // bounding box, so the stalls read as furniture, not as the building mass).
   market: {
     parts: [
-      { file: TOWN + "stall-red.glb", position: [-0.5, 0, -0.5], rotationY: Math.PI },
-      { file: TOWN + "stall-green.glb", position: [0.5, 0, -0.5], rotationY: Math.PI },
-      { file: TOWN + "stall.glb", position: [-0.5, 0, 0.5] },
-      { file: TOWN + "cart.glb", position: [0.5, 0, 0.5], rotationY: Math.PI / 2 },
+      ...paving(4),
+      { file: TOWN + "stall-red.glb", position: [-1, 0.02, -1], rotationY: Math.PI, scale: 0.8 },
+      { file: TOWN + "stall-green.glb", position: [1, 0.02, -1], rotationY: Math.PI, scale: 0.8 },
+      { file: TOWN + "stall.glb", position: [-1, 0.02, 1], scale: 0.8 },
+      { file: TOWN + "cart.glb", position: [1, 0.02, 1], rotationY: Math.PI / 2, scale: 0.8 },
+      { file: TOWN + "lantern.glb", position: [0, 0.02, 0], scale: 0.8 },
     ],
-    fit: 0.95,
+    fit: 1,
   },
   town_center_plaza: {
     // Fountain with a central column (mockup: obelisk rising from the water);
     // the rest stays open paving so future citizens/stalls have room.
     parts: [
-      ...paving(5),
-      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 1.2 },
-      { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 1.6 },
+      ...paving(6),
+      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 1.4 },
+      { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 2 },
+      { file: TOWN + "lantern.glb", position: [-2.4, 0.02, -2.4] },
+      { file: TOWN + "lantern.glb", position: [2.4, 0.02, -2.4] },
+      { file: TOWN + "lantern.glb", position: [-2.4, 0.02, 2.4] },
+      { file: TOWN + "lantern.glb", position: [2.4, 0.02, 2.4] },
     ],
     fit: 1,
   },
   plaza: {
     parts: [
-      ...paving(3),
-      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.7 },
-      { file: TOWN + "lantern.glb", position: [-1.35, 0.02, -1.35] },
-      { file: TOWN + "lantern.glb", position: [1.35, 0.02, -1.35] },
-      { file: TOWN + "lantern.glb", position: [-1.35, 0.02, 1.35] },
-      { file: TOWN + "lantern.glb", position: [1.35, 0.02, 1.35] },
+      ...paving(4),
+      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.9 },
+      { file: TOWN + "lantern.glb", position: [-1.55, 0.02, -1.55] },
+      { file: TOWN + "lantern.glb", position: [1.55, 0.02, -1.55] },
+      { file: TOWN + "lantern.glb", position: [-1.55, 0.02, 1.55] },
+      { file: TOWN + "lantern.glb", position: [1.55, 0.02, 1.55] },
     ],
     fit: 1,
   },
@@ -297,27 +331,38 @@ export function instantiateBuilding(
     return null;
   }
 
+  // Rotate before fitting so rectangular prefabs fill the (rotated) footprint
+  // the caller passes in — the bounding box below already reflects the turn.
+  if (rotation != null) root.rotation.y = (Math.PI / 2) * rotation;
+  else if (def.randomRotate === "quarter") root.rotation.y = (Math.PI / 2) * (hash % 4);
+  else if (def.randomRotate === "free") root.rotation.y = (hash / 4096) * Math.PI * 2;
+
   // Fit the composed bounding box into the footprint, base at y=0.
   root.computeWorldMatrix(true);
   const { min, max } = root.getHierarchyBoundingVectors(true);
   const extentX = max.x - min.x;
   const extentZ = max.z - min.z;
   const fit = def.fit ?? 0.9;
-  let scale =
-    Math.min(
-      (footprint.width * CELL_SIZE * fit) / extentX,
-      (footprint.depth * CELL_SIZE * fit) / extentZ
-    ) || 1;
+  const scaleX = (footprint.width * CELL_SIZE * fit) / extentX || 1;
+  const scaleZ = (footprint.depth * CELL_SIZE * fit) / extentZ || 1;
+
+  if (def.stretch) {
+    // Fill both footprint axes. Extents are world-space (post-rotation), but
+    // scaling is local, so odd quarter turns swap which axis each scale drives.
+    const scaleY = Math.min(scaleX, scaleZ);
+    const odd = Math.round(root.rotation.y / (Math.PI / 2)) % 2 !== 0;
+    root.scaling.set(odd ? scaleZ : scaleX, scaleY, odd ? scaleX : scaleZ);
+    root.position.y = -min.y * scaleY;
+    return { root, meshes, height: (max.y - min.y) * scaleY };
+  }
+
+  let scale = Math.min(scaleX, scaleZ);
   if (def.randomScale) {
     const [lo, hi] = def.randomScale;
     scale *= lo + (hash / 4096) * (hi - lo);
   }
   root.scaling.setAll(scale);
   root.position.y = -min.y * scale;
-
-  if (rotation != null) root.rotation.y = (Math.PI / 2) * rotation;
-  else if (def.randomRotate === "quarter") root.rotation.y = (Math.PI / 2) * (hash % 4);
-  else if (def.randomRotate === "free") root.rotation.y = (hash / 4096) * Math.PI * 2;
 
   return { root, meshes, height: (max.y - min.y) * scale };
 }

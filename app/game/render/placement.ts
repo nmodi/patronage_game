@@ -8,7 +8,7 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { useGameStore, type GameState, type GridPos } from "~/stores/useGameStore";
 import { instantiateBuilding, overrideMaterials, type BuildingModel } from "./assetLibrary";
@@ -36,6 +36,7 @@ export function createPlacementController(scene: Scene) {
   let ghostModelBaseY = 0;
   let ghostBuildingId: BuildingId | null = null;
   let ghostRotation: number | null = null; // quarter turns; null = seeded random
+  let ghostBuiltRotation: number | null = null; // rotation the current ghost was fitted with
   let ghostIsValid = true;
   let pendingClick = false;
   let roadAnchor: GridPos | null = null;
@@ -66,25 +67,30 @@ export function createPlacementController(scene: Scene) {
       return;
     }
     if (event.key.toLowerCase() === "r" && ghostModel) {
+      // Recreated next frame by ensureGhost: rectangular footprints swap on odd
+      // turns, so the model needs a refit, not just a spin.
       ghostRotation = ((ghostRotation ?? 0) + 1) % 4;
-      ghostModel.root.rotation.y = (Math.PI / 2) * ghostRotation;
     }
   }
   window.addEventListener("mousedown", handleMouseDown);
   window.addEventListener("keydown", handleKeyDown);
 
   function ensureGhost(buildingId: BuildingId) {
-    if (ghostBuildingId === buildingId && (ghostBox || ghostModel)) return true;
+    if (ghostBuildingId === buildingId && ghostBuiltRotation === ghostRotation && (ghostBox || ghostModel)) {
+      return true;
+    }
     clearGhost();
     ghostBuildingId = buildingId;
+    ghostBuiltRotation = ghostRotation;
     const metadata = BUILDING_METADATA_BY_ID[buildingId];
     if (!metadata) return false;
 
     const model = instantiateBuilding(
       buildingId,
-      metadata.footprint ?? { width: 1, depth: 1 },
+      rotatedFootprint(metadata, ghostRotation ?? undefined),
       { x: 0, y: 0 },
-      scene
+      scene,
+      ghostRotation ?? undefined
     );
     if (model) {
       overrideMaterials(model, validMat);
@@ -262,7 +268,7 @@ export function createPlacementController(scene: Scene) {
     roadAnchor = null;
     if (!ensureGhost(selectedBuilding)) return;
 
-    const footprint = metadata.footprint ?? { width: 1, depth: 1 };
+    const footprint = rotatedFootprint(metadata, ghostRotation ?? undefined);
     const fitsFootprint =
       currentPosition.x + footprint.width <= GRID_SIZE && currentPosition.y + footprint.depth <= GRID_SIZE;
     let areaFree = false;

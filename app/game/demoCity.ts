@@ -2,29 +2,30 @@ import { useGameStore } from "~/stores/useGameStore";
 import type { BuildingId } from "./buildings";
 
 // ponytail: dev-only visual test scene (load /?demo). Not reachable in normal play.
-const LAYOUT: Array<[number, number, BuildingId]> = [
-  [9, 9, "town_center_plaza"], // 5x5, occupies cells 9-13
-  [5, 12, "plaza"], // secondary plaza (3x3) in the residential quarter
-  [15, 9, "market"],
-  [15, 7, "pigment_trader"],
-  [15, 12, "workshop"],
-  [17, 9, "bakery"],
-  [17, 10, "tavern"],
-  [6, 7, "cottage"],
-  [7, 7, "cottage"],
-  [6, 8, "cottage"],
-  [7, 8, "cottage"],
-  [8, 7, "cottage"],
-  [6, 10, "townhouse"],
-  [7, 10, "townhouse"],
-  [6, 11, "townhouse"],
+const LAYOUT: Array<[number, number, BuildingId, number?]> = [
+  [12, 12, "town_center_plaza"], // 6x6, occupies cells 12-17
+  [5, 19, "plaza"], // secondary plaza (4x4) in the residential quarter
+  [19, 12, "market"], // 4x4
+  [19, 8, "pigment_trader"], // 2x2
+  [19, 17, "workshop"], // 3x2
+  [24, 12, "bakery"], // 2x2
+  [19, 19, "tavern"], // 3x2
+  [23, 19, "tavern", 1], // rotated: 2x3
+  [5, 9, "cottage"], // 2x2 each
+  [8, 9, "cottage"],
+  [5, 12, "cottage"],
+  [8, 12, "cottage"],
+  [5, 15, "townhouse"],
+  [8, 15, "townhouse"],
   // road ring around the town center plaza
-  [8, 8, "road"], [8, 9, "road"], [8, 10, "road"], [8, 11, "road"], [8, 12, "road"], [8, 13, "road"], [8, 14, "road"],
-  [9, 8, "road"], [10, 8, "road"], [11, 8, "road"], [12, 8, "road"], [13, 8, "road"], [14, 8, "road"],
-  [14, 9, "road"], [14, 10, "road"], [14, 11, "road"], [14, 12, "road"], [14, 13, "road"], [14, 14, "road"],
-  [9, 14, "road"], [10, 14, "road"], [11, 14, "road"], [12, 14, "road"], [13, 14, "road"],
-  [5, 7, "tree"], [5, 10, "tree"], [9, 6, "tree"], [16, 6, "tree"],
-  [17, 11, "tree"], [9, 16, "tree"], [11, 16, "tree"], [4, 10, "tree"],
+  [11, 11, "road"], [11, 12, "road"], [11, 13, "road"], [11, 14, "road"], [11, 15, "road"], [11, 16, "road"], [11, 17, "road"], [11, 18, "road"],
+  [18, 11, "road"], [18, 12, "road"], [18, 13, "road"], [18, 14, "road"], [18, 15, "road"], [18, 16, "road"], [18, 17, "road"], [18, 18, "road"],
+  [12, 11, "road"], [13, 11, "road"], [14, 11, "road"], [15, 11, "road"], [16, 11, "road"], [17, 11, "road"],
+  [12, 18, "road"], [13, 18, "road"], [14, 18, "road"], [15, 18, "road"], [16, 18, "road"], [17, 18, "road"],
+  // spur west into the residential quarter
+  [5, 14, "road"], [6, 14, "road"], [7, 14, "road"], [8, 14, "road"], [9, 14, "road"], [10, 14, "road"],
+  [4, 8, "tree"], [10, 8, "tree"], [3, 13, "tree"], [10, 17, "tree"],
+  [22, 8, "tree"], [19, 6, "tree"], [16, 20, "tree"], [11, 20, "tree"],
 ];
 
 export function seedDemoCity() {
@@ -32,8 +33,8 @@ export function seedDemoCity() {
   if (Object.keys(state.map.tiles).length > 0) return;
   const florins = state.florins;
   state.setFlorins(1_000_000);
-  for (const [x, y, buildingId] of LAYOUT) {
-    useGameStore.getState().placeTile({ x, y }, buildingId);
+  for (const [x, y, buildingId, rotation] of LAYOUT) {
+    useGameStore.getState().placeTile({ x, y }, buildingId, rotation);
   }
   useGameStore.getState().setFlorins(florins);
   // Fill the town and run one tick so buildings render staffed even under &pause.

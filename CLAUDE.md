@@ -1,4 +1,4 @@
-# Rinascimento
+# Patronage
 
 Cozy Renaissance-Italy city builder. Full design spec: @docs/design-doc.md — read it before implementing any game system (resources, factions, commissions, buildings, worker allocation, Renaissance victory condition, etc.).
 
