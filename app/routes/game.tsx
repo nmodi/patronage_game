@@ -3,6 +3,7 @@ import type { MetaFunction } from "react-router";
 
 import { BabylonCanvas } from "~/game/render/BabylonCanvas";
 import { GameHUD } from "~/game/ui/GameHUD";
+import { useGameShortcuts } from "~/game/ui/useGameShortcuts";
 import { useGameLoop } from "~/game/ui/useGameLoop";
 import { seedDemoCity } from "~/game/demoCity";
 import { useGameStore } from "~/stores/useGameStore";
@@ -16,6 +17,7 @@ export const meta: MetaFunction = () => {
 
 export default function GameWindow() {
   useGameLoop();
+  useGameShortcuts();
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
