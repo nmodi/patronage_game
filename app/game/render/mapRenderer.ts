@@ -16,6 +16,7 @@ import {
   setBuildingActive,
   type BuildingModel,
 } from "./assetLibrary";
+import { getRoadMaterial } from "./paths";
 import { createSmokePlume, type SmokePlume } from "./smoke";
 
 const GRID_ALPHA_IDLE = 0;
@@ -96,24 +97,30 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
   function createBoxMesh(tile: Tile, metadata: BuildingMetadata) {
     const { width, height, depth } = metadata.size;
-    const mesh =
-      metadata.type === "road"
-        ? MeshBuilder.CreateGround(
-            `tile-${tile.buildingId}`,
-            { width: width * CELL_SIZE, height: depth * CELL_SIZE },
-            scene
-          )
-        : MeshBuilder.CreateBox(
-            `tile-${tile.buildingId}`,
-            { width: width * CELL_SIZE, height, depth: depth * CELL_SIZE },
-            scene
-          );
+    const mesh = MeshBuilder.CreateBox(
+      `tile-${tile.buildingId}`,
+      { width: width * CELL_SIZE, height, depth: depth * CELL_SIZE },
+      scene
+    );
     mesh.material = getMaterial(metadata.color, metadata.type, !tile.isActive);
     mesh.receiveShadows = true;
-    if (metadata.type !== "road") shadowGenerator.addShadowCaster(mesh);
+    shadowGenerator.addShadowCaster(mesh);
     const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
     mesh.position.set(x, y, z);
     return mesh;
+  }
+
+  function createRoadEntry(tile: Tile): TileMeshEntry {
+    const mesh = MeshBuilder.CreateGround(
+      `road-${tile.position.x}-${tile.position.y}`,
+      { width: CELL_SIZE, height: CELL_SIZE },
+      scene
+    );
+    mesh.material = getRoadMaterial(scene);
+    mesh.isPickable = false;
+    const { x, z } = gridToWorld(tile.position.x, tile.position.y);
+    mesh.position.set(x, 0.01, z);
+    return { box: mesh, model: null, marker: null, smoke: null, buildingId: tile.buildingId, isActive: true };
   }
 
   function createEntry(tile: Tile, metadata: BuildingMetadata): TileMeshEntry {
@@ -128,11 +135,11 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
       model.root.position.x = x;
       model.root.position.z = z;
-      if (metadata.type === "road") model.root.position.y += 0.001;
       // ponytail: models cast onto the ground but don't receive — blur-ESM self-shadow
       // acne turns the glTF walls to mud; switch to PCF shadows if receiving ever matters
       for (const mesh of model.meshes) {
-        if (metadata.type !== "road") shadowGenerator.addShadowCaster(mesh);
+        // Flat paving pads don't cast — their shadow is just an offset dark rim.
+        if (!mesh.name.startsWith("pad-")) shadowGenerator.addShadowCaster(mesh);
       }
       setBuildingActive(model, tile.isActive);
 
@@ -185,6 +192,15 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
       if (!metadata) continue;
 
+      if (metadata.type === "road") {
+        const existing = active.get(key);
+        if (!existing || existing.buildingId !== tile.buildingId) {
+          if (existing) disposeEntry(existing);
+          active.set(key, createRoadEntry(tile));
+        }
+        continue;
+      }
+
       let entry = active.get(key);
       const staleBox = entry?.box && hasModel(tile.buildingId); // placed before models finished loading
       if (!entry || entry.buildingId !== tile.buildingId || staleBox) {
@@ -198,7 +214,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         entry.smoke?.setActive(tile.isActive);
       }
 
-      const needsMarker = !tile.isActive && metadata.type !== "road";
+      const needsMarker = !tile.isActive;
       if (needsMarker && !entry.marker) {
         const marker = MeshBuilder.CreatePlane(`marker-${key}`, { width: 0.35, height: 0.18 }, scene);
         marker.material = markerMaterial;

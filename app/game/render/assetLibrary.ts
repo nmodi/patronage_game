@@ -10,8 +10,11 @@ import type { AssetContainer } from "@babylonjs/core/assetContainer";
 import type { Scene } from "@babylonjs/core/scene";
 import { registerBuiltInLoaders } from "@babylonjs/loaders/dynamic";
 
+import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
+
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import type { BuildingId } from "~/game/buildings";
+import { disposePathMaterials, getPadMaterial } from "./paths";
 
 registerBuiltInLoaders();
 
@@ -20,7 +23,8 @@ type Part = {
   file: string;
   position?: [number, number, number];
   rotationY?: number;
-  scale?: number;
+  /** Uniform, or per-axis (e.g. squash roof Y for a shallower pitch). */
+  scale?: number | [number, number, number];
 };
 
 type ModelDef = {
@@ -28,6 +32,8 @@ type ModelDef = {
   parts?: Part[];
   /** Single-piece alternatives picked by position hash (trees etc.). */
   variants?: Part[];
+  /** Flagstone paving quad under the parts, pad×pad kit units (also sets the design span). */
+  pad?: number;
   /** Fraction of the footprint the composed bounding box fills. Default 0.9. */
   fit?: number;
   /** Scale x/z independently to fill both footprint axes (rectangular prefabs). */
@@ -40,15 +46,9 @@ type ModelDef = {
 const TOWN = "/models/town/";
 const NATURE = "/models/nature/";
 
-/** size×size grid of paving tiles centered on the footprint. */
-function paving(size: number): Part[] {
-  const parts: Part[] = [];
-  const start = -(size - 1) / 2;
-  for (let x = 0; x < size; x += 1)
-    for (let z = 0; z < size; z += 1)
-      parts.push({ file: TOWN + "road.glb", position: [start + x, 0, start + z] });
-  return parts;
-}
+/** Shallower roof pitch: kit roofs squashed to 60% height, origin at the base
+ * so they stay flush on the walls. */
+const ROOF_SCALE: [number, number, number] = [1, 0.6, 1];
 
 // Flat-color material tints per file (Nature Kit has no texture; defaults are teal/orange).
 const MATERIAL_TINTS: Record<string, Record<string, string>> = {
@@ -63,7 +63,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cottage: {
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
-      { file: TOWN + "roof-gable.glb", position: [0, 1, 0] },
+      { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE },
     ],
     fit: 0.75,
     randomRotate: "quarter",
@@ -73,7 +73,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0, 1, 0] },
       { file: TOWN + "banner-red.glb", position: [0, 1, 0] },
-      { file: TOWN + "roof-gable.glb", position: [0, 2, 0] },
+      { file: TOWN + "roof-gable.glb", position: [0, 2, 0], scale: ROOF_SCALE },
     ],
     fit: 0.65,
     randomRotate: "quarter",
@@ -94,7 +94,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0] },
-      { file: TOWN + "roof-point.glb", position: [0, 1, 0] },
+      { file: TOWN + "roof-point.glb", position: [0, 1, 0], scale: ROOF_SCALE },
     ],
     fit: 0.75,
     randomRotate: "quarter",
@@ -117,8 +117,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     parts: [
       { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
-      { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI },
-      { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0] },
+      { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE },
+      { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE },
       { file: TOWN + "banner-red.glb", position: [0.5, 0.25, 0] },
     ],
     fit: 0.85,
@@ -127,7 +127,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   bakery: {
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
-      { file: TOWN + "roof-gable.glb", position: [0, 1, 0] },
+      { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE },
       { file: TOWN + "chimney.glb", position: [0, 0.55, 0] },
     ],
     fit: 0.75,
@@ -136,8 +136,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // Open market square: stalls sit small on a paved pad (the paving sets the
   // bounding box, so the stalls read as furniture, not as the building mass).
   market: {
+    pad: 4,
     parts: [
-      ...paving(4),
       { file: TOWN + "stall-red.glb", position: [-1, 0.02, -1], rotationY: Math.PI, scale: 0.8 },
       { file: TOWN + "stall-green.glb", position: [1, 0.02, -1], rotationY: Math.PI, scale: 0.8 },
       { file: TOWN + "stall.glb", position: [-1, 0.02, 1], scale: 0.8 },
@@ -149,8 +149,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   town_center_plaza: {
     // Fountain with a central column (mockup: obelisk rising from the water);
     // the rest stays open paving so future citizens/stalls have room.
+    pad: 6,
     parts: [
-      ...paving(6),
       { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 1.4 },
       { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 2 },
       { file: TOWN + "lantern.glb", position: [-2.4, 0.02, -2.4] },
@@ -161,8 +161,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     fit: 1,
   },
   plaza: {
+    pad: 4,
     parts: [
-      ...paving(4),
       { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.9 },
       { file: TOWN + "lantern.glb", position: [-1.55, 0.02, -1.55] },
       { file: TOWN + "lantern.glb", position: [1.55, 0.02, -1.55] },
@@ -171,10 +171,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     ],
     fit: 1,
   },
-  road: {
-    parts: [{ file: TOWN + "road.glb", position: [0, 0, 0] }],
-    fit: 1,
-  },
+  // Roads render as connectivity-textured quads in mapRenderer (see paths.ts), not kit models.
   tree: {
     variants: [
       { file: NATURE + "tree_default.glb" },
@@ -297,7 +294,8 @@ function instantiatePart(part: Part, parent: TransformNode, scene: Scene): Abstr
       root.rotationQuaternion = null; // glTF roots carry a quaternion that overrides .rotation
       root.rotation.set(0, part.rotationY, 0);
     }
-    if (part.scale) root.scaling.setAll(part.scale);
+    if (typeof part.scale === "number") root.scaling.setAll(part.scale);
+    else if (part.scale) root.scaling.set(...part.scale);
     for (const mesh of root.getChildMeshes(false)) meshes.push(mesh);
   }
   return meshes;
@@ -342,6 +340,25 @@ export function instantiateBuilding(
   if (meshes.length === 0) {
     root.dispose();
     return null;
+  }
+
+  if (def.pad) {
+    // Sets the design span too: the bounding fit below measures the pad, so
+    // parts keep the same scale the old paving grid gave them.
+    const pad = CreateGround(`pad-${buildingId}`, { width: def.pad, height: def.pad }, scene);
+    pad.parent = root;
+    pad.position.y = 0.02;
+    const on = getPadMaterial(def.pad, scene);
+    if (!materialPairs.has(on)) {
+      // Dim the flagstones when the building goes inactive (market short on workers).
+      const off = on.clone(`${on.name}-off`);
+      off.diffuseColor = new Color3(0.6, 0.6, 0.6);
+      const pair = { on, off };
+      materialPairs.set(on, pair);
+      materialPairs.set(off, pair);
+    }
+    pad.material = on;
+    meshes.push(pad);
   }
 
   // Rotate before fitting so rectangular prefabs fill the (rotated) footprint
@@ -438,6 +455,7 @@ export function scatterEnvironmentTrees(
 }
 
 export function disposeAssetLibrary() {
+  disposePathMaterials();
   for (const container of containers.values()) container.dispose();
   containers.clear();
   containerLoads.clear();
