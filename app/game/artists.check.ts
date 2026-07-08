@@ -115,6 +115,37 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.equal(out.florins, 0);
 }
 
+// Plaza connection speeds work by strength — 25% at full, 10% at 0.4 (Phase 10).
+{
+  const out = progressArtworks(
+    [painter({ workProgress: 0 })],
+    [workshop("5,5")],
+    [commission("5,5")],
+    3,
+    10,
+    new Map([["5,5", 1]])
+  );
+  assert.equal(out.artists[0]!.workProgress, 1.25);
+  const partial = progressArtworks(
+    [painter({ workProgress: 0 })],
+    [workshop("5,5")],
+    [commission("5,5")],
+    3,
+    10,
+    new Map([["5,5", 0.4]])
+  );
+  assert.equal(partial.artists[0]!.workProgress, 1.1);
+  const other = progressArtworks(
+    [painter({ workProgress: 0 })],
+    [workshop("5,5")],
+    [commission("5,5")],
+    3,
+    10,
+    new Map([["9,9", 1]])
+  );
+  assert.equal(other.artists[0]!.workProgress, 1);
+}
+
 // A second artist speeds the work up with diminishing returns: +1.5/month.
 {
   const crew = [painter({ workProgress: 0 }), painter({ id: "p2", homeTileKey: "5,5" })];

@@ -1,7 +1,8 @@
 import type { Artist, ArtistRank, ArtistType, Artwork, Commission } from "./types";
+import { PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
 
-// No runtime imports here: artists.check.ts runs this file under plain Node
-// (type-only imports are stripped), mirroring workers.ts.
+// Runtime imports limited to dependency-free sim modules: artists.check.ts
+// runs this file under plain Node (type-only imports are stripped).
 
 export const ARTIST_ARRIVAL_CHANCE = 0.1; // per month, when a slot is open
 export const ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2;
@@ -169,7 +170,8 @@ function gainXp(a: Artist): Pick<Artist, "xp" | "rank"> {
  * Advance every working workshop one month (design doc, Phase 6). An workshop's
  * work is tracked on its founding artist and progresses only while the workshop
  * is active and city inspiration > 0, at 1 + 0.5×(members − 1) months per tick
- * (more artists work faster, with diminishing returns). The assigned commission
+ * (more artists work faster, with diminishing returns), scaled up to ×1.25
+ * by the workshop's plaza-connection strength (Phase 10). The assigned commission
  * sets duration, name, and payout; completion mints an Artwork, pays the
  * commission's florins + prestige, and grants every member 1 xp (each may rank
  * up). Pure; unchanged artists keep object identity.
@@ -182,7 +184,8 @@ export function progressArtworks(
   workshops: WorkshopSlot[],
   commissions: Commission[],
   inspiration: number,
-  currentTick: number
+  currentTick: number,
+  plazaConnected?: Map<string, number> // workshop origin key → plaza strength (0..1]
 ): {
   artists: Artist[];
   completed: Artwork[];
@@ -225,7 +228,10 @@ export function progressArtworks(
     if (founder.workProgress == null || !activeKeys.has(key)) continue;
     const commission = byKey.get(key);
     if (!commission) continue; // orphaned progress; reconcile re-opens the offer
-    const progress = founder.workProgress + 1 + 0.5 * ((counts.get(key) ?? 1) - 1);
+    const pace =
+      (1 + 0.5 * ((counts.get(key) ?? 1) - 1)) *
+      (1 + PLAZA_CONNECTION_BONUS * (plazaConnected?.get(key) ?? 0));
+    const progress = founder.workProgress + pace;
     if (progress < commission.durationMonths) {
       advancing.set(key, progress);
       continue;

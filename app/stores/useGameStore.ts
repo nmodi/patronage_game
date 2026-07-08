@@ -5,6 +5,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 import type { Artist, Artwork, BuildingType, Commission } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { createArtist } from "~/game/artists";
+import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "~/game/connectivity";
 import { getSupply } from "~/game/materials";
 import { createTick } from "~/game/tick";
 import { BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
@@ -250,11 +251,13 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   },
 
   getHousing: () => {
-    const state = get();
-    return Object.values(state.map.tiles).reduce((total, tile) => {
+    const tiles = get().map.tiles;
+    // Plaza-connected homes hold more (Phase 10) — same strength map as the tick.
+    const connected = computePlazaConnectivity(tiles);
+    return Object.entries(tiles).reduce((total, [key, tile]) => {
       if (!tile.isOrigin) return total;
-      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-      return total + (metadata?.housing ?? 0);
+      const housing = BUILDING_METADATA_BY_ID[tile.buildingId]?.housing ?? 0;
+      return total + Math.round(housing * (1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0)));
     }, 0);
   },
 

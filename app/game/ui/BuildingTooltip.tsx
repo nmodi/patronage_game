@@ -1,6 +1,11 @@
 import { useEffect, useRef } from "react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
+import {
+  computePlazaConnectivity,
+  PLAZA_CONNECTION_BONUS,
+  PLAZA_IDS,
+} from "~/game/connectivity";
 import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materials";
 import type { BuildingMetadata } from "~/game/types";
 import { staffingEfficiency } from "~/game/workers";
@@ -10,13 +15,14 @@ function formatAmount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-function getActiveEffects(metadata: BuildingMetadata, workers: number) {
+const PLAZA_BONUS_MAX_PCT = `+${Math.round(PLAZA_CONNECTION_BONUS * 100)}%`;
+
+function getActiveEffects(metadata: BuildingMetadata, workers: number, plazaStrength: number) {
   const effects: string[] = [];
-  const multiplier = staffingEfficiency(
-    metadata.workersRequired ?? 0,
-    metadata.maxWorkers ?? 0,
-    workers
-  );
+  const plazaBoost = 1 + PLAZA_CONNECTION_BONUS * plazaStrength;
+  const multiplier =
+    staffingEfficiency(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0, workers) *
+    plazaBoost;
 
   if (metadata.generates?.income) {
     effects.push(`+${formatAmount(metadata.generates.income * multiplier)} Florins / month`);
@@ -25,10 +31,13 @@ function getActiveEffects(metadata: BuildingMetadata, workers: number) {
     effects.push(`+${formatAmount(metadata.generates.inspiration * multiplier)} Inspiration / month`);
   }
   if (metadata.amenities) {
-    effects.push(`+${metadata.amenities} amenities`);
+    effects.push(`+${Math.round(metadata.amenities * plazaBoost)} amenities`);
   }
   if (metadata.housing) {
-    effects.push(`+${metadata.housing} housing`);
+    effects.push(`+${Math.round(metadata.housing * plazaBoost)} housing`);
+  }
+  if (plazaStrength > 0) {
+    effects.push(`Plaza connection: +${Math.round(PLAZA_CONNECTION_BONUS * plazaStrength * 100)}%`);
   }
 
   return effects;
@@ -62,7 +71,21 @@ export function BuildingTooltip() {
   const canBeInactive = required > 0;
   const missing = Math.max(0, required - tile.workers);
   const isActive = tile.isActive;
-  const activeEffects = isActive ? getActiveEffects(metadata, tile.workers) : [];
+
+  // Plaza connectivity (Phase 10): graded bonus for generators, workshops,
+  // housing, and service buildings on the network — same computation as the
+  // tick, falling off with road distance from the Main Plaza.
+  const isNetwork = tile.type === "road" || PLAZA_IDS.has(tile.buildingId);
+  const bonusEligible =
+    !isNetwork &&
+    (metadata.generates != null ||
+      metadata.artistCapacity != null ||
+      metadata.housing != null ||
+      metadata.amenities != null);
+  const plazaStrength = bonusEligible
+    ? computePlazaConnectivity(tiles).get(`${tile.origin.x},${tile.origin.y}`) ?? 0
+    : 0;
+  const activeEffects = isActive ? getActiveEffects(metadata, tile.workers, plazaStrength) : [];
 
   // Material supply status (Phase 7): citywide per-material totals, so a
   // supplier reads "Pigment: 2/3 painters" and a staffed-but-blocked workshop
@@ -117,6 +140,11 @@ export function BuildingTooltip() {
                 {effect}
               </div>
             ))}
+          </div>
+        )}
+        {bonusEligible && plazaStrength === 0 && (
+          <div className="mt-1 text-sm italic text-ink-faint">
+            Link to a plaza with roads: up to {PLAZA_BONUS_MAX_PCT}
           </div>
         )}
       </div>

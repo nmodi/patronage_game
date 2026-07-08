@@ -7,6 +7,7 @@ import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "~/g
 import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "~/game/artists";
 import { maybeOfferCommission, reconcileCommissions } from "~/game/commissions";
 import { getSupply } from "~/game/materials";
+import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "~/game/connectivity";
 
 type StoreSet = Parameters<StateCreator<GameState>>[0];
 type StoreGet = Parameters<StateCreator<GameState>>[1];
@@ -64,13 +65,21 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
       }
     }
 
+    // Plaza connectivity (Phase 10): strength per building, radiating from the
+    // Main Plaza through roads with falloff, refreshed by secondary plazas.
+    // Always a nudge — everything below works at full base rate off-network.
+    const connected = computePlazaConnectivity(updatedTiles);
+    const plazaBoost = (key: string) =>
+      1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0);
+
     // Population drifts one per month toward min(housing, amenities). Staffed
     // service buildings raise the ceiling past the unserviced base — the doc's
     // "services unlock population thresholds", no supply chains.
     let amenities = BASE_POPULATION_CAP;
-    for (const tile of Object.values(updatedTiles)) {
+    for (const [key, tile] of Object.entries(updatedTiles)) {
       if (!tile.isOrigin || !tile.isActive) continue;
-      amenities += BUILDING_METADATA_BY_ID[tile.buildingId]?.amenities ?? 0;
+      const base = BUILDING_METADATA_BY_ID[tile.buildingId]?.amenities ?? 0;
+      amenities += Math.round(base * plazaBoost(key));
     }
     const populationCap = Math.min(state.getHousing(), amenities);
     const population = state.population + Math.sign(populationCap - state.population);
@@ -78,15 +87,16 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
     // Staffing past the minimum boosts output linearly, up to +50% at maxWorkers.
     let florinDelta = 0;
     let inspirationDelta = 0;
-    for (const tile of Object.values(updatedTiles)) {
+    for (const [key, tile] of Object.entries(updatedTiles)) {
       if (!tile.isOrigin || !tile.isActive) continue;
       const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
       if (!metadata?.generates) continue;
-      const efficiency = staffingEfficiency(
-        metadata.workersRequired ?? 0,
-        metadata.maxWorkers ?? 0,
-        tile.workers
-      );
+      const efficiency =
+        staffingEfficiency(
+          metadata.workersRequired ?? 0,
+          metadata.maxWorkers ?? 0,
+          tile.workers
+        ) * plazaBoost(key);
       florinDelta += (metadata.generates.income ?? 0) * efficiency;
       inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
     }
@@ -134,7 +144,7 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
       commissionsChanged = true;
     }
 
-    const work = progressArtworks(artists, workshops, commissions, inspiration, state.time.tickCount);
+    const work = progressArtworks(artists, workshops, commissions, inspiration, state.time.tickCount, connected);
     if (work.changed) {
       artists = work.artists;
       artistsChanged = true;
