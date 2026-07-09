@@ -209,7 +209,7 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 - **Spice Trader** — prestige + florin boost
 
 ### Decorative
-- Tree *(built)*, Cypress *(built — stretched/sunk Kenney pine)*, Bell Tower / Campanile *(built — the cathedral's old tower as a freestanding decoration)*, Fountain *(built)*, Vineyard *(built — dirt furrows planted with rows of vine-on-post trees)*, Olive Grove *(built)*, Colonnade *(built)*, Memorial Column / Obelisk *(built — kitbashed pillar + block + point roof)*, Garden, Loggia, Sculpture Display, Gallery Wall
+- Tree *(built)*, Cypress *(built — stretched/sunk Kenney pine)*, Bell Tower / Campanile *(built — the cathedral's old tower as a freestanding decoration)*, Fountain *(built)*, Vineyard *(built — dirt furrows planted with rows of vine-on-post trees)*, Olive Grove *(built)*, Colonnade *(built)*, Memorial Column / Obelisk *(built — kitbashed pillar + block + point roof)*, Bush *(built — nature-kit plant variants)*, Rocks + Boulder *(built — nature-kit rocks, limestone tint)*, Wooden Fence *(built — nature-kit rail/plank segments)*, Low Stone Wall *(built — wall-block slab kitbash with end posts)*, Garden, Loggia, Sculpture Display, Gallery Wall
 
 ### Diversity incentive
 - **Diminishing returns:** duplicate buildings of the same type yield less per additional building.
@@ -274,7 +274,12 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 
 ### Later / stretch
 - Richer economy system (replaces the Market as the primary florin source; Market repurposed as overflow material supply, bought with florins when suppliers are maxed)
-- Seed system — a run seed randomizes the map/terrain, which resources/suppliers are available, the requester roster, and commission offers
+- Seed system — a run seed randomizes each new game. Randomly generated per new game as a relatively short alpha string (human-readable/shareable), viewable in the settings menu. It should influence:
+  - Terrain: heights and wilderness scatter. Current fixed constants to thread the seed into: `terrain.ts` — `mulberry32(93)` (returned as `terrain.rand`, drives `assetLibrary.scatterEnvironment`: tree clumps, shrubs, rocks, vineyard patches, fence/wall runs) and `mulberry32(1482)` (field-patch colors). Hill shape itself is currently seedless sine math and would also need the seed. Note: placed-building variety (`hashPosition(x, y)` in `assetLibrary.ts`) is deliberately position-keyed, not seeded — a building at a cell always looks the same regardless of placement order; keep that.
+  - Available resources on the map (which suppliers/materials this run offers)
+  - Faction archetypes / personality types — different archetypes value different things and ask for different commissions
+  - Types of commissions that pop up
+  - (Open list — more dimensions as they come up)
 - Neighborhood zoning (zones auto-fill with tier-appropriate housing)
 - Housing tiers 3–5; named family palazzos
 - Expanded building roster (religious, trade, social categories)
@@ -286,7 +291,7 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 Art direction: free CC0 packs — Kenney Fantasy Town Kit (buildings/props, kitbashed per building) + Kenney Nature Kit (trees), retinted to the Mediterranean palette by editing the kits' shared `colormap.png` (see `scripts/retint-colormap.py`; models in `public/models/`).
 
 - **G1 — Model pipeline** *(done)*: glTF loading, `assetLibrary.ts` prefab manifest, footprint-fit scaling, active/desaturated material sets, model placement ghost
-- **G2 — Terrain** *(done)*: flat-shaded ground, hills, tree scatter, fog horizon
+- **G2 — Terrain** *(done)*: flat-shaded ground, hills, tree scatter, fog horizon. Wilderness pass (July 2026): denser tree clumps, shrub blobs, rocks/boulders, vineyard patches, and very rare old fence/stone-wall runs on the surrounding hills (`assetLibrary.scatterEnvironment`)
 - **G3 — Ground dressing** *(done)*: kit path pieces for roads, composed plaza, grid hidden except while placing
 - **G4 — Life & polish** *(done)*: chimney smoke on active buildings, landmark label pins, rendering pipeline grade
 - **G5 — Stretch** *(open)*: river + bridge, decorative citizens *(built — `render/citizens.ts`, cosmetic meeples random-walking roads/plazas/markets)*, boats, banners, obelisk model *(built — kitbashed decoration, see Decorative roster)*

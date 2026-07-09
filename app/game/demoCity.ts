@@ -46,6 +46,8 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [10, 16, "cypress"], [12, 16, "cypress"], [42, 12, "cypress"], [24, 40, "cypress"],
   [8, 46, "vineyard"], [18, 46, "fountain"], [24, 46, "colonnade"], [33, 46, "obelisk"],
   [38, 44, "olive_grove"], [14, 50, "vineyard", 1],
+  [46, 46, "bush"], [48, 47, "bush"], [45, 48, "rocks"], [50, 46, "boulder"],
+  [46, 52, "fence"], [46, 55, "stone_wall"], [52, 50, "fence", 1],
   [4, 10, "colonnade"], // overlaps the palazzo's left wing (decoration overlap demo)
   // Neighbor-extension demo: colonnades with a townhouse abutting one end.
   [36, 52, "colonnade"], [42, 50, "townhouse"],

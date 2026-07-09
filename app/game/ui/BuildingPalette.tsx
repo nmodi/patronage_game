@@ -2,12 +2,14 @@ import { useState } from "react";
 import {
   Beer,
   Bell,
+  BrickWall,
   Building2,
   Castle,
   Church,
   Columns3,
   Cross,
   Droplets,
+  Fence,
   Footprints,
   Gem,
   Grape,
@@ -15,9 +17,11 @@ import {
   Home,
   Landmark,
   Milestone,
+  Mountain,
   Palette,
   Pyramid,
   Route,
+  Shrub,
   Store,
   TreeDeciduous,
   TreePine,
@@ -67,6 +71,11 @@ const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   colonnade: Columns3,
   obelisk: Pyramid,
   olive_grove: Trees,
+  bush: Shrub,
+  rocks: Mountain,
+  boulder: Mountain,
+  fence: Fence,
+  stone_wall: BrickWall,
 };
 
 export function BuildingPalette() {

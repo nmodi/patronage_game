@@ -11,7 +11,7 @@ import { Scene } from "@babylonjs/core/scene";
 
 import type { BuildingId } from "~/game/buildings";
 import { useGameStore } from "~/stores/useGameStore";
-import { disposeAssetLibrary, preloadModels, scatterEnvironmentTrees } from "./assetLibrary";
+import { disposeAssetLibrary, preloadModels, scatterEnvironment } from "./assetLibrary";
 import { createCitizens } from "./citizens";
 import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
@@ -96,7 +96,7 @@ export function BabylonCanvas() {
         if (disposed) return;
         // Re-sync so anything placed before models finished loading swaps its fallback box.
         tileRenderer.sync(useGameStore.getState().map.tiles);
-        treeScatter = scatterEnvironmentTrees(scene, terrain.heightAt, terrain.rand);
+        treeScatter = scatterEnvironment(terrain.heightAt, terrain.rand);
         // &ghost=<buildingId> (dev): enter placement mode with the pointer
         // parked near canvas center — headless screenshots can't move the
         // mouse, and this lets them capture the placement ghost + facing
