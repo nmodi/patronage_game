@@ -17,7 +17,7 @@ import {
   setBuildingActive,
   type BuildingModel,
 } from "./assetLibrary";
-import { getApronMaterial, getDirtRoadMaterial, getRoadMaterial } from "./paths";
+import { createDirtPathOverlay, getApronMaterial, getRoadMaterial } from "./paths";
 import { createSmokePlume, type SmokePlume } from "./smoke";
 
 const GRID_ALPHA_IDLE = 0;
@@ -117,6 +117,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   const active = new Map<string, TileMeshEntry>();
 
   const gridLines = createGridLines(scene);
+  const dirtOverlay = createDirtPathOverlay(scene);
 
   // Shared by every inactive-building marker — they're all identical amber diamonds.
   const markerMaterial = new StandardMaterial("marker-mat", scene);
@@ -158,8 +159,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       { width: CELL_SIZE, height: CELL_SIZE },
       scene
     );
-    mesh.material =
-      tile.buildingId === "dirt_path" ? getDirtRoadMaterial(scene) : getRoadMaterial(scene);
+    mesh.material = getRoadMaterial(scene);
     mesh.isPickable = false;
     const { x, z } = gridToWorld(tile.position.x, tile.position.y);
     mesh.position.set(x, 0.01, z);
@@ -251,6 +251,15 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       if (tile.isOrigin) origins.set(`${tile.position.x},${tile.position.y}`, tile);
     }
 
+    // Dirt paths render on a single neighbor-aware overlay, not per-cell meshes.
+    const dirt = new Set<string>();
+    const occupied = new Set<string>();
+    for (const [key, tile] of Object.entries(tiles)) {
+      occupied.add(key);
+      if (tile.buildingId === "dirt_path") dirt.add(key);
+    }
+    dirtOverlay.update(dirt, occupied);
+
     for (const [key, entry] of active) {
       if (!origins.has(key)) {
         disposeEntry(entry);
@@ -264,6 +273,14 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
       if (metadata.type === "road") {
         const existing = active.get(key);
+        if (tile.buildingId === "dirt_path") {
+          // Overlay-drawn; drop any stale per-cell quad from a paved→dirt swap.
+          if (existing) {
+            disposeEntry(existing);
+            active.delete(key);
+          }
+          continue;
+        }
         if (!existing || existing.buildingId !== tile.buildingId) {
           if (existing) disposeEntry(existing);
           active.set(key, createRoadEntry(tile));
@@ -316,6 +333,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     for (const mat of materialCache.values()) mat.dispose();
     materialCache.clear();
     markerMaterial.dispose();
+    dirtOverlay.dispose();
     gridLines.dispose();
   }
 
