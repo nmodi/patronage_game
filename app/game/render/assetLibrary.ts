@@ -27,8 +27,9 @@ type Part = {
   scale?: number | [number, number, number];
   /** Per-variant override of ModelDef.sinkY (trunk heights differ per model). */
   sinkY?: number;
-  /** Exclude from the base-level bounding fit, so a negative position.y sinks
-   * this part below ground instead of being cancelled by the rebase. */
+  /** Exclude from the bounding fit — for parts meant to break the footprint
+   * box: sunken pieces (negative position.y survives the ground rebase) and
+   * overhanging extensions (reach past the footprint without shrinking it). */
   buried?: boolean;
 };
 
@@ -47,9 +48,17 @@ type ModelDef = {
   sinkY?: number;
   /** Scale x/z independently to fill both footprint axes (rectangular prefabs). */
   stretch?: boolean;
+  /** Direction the entrance faces at rotation 0 (unit ±x/±z). Drives the
+   * placement facing arrow; omit for buildings with no meaningful front. */
+  front?: [number, number];
   /** "quarter" = random 90° steps, "free" = any angle. Seeded by grid position. */
   randomRotate?: "quarter" | "free";
   randomScale?: [number, number];
+  /** Extra parts appended when a solid building abuts that end of the local X
+   * axis (see mapRenderer neighbor detection). Mark them `buried` so they
+   * overhang the footprint instead of shrinking the fit. */
+  extendNegX?: Part[];
+  extendPosX?: Part[];
 };
 
 const TOWN = "/models/town/";
@@ -102,9 +111,14 @@ const MATERIAL_TINTS: Record<string, Record<string, string>> = {
 
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cottage: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE },
+      // door on the gable end, shuttered windows on the long sides
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2 },
     ],
     fit: 0.85,
     // Keeps the ridge at ~2.4 person-heights (~13.7 ft) after the fit bump.
@@ -112,11 +126,19 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     randomRotate: "quarter",
   },
   townhouse: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0, 1, 0] },
       { file: TOWN + "banner-red.glb", position: [0, 1, 0] },
       { file: TOWN + "roof-gable.glb", position: [0, 2, 0], scale: ROOF_SCALE },
+      // door under the banner, shuttered windows on both floors of the long sides
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.02, 1, 0], rotationY: Math.PI },
     ],
     // Widened + squashed together: at fit 0.65 / full height the two-story
     // stack read as a tower next to person-scale citizens.
@@ -127,12 +149,21 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   },
   // Long workshop hall: two bays under a flat roof, chimney on the far bay (3x2 footprint).
   workshop: {
+    front: [0, 1],
     parts: [
       { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
       { file: TOWN + "roof-flat.glb", position: [-0.5, 1, 0] },
       { file: TOWN + "roof-flat.glb", position: [0.5, 1, 0] },
       { file: TOWN + "chimney.glb", position: [0.5, 0.55, 0] },
+      // door on the front bay, windows on the other faces (wall-doorway-square-wide
+      // is an open hole showing the blank block behind it — reads as a gray smear)
+      { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.5, 0, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0.52, 0, 0] },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI },
     ],
     fit: 0.92,
     scaleY: 0.65, // ~12 ft roofline, chimney to ~16 ft
@@ -148,6 +179,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // floors with stone pillars along the front edge — an open loggia (the kit
   // has no curved arch piece; wall-arch is just a flat pier strip).
   palazzo: {
+    front: [0, 1],
     parts: [
       // recessed ground floor (loggia interior wall)
       { file: TOWN + "wall-block.glb", position: [0, 0, -0.25], scale: [3, 1, 1.5] },
@@ -204,6 +236,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // rose window, arcaded aisle walls, clerestory rounds above both aisle
   // roofs. (The bell tower is its own building now — see bell_tower.)
   cathedral: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [4, 1, 1] },
       { file: TOWN + "wall-block.glb", position: [0, 1, 0], scale: [4, 1, 1] },
@@ -242,6 +275,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // (the rose panel rides up onto the gable end like a tall church front),
   // and a little bell lantern straddling the ridge toward the facade.
   chapel: {
+    front: [0, 1],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [1.3, 1.2, 2] },
       { file: TOWN + "roof-gable.glb", position: [0, 1.2, 0], scale: [2, 1.2, 1.3], rotationY: Math.PI / 2 },
@@ -263,10 +297,15 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     stretch: true,
   },
   pigment_trader: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0] },
       { file: TOWN + "roof-point.glb", position: [0, 1, 0], scale: ROOF_SCALE },
+      // shop door under the banner, windows on the long sides
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2 },
     ],
     fit: 0.88,
     scaleY: 0.68,
@@ -275,9 +314,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // Marble yard: low flat-roofed cutting shed, rough blocks and a finished
   // column in the yard beside it.
   marble_supplier: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [-0.4, 0, -0.3] },
       { file: TOWN + "roof-flat.glb", position: [-0.4, 1, -0.3] },
+      // shed door opening onto the yard, window on the side
+      { file: TOWN + "wall-door.glb", position: [-0.38, 0, -0.3] },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.4, 0, -0.28], rotationY: -Math.PI / 2 },
       { file: TOWN + "rock-large.glb", position: [0.5, 0, 0.5], scale: 0.55 },
       { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.7], scale: 0.7 },
       { file: TOWN + "pillar-stone.glb", position: [0.65, 0, -0.35], scale: 0.6 },
@@ -287,22 +330,34 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   },
   // Long tavern hall: two bays under one continuous gable roof (3x2 footprint).
   tavern: {
+    front: [0, 1],
     parts: [
       { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
       { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE },
       { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE },
       { file: TOWN + "banner-red.glb", position: [0.5, 0.25, 0] },
+      // door + window on the front, windows on the back and far gable end
+      { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.5, 0, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI },
     ],
     fit: 0.92,
     scaleY: 0.79, // ~16 ft ridge — a public hall, half a notch above the cottage
     stretch: true,
   },
   bakery: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE },
       { file: TOWN + "chimney.glb", position: [0, 0.55, 0] },
+      // shop door on the gable end, windows on the long sides
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2 },
     ],
     fit: 0.88,
     scaleY: 0.56, // ridge matches the cottage; chimney tips out at ~16 ft
@@ -351,12 +406,17 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // Freestanding campanile (the cathedral's old bell tower): four stacked
   // stories under a spire, belfry windows on all four faces.
   bell_tower: {
+    front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0, 1, 0] },
       { file: TOWN + "wall-block.glb", position: [0, 2, 0] },
       { file: TOWN + "wall-block.glb", position: [0, 3, 0] },
       { file: TOWN + "roof-high-point.glb", position: [0, 4, 0] },
+      // door at the base, slit windows up the shaft
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
+      { file: TOWN + "wall-window-round.glb", position: [0.02, 1.2, 0], scale: [1, 0.6, 0.6] },
+      { file: TOWN + "wall-window-round.glb", position: [0.02, 2.2, 0], scale: [1, 0.6, 0.6] },
       { file: TOWN + "wall-window-round.glb", position: [0.02, 3, 0] },
       { file: TOWN + "wall-window-round.glb", position: [-0.02, 3, 0], rotationY: Math.PI },
       { file: TOWN + "wall-window-round.glb", position: [0, 3, 0.02], rotationY: -Math.PI / 2 },
@@ -404,6 +464,16 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-block.glb", position: [0, 1.15, 0], scale: [4.6, 0.1, 0.5] },
     ],
     fit: 0.95,
+    // A building abutting an end: run the architrave past the footprint into
+    // its wall (+ one pillar at the boundary) to fake a junction.
+    extendPosX: [
+      { file: TOWN + "pillar-stone.glb", position: [2.42, 0, 0], scale: [1.4, 1.15, 1.4], buried: true },
+      { file: TOWN + "wall-block.glb", position: [2.75, 1.15, 0], scale: [0.9, 0.1, 0.5], buried: true },
+    ],
+    extendNegX: [
+      { file: TOWN + "pillar-stone.glb", position: [-2.42, 0, 0], scale: [1.4, 1.15, 1.4], buried: true },
+      { file: TOWN + "wall-block.glb", position: [-2.75, 1.15, 0], scale: [0.9, 0.1, 0.5], buried: true },
+    ],
   },
   obelisk: {
     parts: [
@@ -515,12 +585,27 @@ export async function preloadModels(scene: Scene) {
   for (const def of Object.values(MODEL_MANIFEST)) {
     for (const part of def.parts ?? []) files.add(part.file);
     for (const part of def.variants ?? []) files.add(part.file);
+    for (const part of def.extendNegX ?? []) files.add(part.file);
+    for (const part of def.extendPosX ?? []) files.add(part.file);
   }
   await Promise.all([...files].map((file) => getContainer(file, scene)));
 }
 
 function hashPosition(x: number, y: number) {
   return (((x * 73856093) ^ (y * 19349663)) >>> 0) % 4096;
+}
+
+/** Local direction the building's entrance faces at rotation 0 (placement arrow). */
+export function getFrontDirection(buildingId: BuildingId): [number, number] | null {
+  return MODEL_MANIFEST[buildingId]?.front ?? null;
+}
+
+/** Buildings that orient in quarter steps: placement stores the ghost's shown
+ * rotation explicitly so the placed building always matches the preview
+ * (mapRenderer's random seeding only applies to tiles with no stored rotation,
+ * e.g. the demo city). */
+export function usesQuarterRotation(buildingId: BuildingId) {
+  return MODEL_MANIFEST[buildingId]?.randomRotate === "quarter";
 }
 
 function instantiatePart(part: Part, parent: TransformNode, scene: Scene): AbstractMesh[] {
@@ -568,18 +653,27 @@ export type BuildingModel = {
  * Build the model for a building, scaled to its footprint with the base at y=0.
  * Returns null when the building has no manifest entry (caller falls back to a box).
  */
+/** Whether this building's model reacts to abutting neighbors (mapRenderer). */
+export function hasExtensions(buildingId: BuildingId) {
+  const def = MODEL_MANIFEST[buildingId];
+  return Boolean(def?.extendNegX || def?.extendPosX);
+}
+
 export function instantiateBuilding(
   buildingId: BuildingId,
   footprint: { width: number; depth: number },
   gridPos: { x: number; y: number },
   scene: Scene,
-  rotation?: number // player-chosen quarter turns; overrides seeded randomRotate
+  rotation?: number, // player-chosen quarter turns; overrides seeded randomRotate
+  extend?: { negX: boolean; posX: boolean } // append extendNegX/PosX parts
 ): BuildingModel | null {
   const def = MODEL_MANIFEST[buildingId];
   if (!def) return null;
 
   const hash = hashPosition(gridPos.x, gridPos.y);
-  const parts = def.parts ?? (def.variants ? [def.variants[hash % def.variants.length]] : []);
+  let parts = def.parts ?? (def.variants ? [def.variants[hash % def.variants.length]] : []);
+  if (extend?.negX && def.extendNegX) parts = [...parts, ...def.extendNegX];
+  if (extend?.posX && def.extendPosX) parts = [...parts, ...def.extendPosX];
   if (parts.length === 0) return null;
 
   const root = new TransformNode(`model-${buildingId}-${gridPos.x}-${gridPos.y}`, scene);

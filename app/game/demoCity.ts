@@ -47,6 +47,9 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [8, 46, "vineyard"], [18, 46, "fountain"], [24, 46, "colonnade"], [33, 46, "obelisk"],
   [38, 44, "olive_grove"], [14, 50, "vineyard", 1],
   [4, 10, "colonnade"], // overlaps the palazzo's left wing (decoration overlap demo)
+  // Neighbor-extension demo: colonnades with a townhouse abutting one end.
+  [36, 52, "colonnade"], [42, 50, "townhouse"],
+  [30, 52, "colonnade", 1], [29, 58, "townhouse"],
 ];
 
 export function seedDemoCity() {

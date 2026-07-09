@@ -9,6 +9,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { Scene } from "@babylonjs/core/scene";
 
+import type { BuildingId } from "~/game/buildings";
 import { useGameStore } from "~/stores/useGameStore";
 import { disposeAssetLibrary, preloadModels, scatterEnvironmentTrees } from "./assetLibrary";
 import { createCitizens } from "./citizens";
@@ -96,6 +97,16 @@ export function BabylonCanvas() {
         // Re-sync so anything placed before models finished loading swaps its fallback box.
         tileRenderer.sync(useGameStore.getState().map.tiles);
         treeScatter = scatterEnvironmentTrees(scene, terrain.heightAt, terrain.rand);
+        // &ghost=<buildingId> (dev): enter placement mode with the pointer
+        // parked near canvas center — headless screenshots can't move the
+        // mouse, and this lets them capture the placement ghost + facing
+        // arrow. After preload so the ghost gets the real model, not the box.
+        const ghostId = import.meta.env.DEV && new URLSearchParams(window.location.search).get("ghost");
+        if (ghostId) {
+          scene.pointerX = engine.getRenderWidth() / 2;
+          scene.pointerY = engine.getRenderHeight() * 0.72;
+          useGameStore.getState().setSelectedBuilding(ghostId as BuildingId);
+        }
       });
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
       if (state.map.tiles !== prevState.map.tiles) {

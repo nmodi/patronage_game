@@ -11,7 +11,13 @@ import type { Scene } from "@babylonjs/core/scene";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { useGameStore, type GameState, type GridPos } from "~/stores/useGameStore";
-import { instantiateBuilding, overrideMaterials, type BuildingModel } from "./assetLibrary";
+import {
+  getFrontDirection,
+  instantiateBuilding,
+  overrideMaterials,
+  usesQuarterRotation,
+  type BuildingModel,
+} from "./assetLibrary";
 
 const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
 
@@ -53,6 +59,19 @@ export function createPlacementController(scene: Scene) {
   invalidMat.emissiveColor = new Color3(0.3, 0.1, 0.1);
   invalidMat.alpha = 0.45;
 
+  // Facing arrow: flat triangle on the ground just outside the ghost's front
+  // edge, pointing the way the building's entrance faces.
+  const arrowMat = new StandardMaterial("ghost-arrow", scene);
+  arrowMat.diffuseColor = Color3.FromHexString("#e8a33d");
+  arrowMat.emissiveColor = new Color3(0.55, 0.38, 0.12);
+  arrowMat.backFaceCulling = false;
+  const arrow = MeshBuilder.CreateDisc("ghost-arrow", { radius: 0.24, tessellation: 3 }, scene);
+  arrow.rotation.x = Math.PI / 2;
+  arrow.bakeCurrentTransformIntoVertices(); // points along +X; only rotation.y varies below
+  arrow.material = arrowMat;
+  arrow.isPickable = false;
+  arrow.setEnabled(false);
+
   function handleMouseDown(event: MouseEvent) {
     if (event.button !== 0) return;
     // Element, not HTMLElement: SVG icons inside HUD buttons are SVGElement.
@@ -75,22 +94,22 @@ export function createPlacementController(scene: Scene) {
   window.addEventListener("mousedown", handleMouseDown);
   window.addEventListener("keydown", handleKeyDown);
 
-  function ensureGhost(buildingId: BuildingId) {
-    if (ghostBuildingId === buildingId && ghostBuiltRotation === ghostRotation && (ghostBox || ghostModel)) {
+  function ensureGhost(buildingId: BuildingId, rotation: number | null) {
+    if (ghostBuildingId === buildingId && ghostBuiltRotation === rotation && (ghostBox || ghostModel)) {
       return true;
     }
     clearGhost();
     ghostBuildingId = buildingId;
-    ghostBuiltRotation = ghostRotation;
+    ghostBuiltRotation = rotation;
     const metadata = BUILDING_METADATA_BY_ID[buildingId];
     if (!metadata) return false;
 
     const model = instantiateBuilding(
       buildingId,
-      rotatedFootprint(metadata, ghostRotation ?? undefined),
+      rotatedFootprint(metadata, rotation ?? undefined),
       { x: 0, y: 0 },
       scene,
-      ghostRotation ?? undefined
+      rotation ?? undefined
     );
     if (model) {
       overrideMaterials(model, validMat);
@@ -117,6 +136,7 @@ export function createPlacementController(scene: Scene) {
     ghostModel?.root.dispose();
     ghostModel = null;
     ghostBuildingId = null;
+    arrow.setEnabled(false);
   }
 
   function clearRoadPreview() {
@@ -127,6 +147,7 @@ export function createPlacementController(scene: Scene) {
   function setGhostVisible(visible: boolean) {
     ghostBox?.setEnabled(visible);
     ghostModel?.root.setEnabled(visible);
+    if (!visible) arrow.setEnabled(false);
   }
 
   // Hover tooltip source: track which placed building the pointer is over
@@ -285,9 +306,12 @@ export function createPlacementController(scene: Scene) {
 
     clearRoadPreview();
     roadAnchor = null;
-    if (!ensureGhost(selectedBuilding)) return;
+    // Quarter-rotating buildings face a fixed default until the player presses
+    // R; the shown rotation is stored on placement so the building matches.
+    const effectiveRotation = ghostRotation ?? (usesQuarterRotation(selectedBuilding) ? 0 : null);
+    if (!ensureGhost(selectedBuilding, effectiveRotation)) return;
 
-    const footprint = rotatedFootprint(metadata, ghostRotation ?? undefined);
+    const footprint = rotatedFootprint(metadata, effectiveRotation ?? undefined);
     const fitsFootprint =
       currentPosition.x + footprint.width <= GRID_SIZE && currentPosition.y + footprint.depth <= GRID_SIZE;
     // Decorations may overlap existing buildings; only their origin cell must be free.
@@ -321,6 +345,19 @@ export function createPlacementController(scene: Scene) {
         overrideMaterials(ghostModel, canPlaceHere ? validMat : invalidMat);
         ghostIsValid = canPlaceHere;
       }
+      const front = getFrontDirection(selectedBuilding);
+      if (front) {
+        // Rotate the local front by the ghost's yaw (+X → −Z for positive θ).
+        const theta = ghostModel.root.rotation.y;
+        const dirX = front[0] * Math.cos(theta) + front[1] * Math.sin(theta);
+        const dirZ = -front[0] * Math.sin(theta) + front[1] * Math.cos(theta);
+        const half = ((Math.abs(dirX) > 0.5 ? footprint.width : footprint.depth) * CELL_SIZE) / 2;
+        arrow.position.set(xPos + dirX * (half + 0.3), 0.05, zPos + dirZ * (half + 0.3));
+        arrow.rotation.y = Math.atan2(-dirZ, dirX);
+        arrow.setEnabled(true);
+      } else {
+        arrow.setEnabled(false);
+      }
     } else if (ghostBox) {
       const height = metadata.size.height ?? 0.2;
       ghostBox.position.set(xPos, height / 2, zPos);
@@ -328,7 +365,7 @@ export function createPlacementController(scene: Scene) {
     }
 
     if (pendingClick && canPlaceHere) {
-      state.placeTile(currentPosition, selectedBuilding, ghostRotation ?? undefined);
+      state.placeTile(currentPosition, selectedBuilding, effectiveRotation ?? undefined);
     }
     pendingClick = false;
   });
@@ -339,6 +376,8 @@ export function createPlacementController(scene: Scene) {
     scene.onBeforeRenderObservable.remove(observer);
     clearGhost();
     clearRoadPreview();
+    arrow.dispose();
+    arrowMat.dispose();
     validMat.dispose();
     invalidMat.dispose();
   }

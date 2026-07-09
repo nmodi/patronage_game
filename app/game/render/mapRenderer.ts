@@ -11,6 +11,7 @@ import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import type { BuildingMetadata, BuildingType } from "~/game/types";
 import type { Tile } from "~/stores/useGameStore";
 import {
+  hasExtensions,
   hasModel,
   instantiateBuilding,
   setBuildingActive,
@@ -70,7 +71,46 @@ type TileMeshEntry = {
   smoke: SmokePlume | null;
   buildingId: BuildingId;
   isActive: boolean;
+  /** Neighbor-extension signature ("" when not extendable); change → rebuild. */
+  extendKey: string;
 };
+
+// Tile types that count as a wall to visually connect to (not roads/decor).
+const SOLID_TYPES = new Set<BuildingType>(["city", "residential", "artist", "service", "materials"]);
+
+/**
+ * Which ends of the model's local X axis (its long axis) abut a solid
+ * building. Local +X faces grid [+x, −y, −x, +y] for quarter rotations 0-3.
+ */
+function computeExtend(tile: Tile, metadata: BuildingMetadata, tiles: Record<string, Tile>) {
+  const { width, depth } = rotatedFootprint(metadata, tile.rotation);
+  const { x, y } = tile.position;
+  const solidAt = (cx: number, cy: number) => {
+    const type = tiles[`${cx},${cy}`]?.type;
+    return type != null && SOLID_TYPES.has(type);
+  };
+  // The long axis runs along grid x when the rotation is even (local X unrotated
+  // or flipped), along grid y when odd.
+  const odd = ((tile.rotation ?? 0) % 4 + 4) % 4 % 2 === 1;
+  let low = false; // grid-min side of the long axis
+  let high = false;
+  if (!odd) {
+    for (let dy = 0; dy < depth; dy += 1) {
+      low ||= solidAt(x - 1, y + dy);
+      high ||= solidAt(x + width, y + dy);
+    }
+  } else {
+    for (let dx = 0; dx < width; dx += 1) {
+      low ||= solidAt(x + dx, y - 1);
+      high ||= solidAt(x + dx, y + depth);
+    }
+  }
+  // Map grid sides onto local ±X: local +X faces +x, −y, −x, +y for r=0..3.
+  const r = (((tile.rotation ?? 0) % 4) + 4) % 4;
+  const posXSide = [high, low, low, high][r]; // +x / −y / −x / +y
+  const negXSide = [low, high, high, low][r];
+  return { negX: negXSide, posX: posXSide };
+}
 
 export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerator) {
   const materialCache = new Map<string, StandardMaterial>();
@@ -122,7 +162,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     mesh.isPickable = false;
     const { x, z } = gridToWorld(tile.position.x, tile.position.y);
     mesh.position.set(x, 0.01, z);
-    return { box: mesh, model: null, apron: null, marker: null, smoke: null, buildingId: tile.buildingId, isActive: true };
+    return { box: mesh, model: null, apron: null, marker: null, smoke: null, buildingId: tile.buildingId, isActive: true, extendKey: "" };
   }
 
   // Flagstone ground over the full footprint, so `paved` buildings visually
@@ -143,14 +183,19 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     return apron;
   }
 
-  function createEntry(tile: Tile, metadata: BuildingMetadata): TileMeshEntry {
+  function createEntry(
+    tile: Tile,
+    metadata: BuildingMetadata,
+    extend?: { negX: boolean; posX: boolean }
+  ): TileMeshEntry {
     const apron = createApron(tile, metadata);
     const model = instantiateBuilding(
       tile.buildingId,
       rotatedFootprint(metadata, tile.rotation),
       tile.position,
       scene,
-      tile.rotation
+      tile.rotation,
+      extend
     );
     if (model) {
       const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
@@ -172,7 +217,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         smoke = createSmokePlume(scene, new Vector3(top.x - 0.08, top.y, top.z - 0.08));
         smoke.setActive(tile.isActive);
       }
-      return { box: null, model, apron, marker: null, smoke, buildingId: tile.buildingId, isActive: tile.isActive };
+      return { box: null, model, apron, marker: null, smoke, buildingId: tile.buildingId, isActive: tile.isActive, extendKey: "" };
     }
     return {
       box: createBoxMesh(tile, metadata),
@@ -182,6 +227,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       smoke: null,
       buildingId: tile.buildingId,
       isActive: tile.isActive,
+      extendKey: "",
     };
   }
 
@@ -224,11 +270,17 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         continue;
       }
 
+      // Neighbor-aware models (colonnade) rebuild when an abutting building
+      // appears or disappears — the signature is compared every sync.
+      const extend = hasExtensions(tile.buildingId) ? computeExtend(tile, metadata, tiles) : null;
+      const extendKey = extend ? `${extend.negX ? "n" : ""}${extend.posX ? "p" : ""}` : "";
+
       let entry = active.get(key);
       const staleBox = entry?.box && hasModel(tile.buildingId); // placed before models finished loading
-      if (!entry || entry.buildingId !== tile.buildingId || staleBox) {
+      if (!entry || entry.buildingId !== tile.buildingId || staleBox || entry.extendKey !== extendKey) {
         if (entry) disposeEntry(entry);
-        entry = createEntry(tile, metadata);
+        entry = createEntry(tile, metadata, extend ?? undefined);
+        entry.extendKey = extendKey;
         active.set(key, entry);
       } else if (entry.isActive !== tile.isActive) {
         entry.isActive = tile.isActive;
