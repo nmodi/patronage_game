@@ -476,14 +476,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-block.glb", position: [0, 1.15, 0], scale: [4.6, 0.1, 0.5] },
     ],
     fit: 0.95,
-    // A building abutting an end: run the architrave past the footprint into
-    // its wall (+ one pillar at the boundary) to fake a junction.
+    // A building abutting an end: run the architrave (roof slab only) past the
+    // footprint into its wall to fake a junction — an extra pillar there crowds
+    // the end pillar.
     extendPosX: [
-      { file: TOWN + "pillar-stone.glb", position: [2.42, 0, 0], scale: [1.4, 1.15, 1.4], buried: true },
       { file: TOWN + "wall-block.glb", position: [2.75, 1.15, 0], scale: [0.9, 0.1, 0.5], buried: true },
     ],
     extendNegX: [
-      { file: TOWN + "pillar-stone.glb", position: [-2.42, 0, 0], scale: [1.4, 1.15, 1.4], buried: true },
       { file: TOWN + "wall-block.glb", position: [-2.75, 1.15, 0], scale: [0.9, 0.1, 0.5], buried: true },
     ],
   },
