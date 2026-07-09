@@ -13,9 +13,10 @@ function road(x0: number, y0: number, x1: number, y1: number, id: BuildingId = "
 
 // ponytail: dev-only visual test scene (load /?demo). Not reachable in normal play.
 // A small Renaissance town: the Main Plaza at the center with the cathedral
-// (west) and palazzo (east) fronting it, an artisan street north, market
-// quarter south, residential quarter around the secondary plaza southwest,
-// and dirt lanes out to the vineyards southeast.
+// (west) and palazzo (south) fronting adjacent sides — both fit one isometric
+// screenshot — an artisan street north, market quarter east, residential
+// quarter around the secondary plaza southwest, and dirt lanes out to the
+// vineyards southeast.
 // Facing: local front maps to grid [+x, −y, −x, +y] for quarter rotations 0–3
 // (front is local +X for cathedral/cottage/bakery/suppliers, +Z for
 // palazzo/workshop/tavern/chapel — +Z faces +y, +x, −y, −x for r=0–3).
@@ -32,10 +33,8 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [28, 30, "bell_tower"], // campanile at the cathedral's NE corner
   [14, 32, "cypress"], [14, 36, "tree"], [15, 41, "tree"],
 
-  // — Palazzo, east, facing the plaza —
-  [48, 35, "palazzo", 3], // 8x10 rotated, loggia toward the ring road
-  [48, 32, "cypress"], [51, 32, "cypress"], [54, 32, "cypress"], // flanking row
-  [57, 34, "cypress"], [57, 38, "fountain"], [57, 42, "cypress"], // rear garden
+  // — Palazzo, south, facing the plaza (adjacent to the cathedral's side) —
+  [35, 48, "palazzo", 2], // 10x8, loggia toward the ring road
 
   // — Artisan street, north, along the avenue —
   ...road(38, 22, 40, 31, "avenue"),
@@ -45,10 +44,12 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [41, 21, "marble_supplier", 2],
   [38, 20, "obelisk"], // marks the head of the avenue
 
-  // — Market quarter, south —
-  [36, 48, "market"], // 8x8 against the ring road
-  [31, 48, "bakery", 1],
-  [44, 48, "tavern", 2],
+  // — Market quarter, east (the palazzo's old grounds) —
+  [48, 36, "market"], // 8x8 against the ring road
+  [48, 32, "cypress"], [51, 32, "cypress"], [54, 32, "cypress"], // flanking row
+  [57, 34, "cypress"], [57, 38, "fountain"], [57, 42, "cypress"], // rear garden
+  [48, 48, "tavern", 2], // fronting the dirt lane
+  [31, 48, "bakery", 1], // west of the palazzo, on the residential edge
 
   // — Residential quarter, southwest, around the secondary plaza —
   ...road(12, 46, 31, 47), // spur street west from the ring
@@ -61,7 +62,7 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [29, 52, "bush"], [22, 58, "bush"], [30, 60, "tree"],
 
   // — Farmland, southeast, on dirt lanes —
-  ...road(48, 46, 55, 46, "dirt_path"), // lane east past the palazzo
+  ...road(48, 46, 55, 46, "dirt_path"), // lane east past the market
   ...road(55, 47, 55, 58, "dirt_path"), // south to the fields
   [49, 53, "vineyard"],
   [47, 53, "fence", 1], [49, 58, "fence"],
