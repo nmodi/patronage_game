@@ -22,6 +22,10 @@ const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [48, 24, "bakery"], // 4x4
   [38, 38, "tavern"], // 6x4
   [46, 38, "tavern", 1], // rotated: 4x6
+  [24, 8, "cathedral"], // 14x10
+  [40, 10, "bell_tower"], // 3x3, campanile beside the cathedral
+  [46, 6, "chapel"], // 6x10
+  [8, 8, "palazzo"], // 10x8
   [10, 18, "cottage"], // 4x4 each
   [16, 18, "cottage"],
   [10, 24, "cottage"],

@@ -99,6 +99,125 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.7, // ~12 ft roofline, chimney to ~16 ft
     stretch: true,
   },
+  // Facade panels (wall-arch, wall-door, wall-window-*) are thin pieces on the
+  // +X face of a unit cell: rotationY 0/π/±π/2 picks the face, and the cell is
+  // offset 0.02 outward so the panel sits proud of the block wall (no z-fight).
+  //
+  // Palazzo, front facing +Z (toward the default camera). Three-story main
+  // block under a low hip roof, two-story wing on +X under its own gable,
+  // one-story annex on −X. Ground floor is recessed 0.5 behind the upper
+  // floors with stone pillars along the front edge — an open loggia (the kit
+  // has no curved arch piece; wall-arch is just a flat pier strip).
+  palazzo: {
+    parts: [
+      // recessed ground floor (loggia interior wall)
+      { file: TOWN + "wall-block.glb", position: [0, 0, -0.25], scale: [3, 1, 1.5] },
+      { file: TOWN + "wall-doorway-square-wide.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+      // main block upper stories, overhanging the loggia
+      { file: TOWN + "wall-block.glb", position: [-0.5, 1, 0], scale: [2, 1, 2] },
+      { file: TOWN + "wall-block.glb", position: [-0.5, 2, 0], scale: [2, 1, 2] },
+      { file: TOWN + "roof-point.glb", position: [-0.5, 3, 0], scale: [2, 1, 2] },
+      // wing on +X, one story lower
+      { file: TOWN + "wall-block.glb", position: [1, 1, 0], scale: [1, 1, 2] },
+      { file: TOWN + "roof-gable.glb", position: [1, 2, 0], scale: [1, 1, 2] },
+      { file: TOWN + "chimney.glb", position: [0.5, 2.3, 0] },
+      // one-story annex on −X, set slightly behind the colonnade line
+      { file: TOWN + "wall-block.glb", position: [-2, 0, 0.25] },
+      { file: TOWN + "roof-gable.glb", position: [-2, 1, 0.25] },
+      { file: TOWN + "wall-door.glb", position: [-2, 0, 0.27], rotationY: -Math.PI / 2 },
+      // loggia colonnade
+      { file: TOWN + "pillar-stone.glb", position: [-1.5, 0, 0.92] },
+      { file: TOWN + "pillar-stone.glb", position: [-0.9, 0, 0.92] },
+      { file: TOWN + "pillar-stone.glb", position: [-0.3, 0, 0.92] },
+      { file: TOWN + "pillar-stone.glb", position: [0.3, 0, 0.92] },
+      { file: TOWN + "pillar-stone.glb", position: [0.9, 0, 0.92] },
+      { file: TOWN + "pillar-stone.glb", position: [1.5, 0, 0.92] },
+      // piano nobile front: shuttered windows + banner
+      { file: TOWN + "wall-window-shutters.glb", position: [-1, 1, 0.52], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.52], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [1, 1, 0.52], rotationY: -Math.PI / 2 },
+      // top floor (main block only): round windows flanking the banner
+      { file: TOWN + "wall-window-round.glb", position: [-1, 2, 0.52], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [0, 2, 0.52], rotationY: -Math.PI / 2 },
+      { file: TOWN + "banner-red.glb", position: [-0.5, 2, 0.66], rotationY: -Math.PI / 2 },
+      // side windows: main block −X face (above the annex) and wing +X face
+      { file: TOWN + "wall-window-shutters.glb", position: [-1.02, 1, -0.5], rotationY: Math.PI },
+      { file: TOWN + "wall-window-round.glb", position: [-1.02, 2, -0.5], rotationY: Math.PI },
+      { file: TOWN + "wall-window-round.glb", position: [-1.02, 2, 0.5], rotationY: Math.PI },
+      { file: TOWN + "wall-window-shutters.glb", position: [1.02, 1, -0.5] },
+      { file: TOWN + "wall-window-shutters.glb", position: [1.02, 1, 0.5] },
+      // back windows
+      { file: TOWN + "wall-window-shutters.glb", position: [-1, 1, -0.52], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.52], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [1, 1, -0.52], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [-1, 2, -0.52], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [0, 2, -0.52], rotationY: Math.PI / 2 },
+    ],
+    fit: 0.9,
+    scaleY: 0.7,
+  },
+  // Cathedral, front facing +X, symmetrical like Santa Maria Novella:
+  // two-story nave under a high gable (ridge runs along X in the kit) with a
+  // single-story flat-roofed aisle on each side. Three-portal facade with a
+  // rose window, arcaded aisle walls, clerestory rounds above both aisle
+  // roofs. (The bell tower is its own building now — see bell_tower.)
+  cathedral: {
+    parts: [
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [4, 1, 1] },
+      { file: TOWN + "wall-block.glb", position: [0, 1, 0], scale: [4, 1, 1] },
+      { file: TOWN + "roof-high-gable.glb", position: [0, 2, 0], scale: [4, 1, 1] },
+      // side aisles
+      { file: TOWN + "wall-block.glb", position: [0, 0, -1], scale: [4, 1, 1] },
+      { file: TOWN + "roof-flat.glb", position: [0, 1, -1], scale: [4.1, 1, 1.1] },
+      { file: TOWN + "wall-block.glb", position: [0, 0, 1], scale: [4, 1, 1] },
+      { file: TOWN + "roof-flat.glb", position: [0, 1, 1], scale: [4.1, 1, 1.1] },
+      // facade: central portal + rose window, side portals on the aisle fronts
+      { file: TOWN + "wall-door.glb", position: [1.52, 0, 0] },
+      { file: TOWN + "wall-window-round.glb", position: [1.52, 1, 0] },
+      { file: TOWN + "wall-door.glb", position: [1.52, 0, -1] },
+      { file: TOWN + "wall-door.glb", position: [1.52, 0, 1] },
+      // clerestory rounds above both aisle roofs
+      { file: TOWN + "wall-window-round.glb", position: [-1, 1, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [1, 1, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [-1, 1, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [1, 1, 0.02], rotationY: -Math.PI / 2 },
+      // aisle arcades
+      { file: TOWN + "wall-arch.glb", position: [-1, 0, -1.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-arch.glb", position: [0, 0, -1.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-arch.glb", position: [1, 0, -1.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-arch.glb", position: [-1, 0, 1.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-arch.glb", position: [0, 0, 1.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-arch.glb", position: [1, 0, 1.02], rotationY: -Math.PI / 2 },
+    ],
+    fit: 0.9,
+    scaleY: 0.75,
+  },
+  // Small parish chapel, front facing +Z: single 1.5-story nave under a gable
+  // (rotated so the ridge runs along Z), door + rose window on the facade
+  // (the rose panel rides up onto the gable end like a tall church front),
+  // and a little bell lantern straddling the ridge toward the facade.
+  chapel: {
+    parts: [
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [1.3, 1.2, 2] },
+      { file: TOWN + "roof-gable.glb", position: [0, 1.2, 0], scale: [2, 1.2, 1.3], rotationY: Math.PI / 2 },
+      // facade
+      { file: TOWN + "wall-door.glb", position: [0, 0, 0.52], rotationY: -Math.PI / 2 },
+      // half-size oculus, scaled to fit inside the gable triangle
+      { file: TOWN + "wall-window-round.glb", position: [0, 1.05, 0.52], rotationY: -Math.PI / 2, scale: [1, 0.5, 0.5] },
+      // side windows
+      { file: TOWN + "wall-window-round.glb", position: [0.17, 0.1, -0.45] },
+      { file: TOWN + "wall-window-round.glb", position: [0.17, 0.1, 0.45] },
+      { file: TOWN + "wall-window-round.glb", position: [-0.17, 0.1, -0.45], rotationY: Math.PI },
+      { file: TOWN + "wall-window-round.glb", position: [-0.17, 0.1, 0.45], rotationY: Math.PI },
+      // bell lantern on the ridge
+      { file: TOWN + "wall-block.glb", position: [0, 1.55, 0.35], scale: [0.32, 0.6, 0.32] },
+      { file: TOWN + "roof-point.glb", position: [0, 2.15, 0.35], scale: 0.55 },
+    ],
+    fit: 0.85,
+    scaleY: 0.7,
+  },
   pigment_trader: {
     parts: [
       { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
@@ -182,6 +301,23 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "lantern.glb", position: [1.55, 0.02, 1.55] },
     ],
     fit: 1,
+  },
+  // Freestanding campanile (the cathedral's old bell tower): four stacked
+  // stories under a spire, belfry windows on all four faces.
+  bell_tower: {
+    parts: [
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
+      { file: TOWN + "wall-block.glb", position: [0, 1, 0] },
+      { file: TOWN + "wall-block.glb", position: [0, 2, 0] },
+      { file: TOWN + "wall-block.glb", position: [0, 3, 0] },
+      { file: TOWN + "roof-high-point.glb", position: [0, 4, 0] },
+      { file: TOWN + "wall-window-round.glb", position: [0.02, 3, 0] },
+      { file: TOWN + "wall-window-round.glb", position: [-0.02, 3, 0], rotationY: Math.PI },
+      { file: TOWN + "wall-window-round.glb", position: [0, 3, 0.02], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-round.glb", position: [0, 3, -0.02], rotationY: Math.PI / 2 },
+    ],
+    fit: 0.8,
+    scaleY: 0.75,
   },
   // Roads render as connectivity-textured quads in mapRenderer (see paths.ts), not kit models.
   tree: {

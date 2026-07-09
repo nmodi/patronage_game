@@ -31,6 +31,41 @@ export const BUILDING_TYPES = [
     workersRequired: 0,
     maxWorkers: 0,
   },
+  // ponytail: no effects yet — palazzo/cathedral will unlock noble/religious
+  // commissions in a later phase; for now they're landmark set pieces.
+  {
+    type: "city",
+    id: "palazzo",
+    name: "Palazzo",
+    baseCost: 900,
+    size: { width: 4.2, height: 3.1, depth: 3.4 },
+    color: "#c9b183",
+    footprint: { width: 10, depth: 8 },
+    workersRequired: 0,
+    maxWorkers: 0,
+  },
+  {
+    type: "city",
+    id: "cathedral",
+    name: "Cathedral",
+    baseCost: 1500,
+    size: { width: 6.3, height: 5.4, depth: 4.5 },
+    color: "#d8d2c4",
+    footprint: { width: 14, depth: 10 },
+    workersRequired: 0,
+    maxWorkers: 0,
+  },
+  {
+    type: "city",
+    id: "chapel",
+    name: "Chapel",
+    baseCost: 400,
+    size: { width: 2.2, height: 2.3, depth: 3.4 },
+    color: "#d8d2c4",
+    footprint: { width: 5, depth: 8 },
+    workersRequired: 0,
+    maxWorkers: 0,
+  },
   {
     type: "artist",
     id: "workshop",
@@ -176,6 +211,15 @@ export const BUILDING_TYPES = [
     size: { width: 0.5, height: 0.7, depth: 0.5 },
     color: "#3f6b3a",
     footprint: { width: 2, depth: 2 },
+  },
+  {
+    type: "decoration",
+    id: "bell_tower",
+    name: "Bell Tower",
+    baseCost: 300,
+    size: { width: 1.2, height: 4.5, depth: 1.2 },
+    color: "#d8d2c4",
+    footprint: { width: 3, depth: 3 },
   },
 ] as const satisfies ReadonlyArray<BuildingMetadata>;
 

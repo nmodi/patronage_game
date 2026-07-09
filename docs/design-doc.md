@@ -175,10 +175,10 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 
 ### Civic / Landmark
 - **Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Masterworks. The Town Center Plaza is the **Main Plaza** — the connectivity hub; Plazas are secondary hubs that refresh its reach
-- **Cathedral** — unlocks religious commissions
+- **Cathedral** *(model built — placeable landmark, unlock effect still open)* — unlocks religious commissions
 - **Market** *(built)* — generates Florins for now. **Planned repurpose:** once a richer economy system takes over money-making, the Market becomes an overflow supply source — spend florins there for extra material capacity when your suppliers are at their limits.
 - **Guildhall** — unlocks craft commissions
-- **Palazzo** — unlocks noble-family commissions
+- **Palazzo** *(model built — placeable landmark, unlock effect still open)* — unlocks noble-family commissions
 - **Banking House** — enables larger noble commissions, boosts florins
 
 ### Production / Artistic
@@ -201,7 +201,7 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 
 ### Religious & Ceremonial
 - **Monastery** — illuminated manuscripts; quiet inspiration
-- **Chapel** — neighborhood religious building
+- **Chapel** *(model built — placeable, effect still open)* — neighborhood religious building
 - **Baptistery** — pure prestige; higher-tier Church commissions
 
 ### Trade & Economy
@@ -209,7 +209,7 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 - **Spice Trader** — prestige + florin boost
 
 ### Decorative
-- Tree *(built)*, Fountain, Garden, Colonnade, Loggia, Sculpture Display, Gallery Wall, Memorial Column / Obelisk
+- Tree *(built)*, Bell Tower / Campanile *(built — the cathedral's old tower as a freestanding decoration)*, Fountain, Garden, Colonnade, Loggia, Sculpture Display, Gallery Wall, Memorial Column / Obelisk
 
 ### Diversity incentive
 - **Diminishing returns:** duplicate buildings of the same type yield less per additional building.

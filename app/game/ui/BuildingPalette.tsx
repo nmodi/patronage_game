@@ -1,7 +1,11 @@
 import { useState } from "react";
 import {
   Beer,
+  Bell,
   Building2,
+  Castle,
+  Church,
+  Cross,
   Footprints,
   Gem,
   Hammer,
@@ -35,6 +39,10 @@ const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }>
 const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   town_center_plaza: Landmark,
   plaza: Landmark,
+  palazzo: Castle,
+  cathedral: Church,
+  chapel: Cross,
+  bell_tower: Bell,
   workshop: Hammer,
   cottage: Home,
   townhouse: Building2,
