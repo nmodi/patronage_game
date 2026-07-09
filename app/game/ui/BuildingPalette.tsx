@@ -93,8 +93,44 @@ export function BuildingPalette() {
       )?.type
     : null;
 
+  // Long lists center over the palette (capped to the viewport, scrollable);
+  // short ones anchor to their tab.
+  const centerFlyout = openBuildings.length >= 8;
+  const flyout = (
+    <Panel className="flex gap-1.5 overflow-x-auto">
+      {openBuildings.map(({ id, name, baseCost }) => {
+        const buildingId = id as BuildingId;
+        const BuildingIcon = BUILDING_ICONS[buildingId] ?? Warehouse;
+        const isSelected = selectedBuilding === buildingId;
+        const canAfford = florins >= baseCost;
+        return (
+          <button
+            key={id}
+            className={`flex h-28 w-24 min-w-0 shrink-0 flex-col items-center justify-between rounded-md border px-1.5 py-2 transition ${
+              isSelected
+                ? "border-sienna bg-white/80 text-ink"
+                : "border-wood/60 bg-white/50 text-ink hover:bg-white/80"
+            } ${canAfford ? "" : "opacity-50"}`}
+            onClick={() => setSelectedBuilding(isSelected ? null : buildingId)}
+          >
+            <span className="flex h-9 items-center text-center text-sm font-semibold leading-tight">
+              {name}
+            </span>
+            <BuildingIcon className="h-7 w-7 text-prestige-gold" strokeWidth={1.75} />
+            <span className="text-xs text-ink-faint">{baseCost}ƒ</span>
+          </button>
+        );
+      })}
+    </Panel>
+  );
+
   return (
     <div className="fixed bottom-0 left-1/2 z-50 -translate-x-1/2">
+      {openCategory && centerFlyout && openBuildings.length > 0 && (
+        <div className="absolute bottom-full left-1/2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2">
+          {flyout}
+        </div>
+      )}
       <Panel
         frameClassName="rounded-lg rounded-b-none border-b-0"
         className="flex gap-1.5 pb-2!"
@@ -105,36 +141,13 @@ export function BuildingPalette() {
           const hasSelection = selectedCategory === type;
           return (
             <div key={type} className="relative">
-              {isOpen && openBuildings.length > 0 && (
+              {isOpen && !centerFlyout && openBuildings.length > 0 && (
                 <div
-                  // Last tab's wide list overflows the viewport if left-aligned.
-                  className={`absolute bottom-full mb-4 w-max ${type === "decoration" ? "right-0" : "left-0"}`}
+                  // mb-3 clears the category panel's top padding so the panels
+                  // just touch; last tab's list overflows the viewport if left-aligned.
+                  className={`absolute bottom-full mb-3 w-max ${type === "decoration" ? "right-0" : "left-0"}`}
                 >
-                  <Panel className="flex gap-1.5">
-                    {openBuildings.map(({ id, name, baseCost }) => {
-                      const buildingId = id as BuildingId;
-                      const BuildingIcon = BUILDING_ICONS[buildingId] ?? Warehouse;
-                      const isSelected = selectedBuilding === buildingId;
-                      const canAfford = florins >= baseCost;
-                      return (
-                        <button
-                          key={id}
-                          className={`flex h-28 w-24 min-w-0 shrink-0 flex-col items-center justify-between rounded-md border px-1.5 py-2 transition ${
-                            isSelected
-                              ? "border-sienna bg-white/80 text-ink"
-                              : "border-wood/60 bg-white/50 text-ink hover:bg-white/80"
-                          } ${canAfford ? "" : "opacity-50"}`}
-                          onClick={() => setSelectedBuilding(isSelected ? null : buildingId)}
-                        >
-                          <span className="flex h-9 items-center text-center text-sm font-semibold leading-tight">
-                            {name}
-                          </span>
-                          <BuildingIcon className="h-7 w-7 text-prestige-gold" strokeWidth={1.75} />
-                          <span className="text-xs text-ink-faint">{baseCost}ƒ</span>
-                        </button>
-                      );
-                    })}
-                  </Panel>
+                  {flyout}
                 </div>
               )}
               <button
