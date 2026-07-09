@@ -17,7 +17,7 @@ import {
   setBuildingActive,
   type BuildingModel,
 } from "./assetLibrary";
-import { getApronMaterial, getRoadMaterial } from "./paths";
+import { getApronMaterial, getDirtRoadMaterial, getRoadMaterial } from "./paths";
 import { createSmokePlume, type SmokePlume } from "./smoke";
 
 const GRID_ALPHA_IDLE = 0;
@@ -158,7 +158,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       { width: CELL_SIZE, height: CELL_SIZE },
       scene
     );
-    mesh.material = getRoadMaterial(scene);
+    mesh.material =
+      tile.buildingId === "dirt_path" ? getDirtRoadMaterial(scene) : getRoadMaterial(scene);
     mesh.isPickable = false;
     const { x, z } = gridToWorld(tile.position.x, tile.position.y);
     mesh.position.set(x, 0.01, z);

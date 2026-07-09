@@ -18,6 +18,9 @@ const STONE_TONES = ["#cfc8b7", "#d5cebe", "#c9c1b0", "#d0cabc"];
 // Streets: same limestone, a shade darker so they read against the plazas.
 const ROAD_GROUT = "#998f7c";
 const ROAD_TONES = ["#bcb5a3", "#c2bbaa", "#b6ae9c", "#bdb7a8"];
+// Dirt paths: packed earth (matches the vineyard dirt-row tint), no slabs.
+const DIRT_BASE = "#96774f";
+const DIRT_TONES = ["#8a6a4d", "#a08258", "#7d5f42", "#9c7f56"];
 
 function mulberry32(seed: number) {
   let a = seed;
@@ -58,8 +61,34 @@ function drawPaving(
   }
 }
 
+// Soft tonal blotches over a packed-earth base. Each blob is drawn at all nine
+// wrap offsets so the texture tiles seamlessly cell to cell.
+function drawDirt(ctx: CanvasRenderingContext2D, size: number) {
+  ctx.fillStyle = DIRT_BASE;
+  ctx.fillRect(0, 0, size, size);
+  const rand = mulberry32(1509);
+  for (let i = 0; i < 60; i += 1) {
+    const cx = rand() * size;
+    const cy = rand() * size;
+    const rx = size * (0.04 + rand() * 0.12);
+    const ry = rx * (0.4 + rand() * 0.6);
+    const angle = rand() * Math.PI;
+    ctx.fillStyle = DIRT_TONES[Math.floor(rand() * DIRT_TONES.length)];
+    ctx.globalAlpha = 0.15 + rand() * 0.25;
+    for (const dx of [-size, 0, size]) {
+      for (const dy of [-size, 0, size]) {
+        ctx.beginPath();
+        ctx.ellipse(cx + dx, cy + dy, rx, ry, angle, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
 const padMaterials = new Map<number, StandardMaterial>();
 let roadMaterial: StandardMaterial | null = null;
+let dirtMaterial: StandardMaterial | null = null;
 
 function pavingMaterial(
   name: string,
@@ -116,6 +145,18 @@ export function getRoadMaterial(scene: Scene) {
   return roadMaterial;
 }
 
+/** Full-tile packed earth for dirt paths. */
+export function getDirtRoadMaterial(scene: Scene) {
+  if (dirtMaterial) return dirtMaterial;
+  const tex = new DynamicTexture("dirt-tex", { width: 128, height: 128 }, scene, true);
+  drawDirt(tex.getContext() as CanvasRenderingContext2D, 128);
+  tex.update();
+  dirtMaterial = new StandardMaterial("dirt-mat", scene);
+  dirtMaterial.specularColor = Color3.Black();
+  dirtMaterial.diffuseTexture = tex;
+  return dirtMaterial;
+}
+
 export function disposePathMaterials() {
   for (const mat of [...padMaterials.values(), ...apronMaterials.values()]) {
     mat.diffuseTexture?.dispose();
@@ -126,4 +167,7 @@ export function disposePathMaterials() {
   roadMaterial?.diffuseTexture?.dispose();
   roadMaterial?.dispose();
   roadMaterial = null;
+  dirtMaterial?.diffuseTexture?.dispose();
+  dirtMaterial?.dispose();
+  dirtMaterial = null;
 }

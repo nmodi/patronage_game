@@ -12,46 +12,65 @@ function road(x0: number, y0: number, x1: number, y1: number, id: BuildingId = "
 }
 
 // ponytail: dev-only visual test scene (load /?demo). Not reachable in normal play.
+// A small Renaissance town: the Main Plaza at the center with the cathedral
+// (west) and palazzo (east) fronting it, an artisan street north, market
+// quarter south, residential quarter around the secondary plaza southwest,
+// and dirt lanes out to the vineyards southeast.
+// Facing: local front maps to grid [+x, −y, −x, +y] for quarter rotations 0–3
+// (front is local +X for cathedral/cottage/bakery/suppliers, +Z for
+// palazzo/workshop/tavern/chapel — +Z faces +y, +x, −y, −x for r=0–3).
 const LAYOUT: Array<[number, number, BuildingId, number?]> = [
-  [24, 24, "town_center_plaza"], // 12x12, occupies cells 24-35
-  [10, 38, "plaza"], // secondary plaza (8x8) in the residential quarter
-  [38, 24, "market"], // 8x8
-  [38, 16, "pigment_trader"], // 4x4
-  [46, 16, "marble_supplier"], // 4x4
-  [38, 34, "workshop"], // 6x4
-  [48, 24, "bakery"], // 4x4
-  [38, 38, "tavern"], // 6x4
-  [46, 38, "tavern", 1], // rotated: 4x6
-  [24, 8, "cathedral"], // 14x10
-  [40, 10, "bell_tower"], // 3x3, campanile beside the cathedral
-  [46, 6, "chapel"], // 6x10
-  [8, 8, "palazzo"], // 10x8
-  [10, 18, "cottage"], // 4x4 each
-  [16, 18, "cottage"],
-  [10, 24, "cottage"],
-  [16, 24, "cottage"],
-  [10, 30, "townhouse"],
-  [16, 30, "townhouse"],
-  // 2-wide road ring around the town center plaza
-  ...road(22, 22, 23, 37),
-  ...road(36, 22, 37, 37),
-  ...road(24, 22, 35, 23),
-  ...road(24, 36, 35, 37),
-  // 2-wide road spur west between the cottage and townhouse rows
-  ...road(10, 28, 21, 29),
-  // 1-wide path from the spur down to the secondary plaza (network refresh demo)
-  ...road(14, 30, 14, 37, "path"),
-  [8, 16, "tree"], [20, 16, "tree"], [6, 26, "tree"], [20, 34, "tree"],
-  [44, 16, "tree"], [38, 12, "tree"], [32, 40, "tree"], [22, 40, "tree"],
-  [10, 16, "cypress"], [12, 16, "cypress"], [42, 12, "cypress"], [24, 40, "cypress"],
-  [8, 46, "vineyard"], [18, 46, "fountain"], [24, 46, "colonnade"], [33, 46, "obelisk"],
-  [38, 44, "olive_grove"], [14, 50, "vineyard", 1],
-  [46, 46, "bush"], [48, 47, "bush"], [45, 48, "rocks"], [50, 46, "boulder"],
-  [46, 52, "fence"], [46, 55, "stone_wall"], [52, 50, "fence", 1],
-  [4, 10, "colonnade"], // overlaps the palazzo's left wing (decoration overlap demo)
-  // Neighbor-extension demo: colonnades with a townhouse abutting one end.
-  [36, 52, "colonnade"], [42, 50, "townhouse"],
-  [30, 52, "colonnade", 1], [29, 58, "townhouse"],
+  // — Town center —
+  [34, 34, "town_center_plaza"], // 12x12, cells 34-45
+  ...road(32, 32, 33, 47), // ring road, west side
+  ...road(46, 32, 47, 47), // east side
+  ...road(34, 32, 45, 33), // north side
+  ...road(34, 46, 45, 47), // south side
+
+  // — Cathedral square, west, facing the plaza —
+  [18, 35, "cathedral"], // 14x10, east facade on the ring road
+  [28, 30, "bell_tower"], // campanile at the cathedral's NE corner
+  [14, 32, "cypress"], [14, 36, "tree"], [15, 41, "tree"],
+
+  // — Palazzo, east, facing the plaza —
+  [48, 35, "palazzo", 3], // 8x10 rotated, loggia toward the ring road
+  [48, 32, "cypress"], [51, 32, "cypress"], [54, 32, "cypress"], // flanking row
+  [57, 34, "cypress"], [57, 38, "fountain"], [57, 42, "cypress"], // rear garden
+
+  // — Artisan street, north, along the avenue —
+  ...road(38, 22, 40, 31, "avenue"),
+  [34, 26, "workshop", 1], // west side, door on the avenue
+  [41, 26, "workshop", 3], // east side
+  [34, 21, "pigment_trader"],
+  [41, 21, "marble_supplier", 2],
+  [38, 20, "obelisk"], // marks the head of the avenue
+
+  // — Market quarter, south —
+  [36, 48, "market"], // 8x8 against the ring road
+  [31, 48, "bakery", 1],
+  [44, 48, "tavern", 2],
+
+  // — Residential quarter, southwest, around the secondary plaza —
+  ...road(12, 46, 31, 47), // spur street west from the ring
+  [12, 48, "plaza"], // secondary plaza (8x8) refreshes the network
+  [7, 48, "townhouse"], [7, 53, "townhouse"], // facing the plaza
+  [20, 48, "cottage", 1], [25, 48, "cottage", 1], // facing the spur street
+  ...road(24, 48, 24, 56, "path"), // lane between the house columns
+  [20, 53, "townhouse"], [25, 53, "townhouse", 2], // facing the lane
+  [14, 56, "chapel", 2], // south of the plaza, door facing it
+  [29, 52, "bush"], [22, 58, "bush"], [30, 60, "tree"],
+
+  // — Farmland, southeast, on dirt lanes —
+  ...road(48, 46, 55, 46, "dirt_path"), // lane east past the palazzo
+  ...road(55, 47, 55, 58, "dirt_path"), // south to the fields
+  [49, 53, "vineyard"],
+  [47, 53, "fence", 1], [49, 58, "fence"],
+  [57, 49, "vineyard", 1],
+  [57, 56, "olive_grove"],
+  [58, 63, "rocks"], [62, 48, "boulder"],
+
+  // — Outskirts —
+  [24, 16, "tree"], [44, 16, "tree"], [10, 28, "tree"], [60, 30, "tree"], [12, 62, "tree"],
 ];
 
 export function seedDemoCity() {

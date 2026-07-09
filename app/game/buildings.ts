@@ -188,6 +188,16 @@ export const BUILDING_TYPES = [
   // Cost is charged per cell, so wider roads cost more per length.
   {
     type: "road",
+    id: "dirt_path",
+    name: "Dirt Path",
+    baseCost: 10,
+    size: { width: 0.5, height: 0.02, depth: 0.5 },
+    color: "#8a6a4d",
+    footprint: { width: 1, depth: 1 },
+    roadWidth: 1,
+  },
+  {
+    type: "road",
     id: "path",
     name: "Path",
     baseCost: 25,
