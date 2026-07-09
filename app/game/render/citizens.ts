@@ -11,9 +11,10 @@ import { gridToWorld } from "./mapRenderer";
 
 // Cosmetic wanderers (design doc G5). Pure ambience: no tie to population,
 // no sim meaning. They random-walk the tile network below.
-const WALKABLE_BUILDINGS = new Set(["road", "plaza", "town_center_plaza", "market"]);
+// Any type:"road" tile is also walkable (path/road/avenue variants).
+const WALKABLE_BUILDINGS = new Set(["plaza", "town_center_plaza", "market"]);
 const MAX_CITIZENS = 16;
-const TILES_PER_CITIZEN = 4;
+const TILES_PER_CITIZEN = 8;
 // ponytail: one foot height for all surfaces — road quads sit at 0.01, plaza/market
 // pads at ~0.02, and the couple-centimeter hover is invisible at this scale.
 const FOOT_Y = 0.03;
@@ -37,13 +38,13 @@ type Citizen = {
 const key = (p: GridPos) => `${p.x},${p.y}`;
 
 // Both plaza models center a fountain on their (even-sided) footprint — keep the
-// middle 2×2 cells out of the walk network so nobody wades through it.
+// middle 4×4 cells (~2 world units) out of the walk network so nobody wades through it.
 function isFountainCell(tile: Tile) {
   if (tile.buildingId !== "plaza" && tile.buildingId !== "town_center_plaza") return false;
   const { width, depth } = BUILDING_METADATA_BY_ID[tile.buildingId].footprint;
   const dx = tile.position.x - tile.origin.x;
   const dy = tile.position.y - tile.origin.y;
-  return dx >= width / 2 - 1 && dx <= width / 2 && dy >= depth / 2 - 1 && dy <= depth / 2;
+  return dx >= width / 2 - 2 && dx <= width / 2 + 1 && dy >= depth / 2 - 2 && dy <= depth / 2 + 1;
 }
 
 export function createCitizens(scene: Scene) {
@@ -140,7 +141,7 @@ export function createCitizens(scene: Scene) {
     walkable = new Set();
     spawnTiles = [];
     for (const tile of Object.values(tiles)) {
-      if (WALKABLE_BUILDINGS.has(tile.buildingId) && !isFountainCell(tile)) {
+      if ((tile.type === "road" || WALKABLE_BUILDINGS.has(tile.buildingId)) && !isFountainCell(tile)) {
         walkable.add(key(tile.position));
         spawnTiles.push(tile.position);
       }

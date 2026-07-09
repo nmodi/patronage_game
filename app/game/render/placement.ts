@@ -100,11 +100,12 @@ export function createPlacementController(scene: Scene) {
       return true;
     }
 
+    // size is in world units, not cells — don't scale by CELL_SIZE.
     const { width, height, depth } = metadata.size;
     const mesh =
       metadata.type === "road"
-        ? MeshBuilder.CreateGround("ghost", { width: width * CELL_SIZE, height: depth * CELL_SIZE }, scene)
-        : MeshBuilder.CreateBox("ghost", { width: width * CELL_SIZE, height, depth: depth * CELL_SIZE }, scene);
+        ? MeshBuilder.CreateGround("ghost", { width, height: depth }, scene)
+        : MeshBuilder.CreateBox("ghost", { width, height, depth }, scene);
     mesh.isPickable = false;
     ghostBox = mesh;
     return true;
@@ -137,41 +138,57 @@ export function createPlacementController(scene: Scene) {
     if (state.hoveredTileKey !== key) state.setHoveredTile(key);
   }
 
-  function buildRoadStretch(anchor: GridPos, hover: GridPos) {
+  function buildRoadStretch(anchor: GridPos, hover: GridPos, width: number) {
     const dx = hover.x - anchor.x;
     const dy = hover.y - anchor.y;
     const positions: GridPos[] = [];
 
+    // No drag direction yet — a width×width block under the cursor, so the
+    // ghost shows the road's true size before the axis is known.
+    if (dx === 0 && dy === 0) {
+      for (let wx = 0; wx < width; wx += 1) {
+        for (let wy = 0; wy < width; wy += 1) {
+          positions.push({ x: anchor.x + wx, y: anchor.y + wy });
+        }
+      }
+      return positions;
+    }
+
+    // Extra width stamps on the positive side of the drag line, matching
+    // footprint-origin semantics.
     if (Math.abs(dx) >= Math.abs(dy)) {
       const step = dx >= 0 ? 1 : -1;
       for (let x = anchor.x; x !== hover.x + step; x += step) {
-        positions.push({ x, y: anchor.y });
+        for (let w = 0; w < width; w += 1) positions.push({ x, y: anchor.y + w });
       }
     } else {
       const step = dy >= 0 ? 1 : -1;
       for (let y = anchor.y; y !== hover.y + step; y += step) {
-        positions.push({ x: anchor.x, y });
+        for (let w = 0; w < width; w += 1) positions.push({ x: anchor.x + w, y });
       }
     }
 
     return positions;
   }
 
-  function canPlaceRoadStretch(state: GameState, positions: GridPos[], buildingId: BuildingId) {
+  // Existing road tiles may be overlapped (that's how stretches join); only
+  // buildings block. Returns the cells that still need placing (and paying
+  // for), or null if the stretch is blocked or unaffordable.
+  function planRoadStretch(state: GameState, positions: GridPos[], buildingId: BuildingId) {
     const metadata = BUILDING_METADATA_BY_ID[buildingId];
-    if (!metadata || metadata.type !== "road" || positions.length === 0) return false;
-    if (state.florins < metadata.baseCost * positions.length) return false;
+    if (!metadata || metadata.type !== "road" || positions.length === 0) return null;
 
-    const seen = new Set<string>();
+    const newCells: GridPos[] = [];
     for (const position of positions) {
       if (position.x < 0 || position.x >= GRID_SIZE || position.y < 0 || position.y >= GRID_SIZE) {
-        return false;
+        return null;
       }
-      const key = `${position.x},${position.y}`;
-      if (seen.has(key) || state.map.tiles[key]) return false;
-      seen.add(key);
+      const tile = state.map.tiles[`${position.x},${position.y}`];
+      if (!tile) newCells.push(position);
+      else if (tile.type !== "road") return null;
     }
-    return true;
+    if (state.florins < metadata.baseCost * newCells.length) return null;
+    return newCells;
   }
 
   function ensureRoadPreviewCount(count: number) {
@@ -210,20 +227,22 @@ export function createPlacementController(scene: Scene) {
   }
 
   function updateRoadPlacement(state: GameState, buildingId: BuildingId, currentPosition: GridPos) {
-    const positions = roadAnchor ? buildRoadStretch(roadAnchor, currentPosition) : [currentPosition];
-    const canPlace = canPlaceRoadStretch(state, positions, buildingId);
-    updateRoadPreview(positions, canPlace);
+    const width = BUILDING_METADATA_BY_ID[buildingId]?.roadWidth ?? 1;
+    const positions = buildRoadStretch(roadAnchor ?? currentPosition, currentPosition, width);
+    const newCells = planRoadStretch(state, positions, buildingId);
+    updateRoadPreview(positions, newCells !== null);
 
     if (!pendingClick) return;
     pendingClick = false;
 
     if (!roadAnchor) {
-      if (canPlace) roadAnchor = { ...currentPosition };
+      // Anchoring on an existing road is fine (newCells just starts empty).
+      if (newCells) roadAnchor = { ...currentPosition };
       return;
     }
 
-    if (!canPlace) return;
-    if (state.placeTiles(positions, buildingId)) {
+    if (!newCells) return;
+    if (newCells.length === 0 || state.placeTiles(newCells, buildingId)) {
       roadAnchor = null;
       clearRoadPreview();
     }

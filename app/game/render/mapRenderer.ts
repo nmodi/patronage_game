@@ -97,9 +97,10 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
   function createBoxMesh(tile: Tile, metadata: BuildingMetadata) {
     const { width, height, depth } = metadata.size;
+    // size is in world units, not cells — don't scale by CELL_SIZE.
     const mesh = MeshBuilder.CreateBox(
       `tile-${tile.buildingId}`,
-      { width: width * CELL_SIZE, height, depth: depth * CELL_SIZE },
+      { width, height, depth },
       scene
     );
     mesh.material = getMaterial(metadata.color, metadata.type, !tile.isActive);

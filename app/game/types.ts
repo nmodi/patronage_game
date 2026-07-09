@@ -75,5 +75,6 @@ export interface BuildingMetadata {
   workersRequired?: number;
   maxWorkers?: number;
   artistCapacity?: number; // how many artists this workshop can host
+  roadWidth?: number; // roads only: cells stamped perpendicular to the drag axis
   supplies?: { artistType: ArtistType; capacity: number }; // supplier: N concurrently-working artists
 }

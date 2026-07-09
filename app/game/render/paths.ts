@@ -10,7 +10,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 /** Paving stones per world tile, per axis. */
 const STONES_PER_CELL = 5;
-const ROAD_STONES_PER_CELL = 4; // slightly larger slabs on streets
+const ROAD_STONES_PER_CELL = 2; // slightly larger slabs on streets; cells are 0.5 world units
 
 // Limestone palette (ref: Piazza della Signoria paving) — pale, low contrast.
 const GROUT = "#aaa290";

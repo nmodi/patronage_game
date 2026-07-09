@@ -1,32 +1,44 @@
 import { useGameStore } from "~/stores/useGameStore";
 import type { BuildingId } from "./buildings";
 
+// Rectangular run of road cells, one entry per cell (demo seeds per-cell, the
+// in-game drag tool widens stretches itself).
+function road(x0: number, y0: number, x1: number, y1: number, id: BuildingId = "road") {
+  const cells: Array<[number, number, BuildingId]> = [];
+  for (let x = x0; x <= x1; x += 1) {
+    for (let y = y0; y <= y1; y += 1) cells.push([x, y, id]);
+  }
+  return cells;
+}
+
 // ponytail: dev-only visual test scene (load /?demo). Not reachable in normal play.
 const LAYOUT: Array<[number, number, BuildingId, number?]> = [
-  [12, 12, "town_center_plaza"], // 6x6, occupies cells 12-17
-  [5, 19, "plaza"], // secondary plaza (4x4) in the residential quarter
-  [19, 12, "market"], // 4x4
-  [19, 8, "pigment_trader"], // 2x2
-  [23, 8, "marble_supplier"], // 2x2
-  [19, 17, "workshop"], // 3x2
-  [24, 12, "bakery"], // 2x2
-  [19, 19, "tavern"], // 3x2
-  [23, 19, "tavern", 1], // rotated: 2x3
-  [5, 9, "cottage"], // 2x2 each
-  [8, 9, "cottage"],
-  [5, 12, "cottage"],
-  [8, 12, "cottage"],
-  [5, 15, "townhouse"],
-  [8, 15, "townhouse"],
-  // road ring around the town center plaza
-  [11, 11, "road"], [11, 12, "road"], [11, 13, "road"], [11, 14, "road"], [11, 15, "road"], [11, 16, "road"], [11, 17, "road"], [11, 18, "road"],
-  [18, 11, "road"], [18, 12, "road"], [18, 13, "road"], [18, 14, "road"], [18, 15, "road"], [18, 16, "road"], [18, 17, "road"], [18, 18, "road"],
-  [12, 11, "road"], [13, 11, "road"], [14, 11, "road"], [15, 11, "road"], [16, 11, "road"], [17, 11, "road"],
-  [12, 18, "road"], [13, 18, "road"], [14, 18, "road"], [15, 18, "road"], [16, 18, "road"], [17, 18, "road"],
-  // spur west into the residential quarter
-  [5, 14, "road"], [6, 14, "road"], [7, 14, "road"], [8, 14, "road"], [9, 14, "road"], [10, 14, "road"],
-  [4, 8, "tree"], [10, 8, "tree"], [3, 13, "tree"], [10, 17, "tree"],
-  [22, 8, "tree"], [19, 6, "tree"], [16, 20, "tree"], [11, 20, "tree"],
+  [24, 24, "town_center_plaza"], // 12x12, occupies cells 24-35
+  [10, 38, "plaza"], // secondary plaza (8x8) in the residential quarter
+  [38, 24, "market"], // 8x8
+  [38, 16, "pigment_trader"], // 4x4
+  [46, 16, "marble_supplier"], // 4x4
+  [38, 34, "workshop"], // 6x4
+  [48, 24, "bakery"], // 4x4
+  [38, 38, "tavern"], // 6x4
+  [46, 38, "tavern", 1], // rotated: 4x6
+  [10, 18, "cottage"], // 4x4 each
+  [16, 18, "cottage"],
+  [10, 24, "cottage"],
+  [16, 24, "cottage"],
+  [10, 30, "townhouse"],
+  [16, 30, "townhouse"],
+  // 2-wide road ring around the town center plaza
+  ...road(22, 22, 23, 37),
+  ...road(36, 22, 37, 37),
+  ...road(24, 22, 35, 23),
+  ...road(24, 36, 35, 37),
+  // 2-wide road spur west between the cottage and townhouse rows
+  ...road(10, 28, 21, 29),
+  // 1-wide path from the spur down to the secondary plaza (network refresh demo)
+  ...road(14, 30, 14, 37, "path"),
+  [8, 16, "tree"], [20, 16, "tree"], [6, 26, "tree"], [20, 34, "tree"],
+  [44, 16, "tree"], [38, 12, "tree"], [32, 40, "tree"], [22, 40, "tree"],
 ];
 
 export function seedDemoCity() {

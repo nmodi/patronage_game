@@ -8,7 +8,7 @@
 // No runtime imports: connectivity.check.ts runs this file under plain Node.
 
 export const PLAZA_CONNECTION_BONUS = 0.25; // at full strength
-export const PLAZA_REACH = 15; // road tiles from the nearest hub until the bonus fades to 0
+export const PLAZA_REACH = 30; // road cells (0.5 world units each) from the nearest hub until the bonus fades to 0
 
 export const MAIN_PLAZA_ID = "town_center_plaza";
 export const PLAZA_IDS = new Set(["plaza", MAIN_PLAZA_ID]);

@@ -285,10 +285,10 @@ const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    // v3: commissions replace the free-play "Create artwork" flow — old saves
-    // could hold workProgress with no commission behind it, so they're discarded.
-    // (v2: building footprints rescaled, same policy.)
-    version: 3,
+    // v4: grid subdivided 2× (CELL_SIZE 0.5, footprints doubled) — old tile
+    // coordinates are meaningless, so saves are discarded.
+    // (v3: commissions replaced free-play artworks; v2: footprints rescaled — same policy.)
+    version: 4,
     // SSR: hydrate manually from the game route's client effect
     skipHydration: true,
     storage: createJSONStorage(() => (isDemo() ? noopStorage : localStorage)),

@@ -1,10 +1,12 @@
 import {
   Beer,
   Building2,
+  Footprints,
   Gem,
   Hammer,
   Home,
   Landmark,
+  Milestone,
   Palette,
   Route,
   Store,
@@ -40,7 +42,9 @@ const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   market: Store,
   bakery: Wheat,
   tavern: Beer,
+  path: Footprints,
   road: Route,
+  avenue: Milestone,
   tree: TreePine,
 };
 

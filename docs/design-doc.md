@@ -72,9 +72,11 @@ Players place buildings individually on the grid — houses included. This is de
 
 ## Roads
 
-Roads are **player-placed**, one tile at a time, like any building. Grid-aligned. They are light structure/decoration — buildings do not require road connection to function.
+Roads are **player-placed** by dragging stretches, like any building. Grid-aligned. They are light structure/decoration — buildings do not require road connection to function.
 
-**Plaza connection** *(built — Phase 10)*: roads carry the Main Plaza's reach. The bonus radiates from the **Town Center Plaza** (the Main Plaza; single-instance enforcement is a later addition) through connected roads, fading linearly to zero over 15 road tiles. **Secondary plazas on the network refresh it to full** — mini-hubs the player is nudged to seed through outlying districts; an isolated plaza radiates nothing. The bonus scales what a building provides, up to **+25%** beside a hub: generator output, workshop commission speed, housing capacity, and service amenities. Purely a carrot — off-network buildings run at full base rate, and the tooltip nudges: "Link to a plaza with roads: up to +25%".
+**Widths** *(built)*: the grid is subdivided 2× relative to building scale (cells are 0.5 world units; buildings span 4+ cells), so roads come in three widths as build-menu variants — **Path** (1 cell), **Road** (2 cells), **Avenue** (3 cells). Cost is per cell (25ƒ), so wider roads cost more per length. Purely aesthetic + cost choice; all widths carry plaza connectivity identically.
+
+**Plaza connection** *(built — Phase 10)*: roads carry the Main Plaza's reach. The bonus radiates from the **Town Center Plaza** (the Main Plaza; single-instance enforcement is a later addition) through connected roads, fading linearly to zero over 30 road cells (15 world units). **Secondary plazas on the network refresh it to full** — mini-hubs the player is nudged to seed through outlying districts; an isolated plaza radiates nothing. The bonus scales what a building provides, up to **+25%** beside a hub: generator output, workshop commission speed, housing capacity, and service amenities. Purely a carrot — off-network buildings run at full base rate, and the tooltip nudges: "Link to a plaza with roads: up to +25%".
 
 *(An earlier draft specified automatic cluster/hub road generation. Cut — manual placement fits the cozy hands-on scale.)*
 
