@@ -1,8 +1,8 @@
-import { Clock, Coins, Crown } from "lucide-react";
+import { Clock, Coins, Crown, Scroll } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { getSupply } from "~/game/materials";
-import { Panel } from "./Panel";
+import { HudPanel } from "./Panel";
 import type { Commission } from "~/game/types";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -17,14 +17,12 @@ function CommissionThumb({ title }: { title: string }) {
   );
 }
 
-export function CommissionsPanel() {
+export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const commissions = useGameStore((s) => s.commissions);
   const artists = useGameStore((s) => s.artists);
   const tiles = useGameStore((s) => s.map.tiles);
   const tickCount = useGameStore((s) => s.time.tickCount);
   const assignCommission = useGameStore((s) => s.assignCommission);
-
-  if (commissions.length === 0) return null;
 
   const supply = getSupply(tiles, artists);
   const active = commissions.filter((c) => c.workshopKey);
@@ -50,8 +48,22 @@ export function CommissionsPanel() {
       .sort(([a], [b]) => a.localeCompare(b));
 
   return (
-    <div className="pointer-events-none fixed right-4 top-24 z-40 w-80">
-      <Panel header={`Commissions (${commissions.length})`} className="flex flex-col gap-3">
+    <HudPanel
+      icon={Scroll}
+      open={open}
+      onToggle={onToggle}
+      label="Commissions"
+      count={offers.length}
+      countClassName="bg-sienna"
+      widthClass="w-80"
+      header={commissions.length > 0 ? `Commissions (${commissions.length})` : "Commissions"}
+      className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto"
+    >
+        {commissions.length === 0 && (
+          <span className="text-sm text-ink-faint">
+            No commissions available right now — new offers arrive as your city grows.
+          </span>
+        )}
         {active.map((c) => {
           const founder = artists.find((a) => a.homeTileKey === c.workshopKey);
           const progress = Math.min(1, (founder?.workProgress ?? 0) / c.durationMonths);
@@ -112,7 +124,6 @@ export function CommissionsPanel() {
             </div>
           );
         })}
-      </Panel>
-    </div>
+    </HudPanel>
   );
 }

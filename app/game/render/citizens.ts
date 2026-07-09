@@ -22,8 +22,8 @@ const FOOT_Y = 0.03;
 // against kit anchors (townhouse story, lantern pole). Uniform, so feet stay at y=0.
 const CITIZEN_SCALE = 1.75;
 
-// Renaissance-muted robes: terracotta, ochre, dusty blue, olive, plum.
-const PALETTE = ["#a8503a", "#c49a4a", "#5f7d8c", "#77794f", "#8a5a83"];
+// Renaissance-muted robes: terracotta, brown, tan, ivory, sage.
+const PALETTE = ["#a8503a", "#7a5c44", "#b3936a", "#ded3ba", "#8c9178"];
 
 type GridPos = { x: number; y: number };
 

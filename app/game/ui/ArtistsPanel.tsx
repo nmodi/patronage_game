@@ -4,7 +4,7 @@ import { useGameStore } from "~/stores/useGameStore";
 import { RANK_LABEL } from "~/game/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materials";
-import { Panel } from "./Panel";
+import { HudPanel } from "./Panel";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -22,7 +22,7 @@ function ArtistThumb({ type }: { type?: string }) {
   );
 }
 
-export function ArtistsPanel() {
+export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const artists = useGameStore((s) => s.artists);
   const tiles = useGameStore((s) => s.map.tiles);
   const commissions = useGameStore((s) => s.commissions);
@@ -36,16 +36,20 @@ export function ArtistsPanel() {
   if (workshops.length === 0) return null;
 
   return (
-    <div className="pointer-events-none fixed left-4 top-24 z-40 w-72">
-      <Panel
-        header={
-          <span className="flex items-center gap-1.5">
-            <Sparkles className="h-3.5 w-3.5 text-sienna" />
-            Artists &amp; Workshops ({workshops.length})
-          </span>
-        }
-        className="flex flex-col gap-2.5"
-      >
+    <HudPanel
+      icon={Sparkles}
+      open={open}
+      onToggle={onToggle}
+      label="Artists & Workshops"
+      count={workshops.length}
+      header={
+        <span className="flex items-center gap-1.5">
+          <Sparkles className="h-3.5 w-3.5 text-sienna" />
+          Artists &amp; Workshops ({workshops.length})
+        </span>
+      }
+      className="flex max-h-[60vh] flex-col gap-2.5 overflow-y-auto"
+    >
         {workshops.map((key) => {
           const members = artists.filter((a) => a.homeTileKey === key);
           const founder = members[0];
@@ -99,7 +103,6 @@ export function ArtistsPanel() {
             </div>
           );
         })}
-      </Panel>
-    </div>
+    </HudPanel>
   );
 }

@@ -279,7 +279,7 @@ const noopStorage: StateStorage = {
   removeItem: () => {},
 };
 
-const isDemo = () =>
+export const isDemo = () =>
   typeof window !== "undefined" && window.location.search.includes("demo");
 
 export const useGameStore = create<GameState>()(

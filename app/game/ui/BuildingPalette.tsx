@@ -23,13 +23,13 @@ import { useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 
 const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }> = [
+  { type: "road", label: "Roads", icon: Route },
+  { type: "city", label: "Civic", icon: Landmark },
   { type: "residential", label: "Housing", icon: Home },
+  { type: "service", label: "Services", icon: Wheat },
   { type: "artist", label: "Workshops", icon: Palette },
   { type: "materials", label: "Materials", icon: Hammer },
-  { type: "service", label: "Services", icon: Wheat },
-  { type: "city", label: "Civic", icon: Landmark },
   { type: "decoration", label: "Decorations", icon: TreePine },
-  { type: "road", label: "Roads", icon: Route },
 ];
 
 const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
@@ -63,8 +63,11 @@ export function BuildingPalette() {
     : null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-50 -translate-x-1/2">
-      <Panel className="flex gap-1.5">
+    <div className="fixed bottom-0 left-1/2 z-50 -translate-x-1/2">
+      <Panel
+        frameClassName="rounded-lg rounded-b-none border-b-0"
+        className="flex gap-1.5 pb-2!"
+      >
         {CATEGORIES.map(({ type, label, icon: Icon }) => {
           if (!BUILDING_METADATA_BY_TYPE[type]?.length) return null;
           const isOpen = openCategory === type;

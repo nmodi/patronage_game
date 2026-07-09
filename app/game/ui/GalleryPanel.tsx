@@ -8,7 +8,7 @@ import { Panel } from "./Panel";
 
 const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-// Icon button (lives in the TopBar) + fullscreen codex modal.
+// Circular HUD button (top-left row) + fullscreen codex modal.
 export function GalleryPanel() {
   const [open, setOpen] = useState(false);
   const artworks = useGameStore((s) => s.artworks);
@@ -17,12 +17,15 @@ export function GalleryPanel() {
   return (
     <>
       <button
-        className="rounded-full bg-parchment-deep p-2 text-ink transition hover:bg-wood/40"
+        data-hud="true"
+        className={`panel-parchment pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full text-ink transition ${
+          open ? "ring-2 ring-sienna" : ""
+        }`}
         onClick={() => setOpen(true)}
         aria-label="Gallery"
         title="Gallery"
       >
-        <Images className="h-4 w-4" />
+        <Images className="h-5 w-5 text-sienna" strokeWidth={1.75} />
       </button>
       {/* Portal: keeps the fixed modal out of the TopBar panel's stacking
           context so it can't get pinned to the panel. */}
