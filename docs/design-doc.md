@@ -26,6 +26,8 @@ The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, war
 - Low-poly isometric 3D
 - Warm ochre, terracotta, sandstone color palette
 - Tiled ground, terracotta rooftops, cypress trees, fountains
+- Plaza pads pave with sett cobbles in rings radiating from the fountain — the street limestone palette, so pattern (not color) marks the focal point
+- Building aprons are mottled stone in the same street palette (no slab grid) — buildings join roads quietly instead of sitting on lighter flagstone islands
 - **No flat roofs on buildings** — every roof is pitched (gable/hip/point), even if only a shallow pitch; flat kit pieces are allowed only as non-roof slabs (e.g. the colonnade architrave)
 - Buildings show activity via animations (chimney smoke); inactive buildings desaturate and lose animations
 - Hover tooltips on all buildings explaining status
@@ -183,8 +185,11 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 - **Banking House** — enables larger noble commissions, boosts florins
 
 ### Production / Artistic
-- **Workshop** *(built)* — hosts artists; requires workers and material access
-- **Sculpture Workshop** — sculptors
+
+Workshops are per-discipline: each hosts and spawns only its own artist type.
+
+- **Painter's Workshop** *(built)* — painters; requires workers and material access
+- **Sculptor's Workshop** *(built)* — sculptors; same stats, reuses the workshop model for now
 
 ### Suppliers (capacity-limited)
 - Pigment Trader *(built)*, Marble Supplier *(built)*, Goldsmith, Timber Yard, Paper Mill, Glassblower (unlocks stained-glass commissions)
@@ -281,6 +286,11 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
   - Faction archetypes / personality types — different archetypes value different things and ask for different commissions
   - Types of commissions that pop up
   - (Open list — more dimensions as they come up)
+- Per-plaza paving choice — restyle any placed plaza in-game between the three paving treatments. All three drawers already exist in `render/paths.ts` (previewable via the `?plaza=` dev flag):
+  - **Radial cobble rings** (shipped default) — sett cobbles in rings radiating from the fountain, street-limestone palette; the ring geometry points at the centerpiece (ref: Roman sampietrini)
+  - **Terracotta herringbone** — warm brick herringbone field at 45° framed by a pale travertine border course; echoes the rooftops, strongest color pop (ref: Siena, Piazza del Campo)
+  - **Grand travertine slabs** — large creamy slabs on the diagonal framed by the darker street limestone; quietest, reads as "finer stonework" (ref: Florentine piazzas)
+  - Implementation notes: needs per-tile style state (the unused `Tile.variant` field fits), a first click-to-select interaction (`pickGridCell` → `tiles["x,y"]` → origin, same lookup the hover tooltip uses), and a style-picker popover. The renderer diffs tiles by object identity, but `renderOrigin`'s rebuild guard only checks `buildingId`/`extendKey` — the style must join that condition, and the pad batch keys (`pad:<size>:<style>`) already support per-style batches.
 - Neighborhood zoning (zones auto-fill with tier-appropriate housing)
 - Housing tiers 3–5; named family palazzos
 - Expanded building roster (religious, trade, social categories)
@@ -293,7 +303,7 @@ Art direction: free CC0 packs — Kenney Fantasy Town Kit (buildings/props, kitb
 
 - **G1 — Model pipeline** *(done)*: glTF loading, `assetLibrary.ts` prefab manifest, footprint-fit scaling, active/desaturated material sets, model placement ghost
 - **G2 — Terrain** *(done)*: flat-shaded ground, hills, tree scatter, fog horizon. Wilderness pass (July 2026): denser tree clumps, shrub blobs, rocks/boulders, vineyard patches, and very rare old fence/stone-wall runs on the surrounding hills (`assetLibrary.scatterEnvironment`)
-- **G3 — Ground dressing** *(done)*: kit path pieces for roads, composed plaza, grid hidden except while placing
+- **G3 — Ground dressing** *(done)*: kit path pieces for roads, composed plaza, grid hidden except while placing. Plaza paving pass (July 2026): plaza pads draw radial cobble rings (`render/paths.ts` `drawPlazaCobble`) instead of the shared flagstone; two alternate styles (herringbone, travertine — see stretch goals) ship in code behind the `?plaza=` dev flag. Also fixed pads rendering at y=0 under the building aprons — pads had been invisible since batching. Apron pass (July 2026): aprons switched from the palest flagstone (read as lighter islands under every building) to the dirt-path mottling recolored to the street limestone (`getApronMaterial` — no slab grid, quiet stone yards); decorations (fountain, obelisk, colonnade, bell tower) keep their small plinth aprons, and the market pad shares the same mottled stone
 - **G4 — Life & polish** *(done)*: chimney smoke on active buildings, landmark label pins, rendering pipeline grade
 - **G5 — Stretch** *(open)*: river + bridge, decorative citizens *(built — `render/citizens.ts`, cosmetic meeples random-walking roads/plazas/markets)*, boats, banners, obelisk model *(built — kitbashed decoration, see Decorative roster)*
 

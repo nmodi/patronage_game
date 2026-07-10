@@ -116,11 +116,12 @@ export const createTick = (set: StoreSet, get: StoreGet) =>
     const workshops: WorkshopSlot[] = [];
     for (const tile of Object.values(updatedTiles)) {
       if (!tile.isOrigin) continue;
-      const capacity = BUILDING_METADATA_BY_ID[tile.buildingId]?.artistCapacity;
-      if (capacity == null) continue;
+      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+      if (metadata?.artistCapacity == null) continue;
       workshops.push({
         key: `${tile.position.x},${tile.position.y}`,
-        capacity,
+        capacity: metadata.artistCapacity,
+        artistType: metadata.artistType ?? "painter",
         isActive: tile.isActive,
         builtTick: tile.builtTick ?? 0,
       });

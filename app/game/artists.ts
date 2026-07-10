@@ -10,6 +10,7 @@ export const ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2;
 export interface WorkshopSlot {
   key: string; // origin key "x,y"
   capacity: number;
+  artistType: ArtistType; // the only type this workshop spawns
   isActive: boolean;
   builtTick: number;
 }
@@ -34,18 +35,20 @@ const NAMES = [
   "Simona Gozzoli",
 ];
 
-const SPAWNABLE_TYPES: ArtistType[] = ["painter", "sculptor"];
-
 export function pick<T>(items: T[], rng: () => number): T {
   return items[Math.floor(rng() * items.length)]!;
 }
 
-/** Mint a fresh apprentice homed at the given workshop origin key. */
-export function createArtist(homeTileKey: string, rng: () => number = Math.random): Artist {
+/** Mint a fresh apprentice of the workshop's type, homed at its origin key. */
+export function createArtist(
+  homeTileKey: string,
+  type: ArtistType,
+  rng: () => number = Math.random
+): Artist {
   return {
     id: crypto.randomUUID(),
     name: pick(NAMES, rng),
-    type: pick(SPAWNABLE_TYPES, rng),
+    type,
     rank: "apprentice",
     homeTileKey,
   };
@@ -82,7 +85,7 @@ export function maybeArriveArtist(
   if (open.length === 0) return null;
   if (rng() >= ARTIST_ARRIVAL_CHANCE) return null;
 
-  return createArtist(open[0]!.key, rng);
+  return createArtist(open[0]!.key, open[0]!.artistType, rng);
 }
 
 export const WORK_DURATION_MONTHS: Record<ArtistRank, number> = {

@@ -11,9 +11,8 @@ import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 // from our own textures on our own quads. Roads are full-tile and share the
 // pad pattern, so streets and plazas join seamlessly.
 
-/** Paving stones per world tile, per axis. */
-const STONES_PER_CELL = 5;
-const ROAD_STONES_PER_CELL = 2; // slightly larger slabs on streets; cells are 0.5 world units
+/** Paving stones per world tile, per axis — shared by roads, plazas, and aprons so slab size matches everywhere. */
+const STONES_PER_CELL = 2;
 
 // Limestone palette (ref: Piazza della Signoria paving) — pale, low contrast.
 const GROUT = "#aaa290";
@@ -21,6 +20,11 @@ const STONE_TONES = ["#cfc8b7", "#d5cebe", "#c9c1b0", "#d0cabc"];
 // Streets: same limestone, a shade darker so they read against the plazas.
 const ROAD_GROUT = "#998f7c";
 const ROAD_TONES = ["#bcb5a3", "#c2bbaa", "#b6ae9c", "#bdb7a8"];
+// Plaza fields — the focal-point paving (see drawPlaza* below).
+const BRICK_GROUT = "#8f5741"; // sun-baked terracotta (ref: Piazza del Campo)
+const BRICK_TONES = ["#b56a4e", "#bd7457", "#aa6147", "#c37e60"];
+const TRAVERTINE_GROUT = "#a1977f"; // creamy grand slabs (ref: Florentine piazzas)
+const TRAVERTINE_TONES = ["#ddd5c2", "#e2dbca", "#d7cfbc", "#e0d8c6"];
 // Dirt paths: light sun-dried earth (matching how the vineyard furrow models
 // *render* under the scene lights) with a darker packed-earth rim at the grass
 // edge. No slabs.
@@ -69,8 +73,13 @@ function drawPaving(
 
 // Soft tonal blotches over a packed-earth base. Each blob is drawn at all nine
 // wrap offsets so the texture tiles seamlessly cell to cell.
-function drawDirt(ctx: CanvasRenderingContext2D, size: number) {
-  ctx.fillStyle = DIRT_BASE;
+function drawDirt(
+  ctx: CanvasRenderingContext2D,
+  size: number,
+  base: string = DIRT_BASE,
+  tones: string[] = DIRT_TONES
+) {
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, size, size);
   const rand = mulberry32(1509);
   for (let i = 0; i < 60; i += 1) {
@@ -79,7 +88,7 @@ function drawDirt(ctx: CanvasRenderingContext2D, size: number) {
     const rx = size * (0.04 + rand() * 0.12);
     const ry = rx * (0.4 + rand() * 0.6);
     const angle = rand() * Math.PI;
-    ctx.fillStyle = DIRT_TONES[Math.floor(rand() * DIRT_TONES.length)];
+    ctx.fillStyle = tones[Math.floor(rand() * tones.length)];
     ctx.globalAlpha = 0.15 + rand() * 0.25;
     for (const dx of [-size, 0, size]) {
       for (const dy of [-size, 0, size]) {
@@ -92,7 +101,133 @@ function drawDirt(ctx: CanvasRenderingContext2D, size: number) {
   ctx.globalAlpha = 1;
 }
 
-const padMaterials = new Map<number, StandardMaterial>();
+function tonePick(rand: () => number, tones: string[], jitter: number) {
+  const tone = Color3.FromHexString(tones[Math.floor(rand() * tones.length)]);
+  const v = 1 - jitter / 2 + rand() * jitter;
+  return new Color3(tone.r * v, tone.g * v, tone.b * v).toHexString();
+}
+
+// --- Plaza paving styles ------------------------------------------------
+// Plazas are the city's focal points, so their pads get a showpiece paving
+// distinct from the utilitarian flagstone of roads/aprons/market: a pale
+// travertine border course framing a patterned field.
+
+/** Terracotta herringbone framed by travertine (ref: Siena's Piazza del Campo). */
+function drawPlazaHerringbone(ctx: CanvasRenderingContext2D, size: number, cellPx: number) {
+  // Border course: the plain pale flagstone, one cell wide.
+  drawPaving(ctx, size, size, (size / cellPx) * STONES_PER_CELL, GROUT, STONE_TONES);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cellPx, cellPx, size - 2 * cellPx, size - 2 * cellPx);
+  ctx.clip();
+  ctx.fillStyle = BRICK_GROUT;
+  ctx.fillRect(0, 0, size, size);
+  // Herringbone at 45°: unit-cell rule on a rotated lattice. Bricks are 2u×1u;
+  // cell (x,y) anchors a horizontal brick when (x−y)≡0 (mod 4) and the bottom
+  // of a vertical one when ≡3 — together they tile the plane exactly once.
+  ctx.translate(size / 2, size / 2);
+  ctx.rotate(Math.PI / 4);
+  const u = cellPx / 3;
+  const gap = Math.max(0.75, u / 8);
+  const rand = mulberry32(1348);
+  const half = Math.ceil((size * 0.75) / u);
+  for (let y = -half; y <= half; y += 1) {
+    for (let x = -half; x <= half; x += 1) {
+      const m = (((x - y) % 4) + 4) % 4;
+      if (m !== 0 && m !== 3) continue;
+      ctx.fillStyle = tonePick(rand, BRICK_TONES, 0.08);
+      if (m === 0) ctx.fillRect(x * u + gap, y * u + gap, 2 * u - 2 * gap, u - 2 * gap);
+      else ctx.fillRect(x * u + gap, y * u + gap, u - 2 * gap, 2 * u - 2 * gap);
+    }
+  }
+  ctx.restore();
+}
+
+/** Grand creamy travertine slabs laid diagonally, dark border (Florentine). */
+function drawPlazaTravertine(ctx: CanvasRenderingContext2D, size: number, cellPx: number) {
+  // Border course: the darker street limestone, one cell wide.
+  drawPaving(ctx, size, size, (size / cellPx) * STONES_PER_CELL, ROAD_GROUT, ROAD_TONES);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(cellPx, cellPx, size - 2 * cellPx, size - 2 * cellPx);
+  ctx.clip();
+  ctx.fillStyle = TRAVERTINE_GROUT;
+  ctx.fillRect(0, 0, size, size);
+  ctx.translate(size / 2, size / 2);
+  ctx.rotate(Math.PI / 4);
+  const s = cellPx * 1.3;
+  const gap = Math.max(1, s / 24);
+  const rand = mulberry32(1504);
+  const half = Math.ceil((size * 0.75) / s);
+  for (let y = -half; y <= half; y += 1) {
+    for (let x = -half; x <= half; x += 1) {
+      ctx.fillStyle = tonePick(rand, TRAVERTINE_TONES, 0.05);
+      ctx.fillRect(x * s + gap, y * s + gap, s - 2 * gap, s - 2 * gap);
+    }
+  }
+  ctx.restore();
+}
+
+/** Sett cobbles in rings radiating from the central fountain (Roman), in the
+ * street limestone so plazas read as kin to the roads — pattern, not color,
+ * marks them out. */
+function drawPlazaCobble(ctx: CanvasRenderingContext2D, size: number, cellPx: number) {
+  ctx.fillStyle = ROAD_GROUT;
+  ctx.fillRect(0, 0, size, size);
+  const rand = mulberry32(1506);
+  const sett = cellPx * 0.3;
+  for (let r = sett * 0.8; r < size * 0.75; r += sett) {
+    const count = Math.max(6, Math.round((2 * Math.PI * r) / sett));
+    const phase = rand(); // stagger ring starts so radial seams don't align
+    for (let i = 0; i < count; i += 1) {
+      const a = ((i + phase) / count) * 2 * Math.PI;
+      ctx.save();
+      ctx.translate(size / 2 + Math.cos(a) * r, size / 2 + Math.sin(a) * r);
+      ctx.rotate(a);
+      ctx.fillStyle = tonePick(rand, ROAD_TONES, 0.1);
+      ctx.fillRect(-sett * 0.42, -sett * 0.36, sett * 0.84, sett * 0.72);
+      ctx.restore();
+    }
+  }
+}
+
+export type PlazaStyle = "herringbone" | "travertine" | "cobble";
+const PLAZA_DRAWERS: Record<PlazaStyle, typeof drawPlazaHerringbone> = {
+  herringbone: drawPlazaHerringbone,
+  travertine: drawPlazaTravertine,
+  cobble: drawPlazaCobble,
+};
+
+// ponytail: dev toggle for previewing the alternate styles
+// (?plaza=herringbone|travertine); stays until the per-plaza style picker
+// stretch goal lands (see design doc), then per-tile state replaces it.
+function plazaStyle(): PlazaStyle {
+  if (typeof window === "undefined") return "cobble";
+  const p = new URLSearchParams(window.location.search).get("plaza");
+  return p === "travertine" || p === "herringbone" ? p : "cobble";
+}
+
+const plazaMaterials = new Map<string, StandardMaterial>();
+
+/** Showpiece paving for plaza pads (cached per style+size; size in world units). */
+export function getPlazaMaterial(worldUnits: number, scene: Scene) {
+  const style = plazaStyle();
+  const key = `${style}-${worldUnits}`;
+  let mat = plazaMaterials.get(key);
+  if (mat) return mat;
+  const cells = Math.round(worldUnits / CELL_SIZE);
+  const cellPx = Math.min(128, Math.floor(2048 / cells));
+  const size = cells * cellPx;
+  const tex = new DynamicTexture(`plaza-${key}-tex`, { width: size, height: size }, scene, true);
+  PLAZA_DRAWERS[style](tex.getContext() as CanvasRenderingContext2D, size, cellPx);
+  tex.update();
+  mat = new StandardMaterial(`plaza-${key}-mat`, scene);
+  mat.specularColor = Color3.Black();
+  mat.diffuseTexture = tex;
+  plazaMaterials.set(key, mat);
+  return mat;
+}
+
 let roadMaterial: StandardMaterial | null = null;
 
 function pavingMaterial(
@@ -113,40 +248,50 @@ function pavingMaterial(
   return mat;
 }
 
-/** Flagstone paving material for a cells×cells pad (cached per size). */
-export function getPadMaterial(cells: number, scene: Scene) {
-  let mat = padMaterials.get(cells);
-  if (mat) return mat;
-  const size = Math.min(1024, cells * 128); // room for the 5×5 stones per cell
-  mat = pavingMaterial(`pad-${cells}`, size, size, cells * STONES_PER_CELL, GROUT, STONE_TONES, scene);
-  padMaterials.set(cells, mat);
-  return mat;
+/** Non-plaza pads (market) share the aprons' mottled stone (size in world units). */
+export function getPadMaterial(worldUnits: number, scene: Scene) {
+  const cells = Math.round(worldUnits / CELL_SIZE);
+  return getApronMaterial(cells, cells, scene);
 }
 
 const apronMaterials = new Map<string, StandardMaterial>();
 
-/** Flagstone paving for a building's full w×d-cell footprint apron (cached per size). */
+// Aprons: the dirt-path mottling recolored to the street limestone — quiet
+// stone ground with no slab grid, so buildings don't sit on lighter flagstone
+// islands but still join roads/plazas in the same palette.
+const APRON_BASE = ROAD_TONES[0];
+const APRON_TONES = [...ROAD_TONES.slice(1), ROAD_GROUT];
+
+/** Mottled-stone ground for a building's full w×d-cell footprint apron (cached per size). */
 export function getApronMaterial(widthCells: number, depthCells: number, scene: Scene) {
   const key = `${widthCells}x${depthCells}`;
   let mat = apronMaterials.get(key);
   if (mat) return mat;
   const px = Math.min(128, Math.floor(1024 / Math.max(widthCells, depthCells)));
-  mat = pavingMaterial(
-    `apron-${key}`,
-    widthCells * px,
-    depthCells * px,
-    widthCells * STONES_PER_CELL,
-    GROUT,
-    STONE_TONES,
-    scene
+  const tex = new DynamicTexture(
+    `apron-${key}-tex`,
+    { width: widthCells * px, height: depthCells * px },
+    scene,
+    true
   );
+  // drawDirt fills a square; max dimension covers the rectangle, crop is harmless.
+  drawDirt(
+    tex.getContext() as CanvasRenderingContext2D,
+    Math.max(widthCells, depthCells) * px,
+    APRON_BASE,
+    APRON_TONES
+  );
+  tex.update();
+  mat = new StandardMaterial(`apron-${key}-mat`, scene);
+  mat.specularColor = Color3.Black();
+  mat.diffuseTexture = tex;
   apronMaterials.set(key, mat);
   return mat;
 }
 
-/** Full-tile street paving — darker limestone, larger slabs than the plazas. */
+/** Full-tile street paving — same slab size as the plazas, a shade darker. */
 export function getRoadMaterial(scene: Scene) {
-  roadMaterial ??= pavingMaterial("road", 128, 128, ROAD_STONES_PER_CELL, ROAD_GROUT, ROAD_TONES, scene);
+  roadMaterial ??= pavingMaterial("road", 128, 128, STONES_PER_CELL, ROAD_GROUT, ROAD_TONES, scene);
   return roadMaterial;
 }
 
@@ -398,12 +543,12 @@ export function createDirtPathOverlay(scene: Scene) {
 }
 
 export function disposePathMaterials() {
-  for (const mat of [...padMaterials.values(), ...apronMaterials.values()]) {
+  for (const mat of [...apronMaterials.values(), ...plazaMaterials.values()]) {
     mat.diffuseTexture?.dispose();
     mat.dispose();
   }
-  padMaterials.clear();
   apronMaterials.clear();
+  plazaMaterials.clear();
   roadMaterial?.diffuseTexture?.dispose();
   roadMaterial?.dispose();
   roadMaterial = null;

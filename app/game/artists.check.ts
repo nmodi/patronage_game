@@ -11,12 +11,19 @@ import {
   RANK_XP,
   type WorkshopSlot,
 } from "./artists.ts";
-import type { Artist, Commission } from "./types.ts";
+import type { Artist, ArtistType, Commission } from "./types.ts";
 
 const readyTick = ARTIST_ARRIVAL_COOLDOWN_MONTHS;
-const workshop = (key: string, capacity = 2, isActive = true, builtTick = 0): WorkshopSlot => ({
+const workshop = (
+  key: string,
+  capacity = 2,
+  isActive = true,
+  builtTick = 0,
+  artistType: ArtistType = "painter"
+): WorkshopSlot => ({
   key,
   capacity,
+  artistType,
   isActive,
   builtTick,
 });
@@ -28,13 +35,15 @@ const seq = (...vals: number[]) => {
 const win = () => 0; // always below ARTIST_ARRIVAL_CHANCE → arrival + picks index 0
 const lose = () => ARTIST_ARRIVAL_CHANCE; // >= chance → no arrival
 
-// Winning roll binds an apprentice to the (only) workshop.
+// Winning roll binds an apprentice of the workshop's type to the (only) workshop.
 {
   const out = maybeArriveArtist([workshop("5,5")], [], 3, readyTick, win);
   assert.ok(out);
   assert.equal(out.homeTileKey, "5,5");
   assert.equal(out.rank, "apprentice");
-  assert.ok(out.type === "painter" || out.type === "sculptor");
+  assert.equal(out.type, "painter");
+  const sculptor = maybeArriveArtist([workshop("5,5", 2, true, 0, "sculptor")], [], 3, readyTick, win);
+  assert.equal(sculptor?.type, "sculptor");
 }
 
 // Gated off: no inspiration, inactive workshop, losing roll → null.
@@ -71,12 +80,12 @@ assert.ok(maybeArriveArtist([workshop("5,5", 2, true, 0)], [], 3, readyTick, win
   assert.equal(out?.homeTileKey, "9,1");
 }
 
-// --- createArtist (founders spawn with the workshop) ---
+// --- createArtist (founders spawn with the workshop, typed by it) ---
 {
-  const a = createArtist("7,3", win);
+  const a = createArtist("7,3", "sculptor", win);
   assert.equal(a.homeTileKey, "7,3");
   assert.equal(a.rank, "apprentice");
-  assert.ok(a.type === "painter" || a.type === "sculptor");
+  assert.equal(a.type, "sculptor");
   assert.ok(a.name.length > 0);
 }
 

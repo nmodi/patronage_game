@@ -17,7 +17,7 @@ import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import type { BuildingId } from "~/game/buildings";
-import { disposePathMaterials, getPadMaterial } from "./paths";
+import { disposePathMaterials, getPadMaterial, getPlazaMaterial } from "./paths";
 
 registerBuiltInLoaders();
 
@@ -41,8 +41,11 @@ type ModelDef = {
   parts?: Part[];
   /** Single-piece alternatives picked by position hash (trees etc.). */
   variants?: Part[];
-  /** Flagstone paving quad under the parts, pad×pad kit units (also sets the design span). */
+  /** Paved ground quad under the parts, pad×pad kit units (also sets the design
+   * span). Mottled apron stone by default; `padStyle: "plaza"` for showpiece paving. */
   pad?: number;
+  /** "plaza" swaps the pad's plain flagstone for the showpiece plaza paving. */
+  padStyle?: "plaza";
   /** Fraction of the footprint the composed bounding box fills. Default 0.9. */
   fit?: number;
   /** Squash the whole composed model's height after footprint fitting (1 = as-fit). */
@@ -124,6 +127,27 @@ const MATERIAL_TINTS: Record<string, Record<string, string>> = {
   [NATURE + "fence_planks.glb"]: { wood: "#9a7b57", woodDark: "#6f523a" },
 };
 
+// Long workshop hall: two bays under one continuous shallow gable, chimney
+// poking through the ridge (3x2 footprint). Shared by both workshop types;
+// each adds its own front-yard props. Props stay within x ±1.04 / z ≤ 0.84 so
+// scaleZ ≥ scaleX still holds and the hall's fitted height is unchanged —
+// the yard just borrows footprint depth from the hall.
+const WORKSHOP_HALL: Part[] = [
+  { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
+  { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
+  { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE },
+  { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE },
+  { file: TOWN + "chimney.glb", position: [0.5, 0.55, 0] },
+  // door on the front bay, windows on the other faces (wall-doorway-square-wide
+  // is an open hole showing the blank block behind it — reads as a gray smear)
+  { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+  { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, 0.02], rotationY: -Math.PI / 2 },
+  { file: TOWN + "wall-window-shutters.glb", position: [-0.5, 0, -0.02], rotationY: Math.PI / 2 },
+  { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, -0.02], rotationY: Math.PI / 2 },
+  { file: TOWN + "wall-window-shutters.glb", position: [0.52, 0, 0] },
+  { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI },
+];
+
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cottage: {
     front: [1, 0],
@@ -162,27 +186,41 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.56,
     randomRotate: "quarter",
   },
-  // Long workshop hall: two bays under one continuous shallow gable, chimney
-  // poking through the ridge (3x2 footprint).
   workshop: {
     front: [0, 1],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
-      { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
-      { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE },
-      { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE },
-      { file: TOWN + "chimney.glb", position: [0.5, 0.55, 0] },
-      // door on the front bay, windows on the other faces (wall-doorway-square-wide
-      // is an open hole showing the blank block behind it — reads as a gray smear)
-      { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.5, 0, -0.02], rotationY: Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, -0.02], rotationY: Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0.52, 0, 0] },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI },
+      ...WORKSHOP_HALL,
+      // Painter's yard: guild banner over the facade seam, worktable with a
+      // canvas standing on it, framed canvases leaning on the wall (squashed
+      // wall-blocks — the texture's corner quoins read as frame corners),
+      // and a squat pigment basin.
+      { file: TOWN + "banner-green.glb", position: [0, 0, 0.11], rotationY: -Math.PI / 2 },
+      { file: TOWN + "stall-bench.glb", position: [0.32, 0, 0.66], rotationY: Math.PI / 2, scale: 0.85 },
+      { file: TOWN + "wall-block.glb", position: [0.15, 0.19, 0.66], scale: [0.26, 0.3, 0.04], rotationY: 0.12 },
+      { file: TOWN + "wall-block.glb", position: [-0.88, 0, 0.57], scale: [0.3, 0.42, 0.05], rotationY: -0.12 },
+      { file: TOWN + "wall-block.glb", position: [-0.16, 0, 0.58], scale: [0.2, 0.28, 0.05], rotationY: 0.2 },
+      { file: TOWN + "pillar-stone.glb", position: [0.85, 0, 0.68], scale: [1.4, 0.1, 1.4] },
     ],
     fit: 0.92,
     scaleY: 0.65, // ~12 ft roofline, chimney to ~16 ft
+    stretch: true,
+  },
+  sculpture_workshop: {
+    front: [0, 1],
+    parts: [
+      ...WORKSHOP_HALL,
+      // Stone yard: plinth with a rough block on it (statue in progress),
+      // uncarved boulder, scattered/stacked cut blocks, a column drum stub.
+      { file: TOWN + "wall-block.glb", position: [0.42, 0, 0.68], scale: [0.3, 0.16, 0.3] },
+      { file: TOWN + "rock-small.glb", position: [0.42, 0.16, 0.68], scale: 0.26, rotationY: 0.7 },
+      { file: TOWN + "rock-large.glb", position: [0.85, 0, 0.62], scale: 0.22, rotationY: 2.3 },
+      { file: TOWN + "pillar-stone.glb", position: [0.08, 0, 0.7], scale: [1.8, 0.35, 1.8] },
+      { file: TOWN + "wall-block.glb", position: [-0.22, 0, 0.6], scale: 0.17 },
+      { file: TOWN + "wall-block.glb", position: [-0.22, 0.17, 0.6], scale: 0.12, rotationY: 0.4 },
+      { file: TOWN + "wall-block.glb", position: [-0.95, 0, 0.6], scale: 0.14, rotationY: 0.6 },
+    ],
+    fit: 0.92,
+    scaleY: 0.65,
     stretch: true,
   },
   // Facade panels (wall-arch, wall-door, wall-window-*) are thin pieces on the
@@ -403,6 +441,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     // Fountain with a central column (mockup: obelisk rising from the water);
     // the rest stays open paving so future citizens/stalls have room.
     pad: 6,
+    padStyle: "plaza",
     parts: [
       { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 1.4 },
       { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 2 },
@@ -415,6 +454,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   },
   plaza: {
     pad: 4,
+    padStyle: "plaza",
     parts: [
       { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.9 },
       { file: TOWN + "lantern.glb", position: [-1.55, 0.02, -1.55] },
@@ -714,8 +754,8 @@ export function usesQuarterRotation(buildingId: BuildingId) {
   return MODEL_MANIFEST[buildingId]?.randomRotate === "quarter";
 }
 
-function getPadPair(size: number, scene: Scene) {
-  const on = getPadMaterial(size, scene);
+function getPadPair(size: number, style: "plaza" | undefined, scene: Scene) {
+  const on = style === "plaza" ? getPlazaMaterial(size, scene) : getPadMaterial(size, scene);
   let pair = materialPairs.get(on);
   if (!pair) {
     // Dim the flagstones when the building goes inactive (market short on workers).
@@ -817,15 +857,16 @@ export function instantiateBuilding(
     return null;
   }
 
+  let padMesh: Mesh | null = null;
   if (def.pad) {
     // Sets the design span too: the bounding fit below measures the pad, so
     // parts keep the same scale the old paving grid gave them.
-    const pad = CreateGround(`pad-${buildingId}`, { width: def.pad, height: def.pad }, scene);
-    pad.parent = root;
-    pad.position.y = 0.02;
-    pad.material = getPadPair(def.pad, scene).on;
-    meshes.push(pad);
-    meshKeys.push(`pad:${def.pad}`);
+    padMesh = CreateGround(`pad-${buildingId}`, { width: def.pad, height: def.pad }, scene);
+    padMesh.parent = root;
+    padMesh.position.y = 0.02;
+    padMesh.material = getPadPair(def.pad, def.padStyle, scene).on;
+    meshes.push(padMesh);
+    meshKeys.push(`pad:${def.pad}:${def.padStyle ?? "flag"}`);
   }
 
   // Rotate before fitting so rectangular prefabs fill the (rotated) footprint
@@ -879,6 +920,10 @@ export function instantiateBuilding(
   const height = (max.y - min.y) * scale * sy;
   const sink = (parts[0].sinkY ?? def.sinkY ?? 0) * height;
   root.position.y = -min.y * scale * sy - sink;
+  // The pad is the prefab's lowest surface, so the base shift above lands it
+  // at exactly y=0 — under the apron (0.005) and roads (0.01). Lift it to
+  // 0.015 world so the paving actually shows.
+  if (padMesh) padMesh.position.y = (0.015 - root.position.y) / (scale * sy);
 
   return {
     root,
@@ -933,8 +978,9 @@ export function createBuildingBatcher(
     if (builtMeshKeys.has(meshKey)) return;
     if (meshKey.startsWith("pad:")) {
       builtMeshKeys.add(meshKey);
-      const size = Number(meshKey.slice(4));
-      const pair = getPadPair(size, scene);
+      const [, sizeStr, style] = meshKey.split(":");
+      const size = Number(sizeStr);
+      const pair = getPadPair(size, style === "plaza" ? "plaza" : undefined, scene);
       const on = CreateGround(`batch-pad-${size}`, { width: size, height: size }, scene);
       on.material = pair.on;
       const off = on.clone(`batch-pad-${size}-off`);

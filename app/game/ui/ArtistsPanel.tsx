@@ -41,7 +41,6 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
       open={open}
       onToggle={onToggle}
       label="Artists & Workshops"
-      count={workshops.length}
       header={
         <span className="flex items-center gap-1.5">
           <Sparkles className="h-3.5 w-3.5 text-sienna" />

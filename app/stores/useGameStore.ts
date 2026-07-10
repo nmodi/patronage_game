@@ -195,7 +195,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         if (metadata.artistCapacity != null) {
           const key = `${originX},${originY}`;
           if (!s.artists.some((a) => a.homeTileKey === key)) {
-            founders.push(createArtist(key));
+            founders.push(createArtist(key, metadata.artistType ?? "painter"));
           }
         }
 
