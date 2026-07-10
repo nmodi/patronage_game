@@ -35,7 +35,7 @@ function mulberry32(seed: number) {
   };
 }
 
-const GRASS_TONES = ["#93ad60", "#8aa55a", "#9db267"].map(Color3.FromHexString);
+const GRASS_TONES = ["#98a861", "#91a15d", "#9fac66"].map(Color3.FromHexString);
 const FIELD_TONES = ["#c4a45e", "#ad9a55", "#b98e58", "#a3ac60"].map(Color3.FromHexString);
 
 type FieldPatch = { x: number; z: number; w: number; d: number; color: Color3 };
