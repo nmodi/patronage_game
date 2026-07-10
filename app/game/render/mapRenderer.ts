@@ -13,8 +13,15 @@ import type { BuildingMetadata, BuildingType } from "~/game/types";
 import type { Tile } from "~/stores/useGameStore";
 import {
   createBuildingBatcher,
+  doorLocalSide,
+  effectiveRotation,
+  getBlendGroup,
   hasExtensions,
   hasModel,
+  localSideForGrid,
+  reactsToNeighbors,
+  type BlendSides,
+  type GridSide,
   type PlacedBuilding,
 } from "./assetLibrary";
 import { createDirtPathOverlay, getApronMaterial, getRoadMaterial } from "./paths";
@@ -71,7 +78,8 @@ type TileMeshEntry = {
   smoke: SmokePlume | null;
   buildingId: BuildingId;
   isActive: boolean;
-  /** Neighbor-extension signature ("" when not extendable); change → rebuild. */
+  /** Neighbor signature — colonnade extension ends or row-house blend sides
+   * ("" when the building ignores neighbors); change → rebuild. */
   extendKey: string;
 };
 
@@ -110,6 +118,65 @@ function computeExtend(tile: Tile, metadata: BuildingMetadata, tiles: Record<str
   const posXSide = [high, low, low, high][r]; // +x / −y / −x / +y
   const negXSide = [low, high, high, low][r];
   return { negX: negXSide, posX: posXSide };
+}
+
+const OPPOSITE_GRID_SIDE: Record<GridSide, GridSide> = {
+  posX: "negX",
+  negX: "posX",
+  posY: "negY",
+  negY: "posY",
+};
+
+/**
+ * Local sides of a row-house that stretch to meet an abutting neighbor of the
+ * same blend group (cottage ↔ townhouse). Blending is mutual and skips door
+ * sides: a side only blends when the neighbor's facing side is door-free too,
+ * so both houses agree regardless of placement order and no house ever
+ * stretches into a neighbor's doorway. Rotation goes through
+ * `effectiveRotation` — houses without a stored rotation render with a
+ * position-seeded one, and the scan must match what actually renders.
+ */
+function computeBlend(
+  tile: Tile,
+  metadata: BuildingMetadata,
+  tiles: Record<string, Tile>
+): BlendSides {
+  const group = getBlendGroup(tile.buildingId);
+  const r = effectiveRotation(tile.buildingId, tile.position, tile.rotation);
+  const door = doorLocalSide(tile.buildingId);
+  const { width, depth } = rotatedFootprint(metadata, tile.rotation);
+  const { x, y } = tile.position;
+  const strips: Record<GridSide, { x: number; y: number }[]> = {
+    negX: [],
+    posX: [],
+    negY: [],
+    posY: [],
+  };
+  for (let dy = 0; dy < depth; dy += 1) {
+    strips.negX.push({ x: x - 1, y: y + dy });
+    strips.posX.push({ x: x + width, y: y + dy });
+  }
+  for (let dx = 0; dx < width; dx += 1) {
+    strips.negY.push({ x: x + dx, y: y - 1 });
+    strips.posY.push({ x: x + dx, y: y + depth });
+  }
+  const blend: BlendSides = {};
+  for (const gridSide of Object.keys(strips) as GridSide[]) {
+    const local = localSideForGrid(gridSide, r);
+    if (local === door) continue;
+    const facing = OPPOSITE_GRID_SIDE[gridSide];
+    for (const cell of strips[gridSide]) {
+      const neighbor = tiles[`${cell.x},${cell.y}`];
+      if (!neighbor || getBlendGroup(neighbor.buildingId) !== group) continue;
+      const origin = tiles[`${neighbor.origin.x},${neighbor.origin.y}`];
+      if (!origin) continue;
+      const rn = effectiveRotation(origin.buildingId, origin.position, origin.rotation);
+      if (localSideForGrid(facing, rn) === doorLocalSide(origin.buildingId)) continue;
+      blend[local] = true;
+      break;
+    }
+  }
+  return blend;
 }
 
 export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerator) {
@@ -199,7 +266,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   function createEntry(
     tile: Tile,
     metadata: BuildingMetadata,
-    extend?: { negX: boolean; posX: boolean }
+    extend?: { negX: boolean; posX: boolean },
+    blend?: BlendSides
   ): TileMeshEntry {
     const apron = createApron(tile, metadata);
     const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
@@ -211,6 +279,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       z,
       tile.rotation,
       extend,
+      blend,
       tile.isActive
     );
     if (placed) {
@@ -313,12 +382,17 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
     if (!metadata) return;
     const extend = hasExtensions(tile.buildingId) ? computeExtend(tile, metadata, renderedTiles) : null;
-    const extendKey = extend ? `${extend.negX ? "n" : ""}${extend.posX ? "p" : ""}` : "";
+    const blend = getBlendGroup(tile.buildingId) != null ? computeBlend(tile, metadata, renderedTiles) : null;
+    const extendKey = extend
+      ? `${extend.negX ? "n" : ""}${extend.posX ? "p" : ""}`
+      : blend
+        ? `b${blend.posX ? 1 : 0}${blend.negX ? 1 : 0}${blend.posZ ? 1 : 0}${blend.negZ ? 1 : 0}`
+        : "";
     let nextEntry = entry;
     const staleBox = nextEntry?.box && hasModel(tile.buildingId);
     if (!nextEntry || nextEntry.buildingId !== tile.buildingId || staleBox || nextEntry.extendKey !== extendKey) {
       if (nextEntry) disposeEntry(nextEntry);
-      nextEntry = createEntry(tile, metadata, extend ?? undefined);
+      nextEntry = createEntry(tile, metadata, extend ?? undefined, blend ?? undefined);
       nextEntry.extendKey = extendKey;
       active.set(key, nextEntry);
       refreshShadows();
@@ -329,7 +403,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       nextEntry.smoke?.setActive(tile.isActive);
     }
 
-    if (hasExtensions(tile.buildingId)) extensionOrigins.add(key);
+    if (reactsToNeighbors(tile.buildingId)) extensionOrigins.add(key);
     else extensionOrigins.delete(key);
 
     const needsMarker = !tile.isActive;
@@ -387,8 +461,9 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         pendingOrigins.add(`${next.origin.x},${next.origin.y}`);
       }
     }
-    // Only colonnades need neighbor recomputation, and they are rare enough that
-    // checking this small set is cheaper and simpler than a full-map scan.
+    // Neighbor-reactive buildings (colonnade extensions, row-house blending)
+    // recompute against the new tiles; unchanged extend/blend keys early-out in
+    // renderOrigin without rebuilding, so this is a cheap per-edit rescan.
     for (const key of extensionOrigins) pendingOrigins.add(key);
     renderedTiles = tiles;
     flushRoadBatch(pavedRoads);

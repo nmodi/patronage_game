@@ -21,6 +21,14 @@ import { disposePathMaterials, getPadMaterial, getPlazaMaterial } from "./paths"
 
 registerBuiltInLoaders();
 
+/** Local horizontal face of a composed prefab, pre-rotation. */
+export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
+/** Grid-space side of a footprint (grid y maps to world z). */
+export type GridSide = "posX" | "negX" | "posY" | "negY";
+/** Local sides whose face stretches to the footprint boundary to meet an
+ * abutting row-house (see mapRenderer computeBlend). */
+export type BlendSides = Partial<Record<LocalSide, boolean>>;
+
 /** One kit piece placed relative to the footprint center, in kit units (1 unit = 1 cell). */
 type Part = {
   file: string;
@@ -34,6 +42,13 @@ type Part = {
    * box: sunken pieces (negative position.y survives the ground rebase) and
    * overhanging extensions (reach past the footprint without shrinking it). */
   buried?: boolean;
+  /** Stretched along the blend axis so its face meets an abutting row-house
+   * (walls, roof). Non-structural parts keep their true proportions. */
+  structural?: boolean;
+  /** Thin panel attached to this local face (door, windows, banner) — dropped
+   * when that face blends into a neighbor, since it would be buried in the
+   * shared wall. */
+  face?: LocalSide;
 };
 
 type ModelDef = {
@@ -66,6 +81,10 @@ type ModelDef = {
    * overhang the footprint instead of shrinking the fit. */
   extendNegX?: Part[];
   extendPosX?: Part[];
+  /** Buildings sharing a group visually merge when side-adjacent: `structural`
+   * parts stretch to the footprint boundary on sides facing a same-group
+   * neighbor (row-houses). Sides carrying the door (`front`) never blend. */
+  blendGroup?: string;
 };
 
 const TOWN = "/models/town/";
@@ -152,13 +171,14 @@ const WORKSHOP_HALL: Part[] = [
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cottage: {
     front: [1, 0],
+    blendGroup: "rowhouse",
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
-      { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE },
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0], structural: true },
+      { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE, structural: true },
       // door on the gable end, shuttered windows on the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], face: "posX" },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, face: "posZ" },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, face: "negZ" },
     ],
     fit: 0.85,
     // Keeps the ridge at ~2.4 person-heights (~13.7 ft) after the fit bump.
@@ -167,18 +187,19 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   },
   townhouse: {
     front: [1, 0],
+    blendGroup: "rowhouse",
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0] },
-      { file: TOWN + "wall-block.glb", position: [0, 1, 0] },
-      { file: TOWN + "banner-red.glb", position: [0, 1, 0] },
-      { file: TOWN + "roof-gable.glb", position: [0, 2, 0], scale: ROOF_SCALE },
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0], structural: true },
+      { file: TOWN + "wall-block.glb", position: [0, 1, 0], structural: true },
+      { file: TOWN + "banner-red.glb", position: [0, 1, 0], face: "posX" },
+      { file: TOWN + "roof-gable.glb", position: [0, 2, 0], scale: ROOF_SCALE, structural: true },
       // door under the banner, shuttered windows on both floors of the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0] },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.02, 1, 0], rotationY: Math.PI },
+      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], face: "posX" },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, face: "posZ" },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2, face: "posZ" },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, face: "negZ" },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2, face: "negZ" },
+      { file: TOWN + "wall-window-shutters.glb", position: [-0.02, 1, 0], rotationY: Math.PI, face: "negX" },
     ],
     // Widened + squashed together: at fit 0.65 / full height the two-story
     // stack read as a tower next to person-scale citizens.
@@ -801,6 +822,45 @@ export function usesQuarterRotation(buildingId: BuildingId) {
   return MODEL_MANIFEST[buildingId]?.randomRotate === "quarter";
 }
 
+/** The quarter rotation (0-3) a building renders with at this origin: the
+ * stored player rotation, or the position-seeded one for quarter-rotate
+ * buildings. mapRenderer's neighbor scans must use this same value so blend
+ * decisions match what actually renders. */
+export function effectiveRotation(
+  buildingId: BuildingId,
+  gridPos: { x: number; y: number },
+  rotation?: number
+) {
+  if (rotation != null) return ((rotation % 4) + 4) % 4;
+  const def = MODEL_MANIFEST[buildingId];
+  return def?.randomRotate === "quarter" ? hashPosition(gridPos.x, gridPos.y) % 4 : 0;
+}
+
+// Rotation r turns local +X to face grid +x, −y, −x, +y (r = 0-3) — the same
+// table computeExtend uses. Both rings are in facing order, so rotating by r
+// just advances the grid index: local side i faces grid side (i + r) % 4.
+const LOCAL_SIDE_RING: LocalSide[] = ["posX", "negZ", "negX", "posZ"];
+const GRID_SIDE_RING: GridSide[] = ["posX", "negY", "negX", "posY"];
+
+/** Local side of a building (rotated by quarter turns r) that faces the given grid side. */
+export function localSideForGrid(grid: GridSide, r: number): LocalSide {
+  return LOCAL_SIDE_RING[(GRID_SIDE_RING.indexOf(grid) - r + 4) % 4];
+}
+
+/** Row-house blend group, when the building merges with same-group neighbors. */
+export function getBlendGroup(buildingId: BuildingId): string | undefined {
+  return MODEL_MANIFEST[buildingId]?.blendGroup;
+}
+
+/** Local side the entrance is on (from `front`) — this side never blends. */
+export function doorLocalSide(buildingId: BuildingId): LocalSide | null {
+  const front = MODEL_MANIFEST[buildingId]?.front;
+  if (!front) return null;
+  if (front[0] === 1) return "posX";
+  if (front[0] === -1) return "negX";
+  return front[1] === 1 ? "posZ" : "negZ";
+}
+
 function getPadPair(width: number, depth: number, style: "plaza" | undefined, scene: Scene) {
   // Plaza paving drawers are square-only; only the mottled stone supports rects.
   const on = style === "plaza" ? getPlazaMaterial(width, scene) : getPadMaterial(width, depth, scene);
@@ -816,12 +876,17 @@ function getPadPair(width: number, depth: number, style: "plaza" | undefined, sc
   return pair;
 }
 
-function instantiatePart(part: Part, parent: TransformNode, scene: Scene): AbstractMesh[] {
+function instantiatePart(
+  part: Part,
+  parent: TransformNode,
+  scene: Scene
+): { roots: TransformNode[]; meshes: AbstractMesh[] } {
   const container = containers.get(part.file);
-  if (!container) return [];
+  if (!container) return { roots: [], meshes: [] };
   const entries = container.instantiateModelsToScene((name) => name, false, {
     doNotInstantiate: true, // clones own their material slot, needed for active/inactive swaps
   });
+  const roots: TransformNode[] = [];
   const meshes: AbstractMesh[] = [];
   for (const node of entries.rootNodes) {
     const root = node as TransformNode; // glTF roots are always meshes
@@ -833,9 +898,10 @@ function instantiatePart(part: Part, parent: TransformNode, scene: Scene): Abstr
     }
     if (typeof part.scale === "number") root.scaling.setAll(part.scale);
     else if (part.scale) root.scaling.set(...part.scale);
+    roots.push(root);
     for (const mesh of root.getChildMeshes(false)) meshes.push(mesh);
   }
-  return meshes;
+  return { roots, meshes };
 }
 
 /** True when the building has a manifest entry whose files are all loaded. */
@@ -865,10 +931,44 @@ export type BuildingModel = {
  * Build the model for a building, scaled to its footprint with the base at y=0.
  * Returns null when the building has no manifest entry (caller falls back to a box).
  */
-/** Whether this building's model reacts to abutting neighbors (mapRenderer). */
+/** Whether this building appends extension parts against abutting solids (colonnade). */
 export function hasExtensions(buildingId: BuildingId) {
   const def = MODEL_MANIFEST[buildingId];
   return Boolean(def?.extendNegX || def?.extendPosX);
+}
+
+/** Whether this building's model reacts to abutting neighbors at all —
+ * mapRenderer re-evaluates these origins whenever any tile changes. */
+export function reactsToNeighbors(buildingId: BuildingId) {
+  return hasExtensions(buildingId) || getBlendGroup(buildingId) != null;
+}
+
+/** Move a part's faces along one local axis: faces with a target land exactly
+ * on it, faces without stay anchored where they are. `boundMin/Max` are the
+ * part's kit-space bounds on that axis (building-root space, pre-rotation). */
+function stretchPartToTargets(
+  roots: TransformNode[],
+  partRotationY: number | undefined,
+  axis: "x" | "z",
+  boundMin: number,
+  boundMax: number,
+  targetMin: number | null,
+  targetMax: number | null
+) {
+  if (targetMin == null && targetMax == null) return;
+  const extent = boundMax - boundMin;
+  if (extent <= 0) return;
+  const newMin = targetMin ?? boundMin;
+  const newMax = targetMax ?? boundMax;
+  const factor = (newMax - newMin) / extent;
+  // A part's quarter-turn rotationY swaps which of its own scaling axes spans
+  // the building axis; its position stays in parent (building) space.
+  const odd = Math.abs(Math.round((partRotationY ?? 0) / (Math.PI / 2))) % 2 === 1;
+  const scaleAxis = odd ? (axis === "x" ? "z" : "x") : axis;
+  for (const partRoot of roots) {
+    partRoot.scaling[scaleAxis] *= factor;
+    partRoot.position[axis] = newMin + factor * (partRoot.position[axis] - boundMin);
+  }
 }
 
 export function instantiateBuilding(
@@ -877,7 +977,8 @@ export function instantiateBuilding(
   gridPos: { x: number; y: number },
   scene: Scene,
   rotation?: number, // player-chosen quarter turns; overrides seeded randomRotate
-  extend?: { negX: boolean; posX: boolean } // append extendNegX/PosX parts
+  extend?: { negX: boolean; posX: boolean }, // append extendNegX/PosX parts
+  blend?: BlendSides // local sides stretched to the footprint edge (row-houses)
 ): BuildingModel | null {
   const def = MODEL_MANIFEST[buildingId];
   if (!def) return null;
@@ -889,40 +990,79 @@ export function instantiateBuilding(
   if (parts.length === 0) return null;
 
   const root = new TransformNode(`model-${buildingId}-${gridPos.x}-${gridPos.y}`, scene);
-  const meshes: AbstractMesh[] = [];
-  const meshKeys: string[] = [];
   const buried = new Set<AbstractMesh>();
+  type PartInstance = { part: Part; roots: TransformNode[]; meshes: AbstractMesh[] };
+  const partInstances: PartInstance[] = [];
   for (const part of parts) {
-    const partMeshes = instantiatePart(part, root, scene);
+    const { roots, meshes: partMeshes } = instantiatePart(part, root, scene);
     if (part.buried) for (const mesh of partMeshes) buried.add(mesh);
-    partMeshes.forEach((mesh, i) => {
-      meshes.push(mesh);
-      meshKeys.push(`${part.file}#${i}`);
-    });
+    partInstances.push({ part, roots, meshes: partMeshes });
   }
-  if (meshes.length === 0) {
+  if (!partInstances.some((pi) => pi.meshes.length > 0)) {
     root.dispose();
     return null;
   }
 
+  // Kit-space bounds of the stretchable parts, measured while the building
+  // root is still at identity (only part transforms apply — the rotation below
+  // doesn't touch them, so these stay valid in local space).
+  const blendActive =
+    blend != null && Boolean(blend.posX || blend.negX || blend.posZ || blend.negZ);
+  const structuralBounds = new Map<PartInstance, { min: Vector3; max: Vector3 }>();
+  if (blendActive) {
+    root.computeWorldMatrix(true);
+    for (const pi of partInstances) {
+      if (!pi.part.structural) continue;
+      let bounds: { min: Vector3; max: Vector3 } | null = null;
+      for (const partRoot of pi.roots) {
+        partRoot.computeWorldMatrix(true);
+        const b = partRoot.getHierarchyBoundingVectors(true);
+        if (!bounds) bounds = { min: b.min.clone(), max: b.max.clone() };
+        else {
+          bounds.min.minimizeInPlace(b.min);
+          bounds.max.maximizeInPlace(b.max);
+        }
+      }
+      if (bounds) structuralBounds.set(pi, bounds);
+    }
+  }
+
   let padMesh: Mesh | null = null;
+  let padW = 0;
+  let padD = 0;
   if (def.pad) {
     // Sets the design span too: the bounding fit below measures the pad, so
     // parts keep the same scale the old paving grid gave them.
-    const [padW, padD] = typeof def.pad === "number" ? [def.pad, def.pad] : def.pad;
+    [padW, padD] = typeof def.pad === "number" ? [def.pad, def.pad] : def.pad;
     padMesh = CreateGround(`pad-${buildingId}`, { width: padW, height: padD }, scene);
     padMesh.parent = root;
     padMesh.position.y = 0.02;
     padMesh.material = getPadPair(padW, padD, def.padStyle, scene).on;
-    meshes.push(padMesh);
-    meshKeys.push(`pad:${padW}x${padD}:${def.padStyle ?? "flag"}`);
   }
+
+  // meshes/meshKeys assemble late so blended prefabs can drop buried panels first.
+  const meshes: AbstractMesh[] = [];
+  const meshKeys: string[] = [];
+  const collectMeshes = () => {
+    for (const pi of partInstances) {
+      pi.meshes.forEach((mesh, i) => {
+        meshes.push(mesh);
+        meshKeys.push(`${pi.part.file}#${i}`);
+      });
+    }
+    if (padMesh) {
+      meshes.push(padMesh);
+      meshKeys.push(`pad:${padW}x${padD}:${def.padStyle ?? "flag"}`);
+    }
+  };
 
   // Rotate before fitting so rectangular prefabs fill the (rotated) footprint
   // the caller passes in — the bounding box below already reflects the turn.
-  if (rotation != null) root.rotation.y = (Math.PI / 2) * rotation;
-  else if (def.randomRotate === "quarter") root.rotation.y = (Math.PI / 2) * (hash % 4);
-  else if (def.randomRotate === "free") root.rotation.y = (hash / 4096) * Math.PI * 2;
+  if (rotation != null || def.randomRotate === "quarter") {
+    root.rotation.y = (Math.PI / 2) * effectiveRotation(buildingId, gridPos, rotation);
+  } else if (def.randomRotate === "free") {
+    root.rotation.y = (hash / 4096) * Math.PI * 2;
+  }
 
   // Fit the composed bounding box into the footprint, base at y=0.
   root.computeWorldMatrix(true);
@@ -946,6 +1086,7 @@ export function instantiateBuilding(
   if (def.stretch) {
     // Fill both footprint axes. Extents are world-space (post-rotation), but
     // scaling is local, so odd quarter turns swap which axis each scale drives.
+    collectMeshes();
     const scaleY = Math.min(scaleX, scaleZ) * sy;
     const odd = Math.round(root.rotation.y / (Math.PI / 2)) % 2 !== 0;
     root.scaling.set(odd ? scaleZ : scaleX, scaleY, odd ? scaleX : scaleZ);
@@ -965,6 +1106,49 @@ export function instantiateBuilding(
     const [lo, hi] = def.randomScale;
     scale *= lo + (hash / 4096) * (hi - lo);
   }
+
+  if (blendActive && blend) {
+    // Row-house blending: the fit above measured the complete, untouched part
+    // set, so the base scale/offsets are byte-identical with and without
+    // neighbors — only now do the structural faces move. Target rectangle: the
+    // footprint in kit units around the measured center (the caller recenters
+    // by offsetX/Z, so a stretched face lands exactly on the tile boundary,
+    // where the neighbor's own stretched face meets it), inverse-rotated from
+    // world-aligned into local part space.
+    const halfW = (footprint.width * CELL_SIZE) / 2 / scale;
+    const halfD = (footprint.depth * CELL_SIZE) / 2 / scale;
+    const cos = Math.cos(root.rotation.y);
+    const sin = Math.sin(root.rotation.y);
+    let fpMinX = Infinity;
+    let fpMaxX = -Infinity;
+    let fpMinZ = Infinity;
+    let fpMaxZ = -Infinity;
+    for (const wx of [centerX - halfW, centerX + halfW]) {
+      for (const wz of [centerZ - halfD, centerZ + halfD]) {
+        const lx = wx * cos - wz * sin;
+        const lz = wx * sin + wz * cos;
+        fpMinX = Math.min(fpMinX, lx);
+        fpMaxX = Math.max(fpMaxX, lx);
+        fpMinZ = Math.min(fpMinZ, lz);
+        fpMaxZ = Math.max(fpMaxZ, lz);
+      }
+    }
+    for (const [pi, bounds] of structuralBounds) {
+      stretchPartToTargets(pi.roots, pi.part.rotationY, "x", bounds.min.x, bounds.max.x,
+        blend.negX ? fpMinX : null, blend.posX ? fpMaxX : null);
+      stretchPartToTargets(pi.roots, pi.part.rotationY, "z", bounds.min.z, bounds.max.z,
+        blend.negZ ? fpMinZ : null, blend.posZ ? fpMaxZ : null);
+    }
+    // Panels on a blended face would sit buried inside the shared wall.
+    for (const pi of partInstances) {
+      if (pi.part.face && blend[pi.part.face]) {
+        for (const partRoot of pi.roots) partRoot.dispose();
+        pi.meshes = [];
+      }
+    }
+  }
+
+  collectMeshes();
   root.scaling.set(scale, scale * sy, scale);
   const height = (max.y - min.y) * scale * sy;
   const sink = (parts[0].sinkY ?? def.sinkY ?? 0) * height;
@@ -1091,9 +1275,10 @@ export function createBuildingBatcher(
     worldZ: number,
     rotation: number | undefined,
     extend: { negX: boolean; posX: boolean } | undefined,
+    blend: BlendSides | undefined,
     active: boolean
   ): PlacedBuilding | null {
-    const model = instantiateBuilding(buildingId, footprint, gridPos, scene, rotation, extend);
+    const model = instantiateBuilding(buildingId, footprint, gridPos, scene, rotation, extend, blend);
     if (!model) return null;
     model.root.position.x = worldX + model.offsetX;
     model.root.position.z = worldZ + model.offsetZ;

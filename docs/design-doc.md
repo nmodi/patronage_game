@@ -71,6 +71,8 @@ Players place buildings individually on the grid — houses included. This is de
 4. Palazzo
 5. Grand Palazzo
 
+**Row-house blending** *(built)*: cottages and townhouses (interchangeably) merge visually when placed side by side — walls and roof stretch to the shared footprint edge so the houses touch, and window panels on the shared wall drop. Isolated houses keep the inset look; a house adjacent on one side stretches only that side. The door side never blends, and blending is mutual (both facing sides must be door-free), so no house stretches into a neighbor's doorway and the look is independent of placement order. Derived at render time from neighbors via the colonnade's extend machinery (`computeBlend` in `mapRenderer.ts`, structural part stretch in `assetLibrary.ts`) — no store or save changes.
+
 ---
 
 ## Roads
