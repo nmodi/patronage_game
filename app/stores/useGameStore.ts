@@ -6,6 +6,7 @@ import type { Artist, Artwork, BuildingType, Commission } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
+import { getWaterCells } from "~/game/water";
 import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "~/game/connectivity";
 import { getSupply } from "~/game/materials";
 import { createTick } from "~/game/tick";
@@ -40,6 +41,9 @@ export interface TimeState {
 
 export type GameState = {
   seed: string;
+  // Seed the run's water (river/coast) derives from; null = no water (old
+  // saves, demo). Kept separate from `seed` so pre-water saves stay dry.
+  waterSeed: string | null;
   cityName: string;
   setCityName: (value: string) => void;
   florins: number;
@@ -74,12 +78,21 @@ export type GameState = {
   resetGame: () => void;
 };
 
+// ?water=<seed> (dev): force the water layer for course/visual iteration —
+// works with ?demo too (LAYOUT placements landing on water simply fail).
+const devWaterSeed = () => {
+  if (!import.meta.env.DEV || typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search).get("water");
+};
+
 const createInitialState = () => {
   // Demo mode is for stable screenshots — fix the seed so the city name (and any
   // future seed-driven visuals) don't change on every refresh.
   const seed = isDemo() ? "demo" : generateSeed();
   return {
     seed,
+    // Demo stays dry: its hand-placed layout spans nearly the whole grid.
+    waterSeed: devWaterSeed() ?? (isDemo() ? null : seed),
     cityName: pickCityName(seed),
     florins: 500,
     inspiration: 0,
@@ -157,6 +170,10 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const { width, depth } = rotatedFootprint(metadata, rotation);
       const workersRequired = metadata.workersRequired ?? 0;
       const batchCells = new Set<string>();
+      // Water blocks every free cell it covers — bridges are the one structure
+      // allowed onto it (G5). Occupied cells were already validated when their
+      // building was placed, so only the free-cell path checks water.
+      const water = getWaterCells(s.waterSeed);
 
       for (const position of positions) {
         if (
@@ -183,6 +200,9 @@ const initializer: StateCreator<GameState> = (set, get) => ({
                 return s;
               }
               continue;
+            }
+            if (buildingId !== "bridge" && water.has(key)) {
+              return s;
             }
             batchCells.add(key);
           }
@@ -326,16 +346,27 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    // v5: cathedral/tavern footprints grew — stamped tile spans no longer match
-    // the metadata, so saves are discarded.
-    // (v4: grid subdivided 2×; v3: commissions replaced free-play artworks;
-    // v2: footprints rescaled — same policy.)
-    version: 5,
+    // v6: water layer added — the first *preserving* migration: pre-water
+    // saves keep their city and get waterSeed: null (forever dry, since a
+    // newly seeded river would collide with their buildings).
+    // (v5: cathedral/tavern footprints grew — stamped tile spans no longer
+    // matched the metadata, so saves were discarded; v4: grid subdivided 2×;
+    // v3: commissions replaced free-play artworks; v2: footprints rescaled —
+    // same discard policy.)
+    version: 6,
+    migrate: (persisted, version) => {
+      // Pre-v5 saves keep the old discard policy: an empty patch merges into
+      // the fresh initial state (same outcome as the no-migrate mismatch,
+      // but the hydration lifecycle still completes for the loading gate).
+      if (version < 5) return {};
+      return version === 5 ? { ...(persisted as object), waterSeed: null } : persisted;
+    },
     // SSR: hydrate manually from the game route's client effect
     skipHydration: true,
     storage: createJSONStorage(() => (isDemo() ? noopStorage : localStorage)),
     partialize: (s) => ({
       seed: s.seed,
+      waterSeed: s.waterSeed,
       cityName: s.cityName,
       florins: s.florins,
       inspiration: s.inspiration,

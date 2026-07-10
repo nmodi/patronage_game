@@ -10,6 +10,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { getWaterCells } from "~/game/water";
 import { useGameStore, type GameState, type GridPos } from "~/stores/useGameStore";
 import {
   getFrontDirection,
@@ -193,20 +194,25 @@ export function createPlacementController(scene: Scene) {
   }
 
   // Existing road tiles may be overlapped (that's how stretches join); only
-  // buildings block. Returns the cells that still need placing (and paying
-  // for), or null if the stretch is blocked or unaffordable.
+  // buildings block — and water blocks everything but bridges (mirrors the
+  // store's placeTiles gate). Returns the cells that still need placing (and
+  // paying for), or null if the stretch is blocked or unaffordable.
   function planRoadStretch(state: GameState, positions: GridPos[], buildingId: BuildingId) {
     const metadata = BUILDING_METADATA_BY_ID[buildingId];
     if (!metadata || metadata.type !== "road" || positions.length === 0) return null;
 
+    const water = getWaterCells(state.waterSeed);
     const newCells: GridPos[] = [];
     for (const position of positions) {
       if (position.x < 0 || position.x >= GRID_SIZE || position.y < 0 || position.y >= GRID_SIZE) {
         return null;
       }
-      const tile = state.map.tiles[`${position.x},${position.y}`];
-      if (!tile) newCells.push(position);
-      else if (tile.type !== "road") return null;
+      const key = `${position.x},${position.y}`;
+      const tile = state.map.tiles[key];
+      if (!tile) {
+        if (buildingId !== "bridge" && water.has(key)) return null;
+        newCells.push(position);
+      } else if (tile.type !== "road") return null;
     }
     if (state.florins < metadata.baseCost * newCells.length) return null;
     return newCells;
@@ -316,13 +322,22 @@ export function createPlacementController(scene: Scene) {
       currentPosition.x + footprint.width <= GRID_SIZE && currentPosition.y + footprint.depth <= GRID_SIZE;
     // Decorations may overlap existing buildings; only their origin cell must be free.
     const canOverlap = metadata.type === "decoration";
+    const water = getWaterCells(state.waterSeed);
     let areaFree = false;
     if (fitsFootprint) {
       areaFree = true;
       for (let dx = 0; dx < footprint.width && areaFree; dx += 1) {
         for (let dy = 0; dy < footprint.depth; dy += 1) {
+          const cell = { x: currentPosition.x + dx, y: currentPosition.y + dy };
+          // Free water cells block like occupied ones (store gate mirror).
+          // Overlapping decorations skip occupied cells but still may not
+          // claim water.
+          if (water.has(`${cell.x},${cell.y}`) && !(canOverlap && state.getTileAt(cell))) {
+            areaFree = false;
+            break;
+          }
           if (canOverlap && !(dx === 0 && dy === 0)) continue;
-          if (state.getTileAt({ x: currentPosition.x + dx, y: currentPosition.y + dy })) {
+          if (state.getTileAt(cell)) {
             areaFree = false;
             break;
           }

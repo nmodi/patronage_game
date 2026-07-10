@@ -262,6 +262,19 @@ export const BUILDING_TYPES = [
     footprint: { width: 1, depth: 1 },
     roadWidth: 3,
   },
+  // The one structure allowed onto water cells (G5). Sharing type "road"
+  // buys drag placement, plaza connectivity, and citizen walkability free;
+  // land placement is also fine — it reads as a stone causeway.
+  {
+    type: "road",
+    id: "bridge",
+    name: "Stone Bridge",
+    baseCost: 80,
+    size: { width: 0.5, height: 0.05, depth: 0.5 },
+    color: "#cbbfa3",
+    footprint: { width: 1, depth: 1 },
+    roadWidth: 2,
+  },
   {
     type: "decoration",
     id: "tree",

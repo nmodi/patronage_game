@@ -11,6 +11,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
 
 import type { BuildingId } from "~/game/buildings";
+import { getWater } from "~/game/water";
 import { useGameStore } from "~/stores/useGameStore";
 import {
   countModelFiles,
@@ -23,6 +24,7 @@ import { createCitizens } from "./citizens";
 import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
 import { createTerrain } from "./terrain";
+import { createWaterVisuals } from "./waterMesh";
 
 const PAN_SPEED = 10; // world units per second
 const ROTATE_SPEED = 1.5; // radians per second
@@ -51,6 +53,8 @@ export function BabylonCanvas() {
     // ponytail: dev-only hooks for headless screenshot verification (see memory: dev-verification-workflow)
     if (import.meta.env.DEV) {
       (window as unknown as { __scene: Scene }).__scene = scene;
+      // Scripted placement/assertions in headless checks drive the store directly.
+      (window as unknown as { __store: typeof useGameStore }).__store = useGameStore;
       // &synccompile: block on shader compiles so virtual-time captures don't miss meshes
       if (window.location.search.includes("synccompile")) {
         engine.getCaps().parallelShaderCompile = undefined;
@@ -106,14 +110,37 @@ export function BabylonCanvas() {
     scene.imageProcessingConfiguration.colorCurves = curves;
     scene.imageProcessingConfiguration.colorCurvesEnabled = true;
 
-    const terrain = createTerrain(scene);
-
     const tileRenderer = createTileRenderer(scene, shadowGenerator);
     const placementController = createPlacementController(scene);
     const citizens = createCitizens(scene);
 
     let disposed = false;
+    // Terrain waits for store hydration: the run's waterSeed shapes it (river
+    // valley, coast), and it isn't known until the persisted state loads. The
+    // loading screen covers the gap; demo mode hydrates immediately.
+    let terrain: ReturnType<typeof createTerrain> | null = null;
+    let waterVisuals: ReturnType<typeof createWaterVisuals> | null = null;
+    let envModelsReady = false;
     let treeScatter: ReturnType<typeof scatterEnvironment> | null = null;
+
+    function initWorld() {
+      if (disposed || terrain) return;
+      const water = getWater(useGameStore.getState().waterSeed);
+      terrain = createTerrain(scene, water);
+      if (water) waterVisuals = createWaterVisuals(scene, water, terrain.surfaceAt);
+      maybeScatter();
+    }
+
+    // Wilderness scatter needs both the environment models and the terrain
+    // (its height field and the river to keep out of).
+    function maybeScatter() {
+      if (disposed || !envModelsReady || !terrain || treeScatter) return;
+      const water = getWater(useGameStore.getState().waterSeed);
+      const avoid = water
+        ? (x: number, z: number) => water.riverDistance(x, z) < 3 || water.seaDistance(x, z) > -3
+        : undefined;
+      treeScatter = scatterEnvironment(terrain.heightAt, terrain.rand, avoid);
+    }
     let tileFrame: number | null = null;
     let environmentTimer: number | null = null;
     const pendingModelIds = new Set<BuildingId>();
@@ -130,6 +157,7 @@ export function BabylonCanvas() {
     let hydrated =
       new URLSearchParams(window.location.search).has("demo") ||
       useGameStore.persist.hasHydrated();
+    if (hydrated) initWorld();
 
     function updateLoadProgress() {
       if (loadFinished || disposed) return;
@@ -147,6 +175,7 @@ export function BabylonCanvas() {
 
     const offHydration = useGameStore.persist.onFinishHydration(() => {
       hydrated = true;
+      initWorld();
       maybeFinishLoading();
     });
 
@@ -216,7 +245,8 @@ export function BabylonCanvas() {
       void preloadEnvironmentModels(scene)
         .then(() => {
           if (disposed) return;
-          treeScatter = scatterEnvironment(terrain.heightAt, terrain.rand);
+          envModelsReady = true;
+          maybeScatter();
         })
         .catch((error) => console.error("Environment preload failed:", error));
     }, 750);
@@ -297,6 +327,7 @@ export function BabylonCanvas() {
       citizens.dispose();
       tileRenderer.dispose();
       treeScatter?.dispose();
+      waterVisuals?.dispose();
       disposeAssetLibrary();
       engine.dispose();
     };

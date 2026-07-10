@@ -1551,18 +1551,22 @@ type ScatterOptions = {
  * clone per tree, so hundreds of scatter items cost a couple dozen draw calls. */
 export function scatterEnvironment(
   heightAt: (x: number, z: number) => number,
-  rand: () => number
+  rand: () => number,
+  avoid?: (x: number, z: number) => boolean
 ) {
   const placements: Array<{ file: string; x: number; z: number; opts: ScatterOptions }> = [];
   const buildHalfExtent = (GRID_SIZE * CELL_SIZE) / 2;
   const minDistance = buildHalfExtent + ENV_CLEARANCE;
 
+  // `avoid` (e.g. the river channel and the sea) rejects here — the funnel for
+  // every placement, so clump/row offsets can't stray into the water either.
   function place(
     file: string,
     x: number,
     z: number,
     opts: ScatterOptions = {}
   ) {
+    if (avoid?.(x, z)) return;
     placements.push({ file, x, z, opts });
   }
 
@@ -1572,7 +1576,8 @@ export function scatterEnvironment(
     const dist = minDistance + rand() * ENV_DEPTH;
     const x = Math.cos(angle) * dist;
     const z = Math.sin(angle) * dist;
-    return Math.max(Math.abs(x), Math.abs(z)) < minDistance ? null : { x, z };
+    if (Math.max(Math.abs(x), Math.abs(z)) < minDistance) return null;
+    return avoid?.(x, z) ? null : { x, z };
   }
 
   function placeTree(x: number, z: number) {

@@ -28,6 +28,7 @@ import {
   TreePine,
   Trees,
   Warehouse,
+  Waves,
   Wheat,
   type LucideIcon,
 } from "lucide-react";
@@ -68,6 +69,7 @@ const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   path: Footprints,
   road: Route,
   avenue: Milestone,
+  bridge: Waves,
   tree: TreeDeciduous,
   cypress: TreePine,
   vineyard: Grape,
