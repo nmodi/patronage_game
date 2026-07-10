@@ -5,7 +5,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { CELL_SIZE } from "~/game/constants";
+import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
 import { useGameStore, type Tile } from "~/stores/useGameStore";
 import { gridToWorld } from "./mapRenderer";
 
@@ -121,8 +121,10 @@ export function createCitizens(scene: Scene) {
   }
 
   const observer = scene.onBeforeRenderObservable.add(() => {
-    if (citizens.length === 0 || useGameStore.getState().paused) return;
-    const dt = scene.getEngine().getDeltaTime() / 1000;
+    const { paused, tickInterval } = useGameStore.getState();
+    if (citizens.length === 0 || paused) return;
+    // Walk speed tracks sim speed (tickInterval = BASE / multiplier).
+    const dt = (scene.getEngine().getDeltaTime() / 1000) * (BASE_TICK_INTERVAL / tickInterval);
     for (const citizen of citizens) {
       citizen.t += (citizen.speed * dt) / CELL_SIZE;
       if (citizen.t >= 1) {

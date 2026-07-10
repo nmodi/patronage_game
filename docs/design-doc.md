@@ -26,6 +26,7 @@ The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, war
 - Low-poly isometric 3D
 - Warm ochre, terracotta, sandstone color palette
 - Tiled ground, terracotta rooftops, cypress trees, fountains
+- **No flat roofs on buildings** — every roof is pitched (gable/hip/point), even if only a shallow pitch; flat kit pieces are allowed only as non-roof slabs (e.g. the colonnade architrave)
 - Buildings show activity via animations (chimney smoke); inactive buildings desaturate and lose animations
 - Hover tooltips on all buildings explaining status
 

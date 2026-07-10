@@ -162,14 +162,15 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.56,
     randomRotate: "quarter",
   },
-  // Long workshop hall: two bays under a flat roof, chimney on the far bay (3x2 footprint).
+  // Long workshop hall: two bays under one continuous shallow gable, chimney
+  // poking through the ridge (3x2 footprint).
   workshop: {
     front: [0, 1],
     parts: [
       { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
       { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
-      { file: TOWN + "roof-flat.glb", position: [-0.5, 1, 0] },
-      { file: TOWN + "roof-flat.glb", position: [0.5, 1, 0] },
+      { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE },
+      { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE },
       { file: TOWN + "chimney.glb", position: [0.5, 0.55, 0] },
       // door on the front bay, windows on the other faces (wall-doorway-square-wide
       // is an open hole showing the blank block behind it — reads as a gray smear)
@@ -247,9 +248,11 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   },
   // Cathedral, front facing +X, symmetrical like Santa Maria Novella:
   // two-story nave under a high gable (ridge runs along X in the kit) with a
-  // single-story flat-roofed aisle on each side. Three-portal facade with a
-  // rose window, arcaded aisle walls, clerestory rounds above both aisle
-  // roofs. (The bell tower is its own building now — see bell_tower.)
+  // single-story aisle on each side under a shallow lean-to roof sloping up
+  // to the nave wall (no shed piece in the kit: a gable with its ridge sunk
+  // into the nave block, so only the outer slope shows). Three-portal facade
+  // with a rose window, arcaded aisle walls, clerestory rounds above both
+  // aisle roofs. (The bell tower is its own building now — see bell_tower.)
   cathedral: {
     front: [1, 0],
     parts: [
@@ -258,9 +261,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "roof-high-gable.glb", position: [0, 2, 0], scale: [4, 1, 1] },
       // side aisles
       { file: TOWN + "wall-block.glb", position: [0, 0, -1], scale: [4, 1, 1] },
-      { file: TOWN + "roof-flat.glb", position: [0, 1, -1], scale: [4.1, 1, 1.1] },
+      // lean-to roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it just
+      // inside the ±2 facades (no ledge poking past the front); ridge cap sits
+      // 0.02 behind the nave wall face (z-fight)
+      { file: TOWN + "roof-gable.glb", position: [0, 1, -0.48], scale: [3.62, 0.4, 2.1] },
       { file: TOWN + "wall-block.glb", position: [0, 0, 1], scale: [4, 1, 1] },
-      { file: TOWN + "roof-flat.glb", position: [0, 1, 1], scale: [4.1, 1, 1.1] },
+      { file: TOWN + "roof-gable.glb", position: [0, 1, 0.48], scale: [3.62, 0.4, 2.1] },
       // facade: central portal + rose window, side portals on the aisle fronts
       { file: TOWN + "wall-door.glb", position: [1.52, 0, 0] },
       { file: TOWN + "wall-window-round.glb", position: [1.52, 1, 0] },
@@ -326,13 +332,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.68,
     randomRotate: "quarter",
   },
-  // Marble yard: low flat-roofed cutting shed, rough blocks and a finished
-  // column in the yard beside it.
+  // Marble yard: low cutting shed under a shallow gable, rough blocks and a
+  // finished column in the yard beside it.
   marble_supplier: {
     front: [1, 0],
     parts: [
       { file: TOWN + "wall-block.glb", position: [-0.4, 0, -0.3] },
-      { file: TOWN + "roof-flat.glb", position: [-0.4, 1, -0.3] },
+      { file: TOWN + "roof-gable.glb", position: [-0.4, 1, -0.3], scale: [1, 0.45, 1] },
       // shed door opening onto the yard, window on the side
       { file: TOWN + "wall-door.glb", position: [-0.38, 0, -0.3] },
       { file: TOWN + "wall-window-shutters.glb", position: [-0.4, 0, -0.28], rotationY: -Math.PI / 2 },
