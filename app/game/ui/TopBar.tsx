@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Coins, Crown, Pause, Play, RotateCcw, Settings, Sparkles, Users } from "lucide-react";
+import { Check, Coins, Copy, Crown, Pause, Pencil, Play, RotateCcw, Settings, Sparkles, Users } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
@@ -19,7 +19,27 @@ export function TopBar() {
   const population = useGameStore((s) => s.population);
   const housing = useGameStore((s) => s.getHousing());
   const resetGame = useGameStore((s) => s.resetGame);
+  const cityName = useGameStore((s) => s.cityName);
+  const setCityName = useGameStore((s) => s.setCityName);
+  const seed = useGameStore((s) => s.seed);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState("");
+  const [seedCopied, setSeedCopied] = useState(false);
+
+  const copySeed = () => {
+    // ponytail: seeds are stored lowercase; shown/copied uppercase for readability.
+    // Harmless now (no seed-input UI) — a future "load seed" must lowercase on input.
+    navigator.clipboard?.writeText(seed.toUpperCase());
+    setSeedCopied(true);
+    setTimeout(() => setSeedCopied(false), 1200);
+  };
+
+  const commitName = () => {
+    const name = nameDraft.trim();
+    if (name) setCityName(name); // blank keeps the existing name
+    setEditingName(false);
+  };
 
   return (
     <div className="pointer-events-none fixed top-0 left-0 right-0 z-50">
@@ -28,8 +48,34 @@ export function TopBar() {
         className="flex items-center justify-between gap-4 py-1.5!"
       >
         <div className="flex items-center gap-4">
+        {editingName ? (
+          <input
+            autoFocus
+            maxLength={30}
+            value={nameDraft}
+            onChange={(e) => setNameDraft(e.target.value)}
+            onBlur={commitName}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") commitName();
+              if (e.key === "Escape") setEditingName(false);
+            }}
+            className="w-40 border-b border-wood/50 bg-transparent font-display text-lg font-semibold text-ink outline-none focus:border-sienna"
+          />
+        ) : (
+          <button
+            className="group flex items-center gap-2 font-display text-lg font-semibold text-ink"
+            onClick={() => {
+              setNameDraft(cityName);
+              setEditingName(true);
+            }}
+            aria-label="Rename city"
+          >
+            {cityName}
+            <Pencil className="h-4 w-4 text-ink-faint transition group-hover:text-ink" />
+          </button>
+        )}
         {/* Fixed width so variable-width month names don't resize the card. */}
-        <span className="w-24 whitespace-nowrap font-display text-lg font-semibold text-ink">
+        <span className="w-24 whitespace-nowrap border-l border-wood/50 pl-3 font-display text-lg font-semibold text-ink">
           {calendarLabel}
         </span>
         <div className="flex items-center gap-1 border-l border-wood/50 pl-3">
@@ -107,6 +153,14 @@ export function TopBar() {
             >
               <RotateCcw className="h-4 w-4" />
               Restart Game
+            </button>
+            <button
+              className="flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-ink-faint transition hover:text-ink"
+              onClick={copySeed}
+              title="Copy seed"
+            >
+              Seed: {seed.toUpperCase()}
+              {seedCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             </button>
             <span className="text-center text-xs text-ink-faint">v0.1</span>
           </Panel>

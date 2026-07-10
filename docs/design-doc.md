@@ -177,7 +177,7 @@ Multiple commissions run simultaneously; the right panel shows active ones with 
 The full roster below is the long-term target, implemented incrementally. *(built)* marks what exists. Effect design for the non-art buildings (which of five effect slots each fills, Palazzo dual-listing resolution) is detailed in the supplemental [building-effects.md](building-effects.md).
 
 ### Civic / Landmark
-- **Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Masterworks. The Town Center Plaza is the **Main Plaza** — the connectivity hub; Plazas are secondary hubs that refresh its reach
+- **Plaza** / **Small Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Masterworks. The Town Center Plaza is the **Main Plaza** — the connectivity hub; Plazas and Small Plazas (a 5-cell piazzetta, chapel-width) are secondary hubs that refresh its reach
 - **Cathedral** *(model built — placeable landmark, unlock effect still open)* — unlocks religious commissions
 - **Market** *(built)* — generates Florins for now. **Planned repurpose:** once a richer economy system takes over money-making, the Market becomes an overflow supply source — spend florins there for extra material capacity when your suppliers are at their limits.
 - **Guildhall** — unlocks craft commissions
@@ -280,7 +280,7 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 
 ### Later / stretch
 - Richer economy system (replaces the Market as the primary florin source; Market repurposed as overflow material supply, bought with florins when suppliers are maxed)
-- Seed system — a run seed randomizes each new game. Randomly generated per new game as a relatively short alpha string (human-readable/shareable), viewable in the settings menu. It should influence:
+- Seed system — a run seed randomizes each new game. Randomly generated per new game as a relatively short alpha string (human-readable/shareable), viewable in the settings menu. *Partially built: the `seed` field now exists (`app/game/seed.ts`, persisted in the store, shown in Settings) and deterministically picks the starting city name (`pickCityName`). The influences below are still open — terrain/resources/factions are not yet wired to it.* It should influence:
   - Terrain: heights and wilderness scatter. Current fixed constants to thread the seed into: `terrain.ts` — `mulberry32(93)` (returned as `terrain.rand`, drives `assetLibrary.scatterEnvironment`: tree clumps, shrubs, rocks, vineyard patches, fence/wall runs) and `mulberry32(1482)` (field-patch colors). Hill shape itself is currently seedless sine math and would also need the seed. Note: placed-building variety (`hashPosition(x, y)` in `assetLibrary.ts`) is deliberately position-keyed, not seeded — a building at a cell always looks the same regardless of placement order; keep that.
   - Available resources on the map (which suppliers/materials this run offers)
   - Faction archetypes / personality types — different archetypes value different things and ask for different commissions

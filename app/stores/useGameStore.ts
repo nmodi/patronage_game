@@ -5,6 +5,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 import type { Artist, Artwork, BuildingType, Commission } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { createArtist } from "~/game/artists";
+import { generateSeed, pickCityName } from "~/game/seed";
 import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "~/game/connectivity";
 import { getSupply } from "~/game/materials";
 import { createTick } from "~/game/tick";
@@ -38,6 +39,9 @@ export interface TimeState {
 }
 
 export type GameState = {
+  seed: string;
+  cityName: string;
+  setCityName: (value: string) => void;
   florins: number;
   inspiration: number;
   prestige: number;
@@ -69,23 +73,31 @@ export type GameState = {
   resetGame: () => void;
 };
 
-const createInitialState = () => ({
-  florins: 500,
-  inspiration: 0,
-  prestige: 0,
-  population: 0,
-  artists: [] as Artist[],
-  artworks: [] as Artwork[],
-  commissions: [] as Commission[],
-  hoveredTileKey: null as string | null,
-  map: { tiles: {}, selectedBuilding: null } as MapState,
-  time: { tickCount: 0 },
-  paused: false,
-  tickInterval: BASE_TICK_INTERVAL,
-});
+const createInitialState = () => {
+  // Demo mode is for stable screenshots — fix the seed so the city name (and any
+  // future seed-driven visuals) don't change on every refresh.
+  const seed = isDemo() ? "demo" : generateSeed();
+  return {
+    seed,
+    cityName: pickCityName(seed),
+    florins: 500,
+    inspiration: 0,
+    prestige: 0,
+    population: 0,
+    artists: [] as Artist[],
+    artworks: [] as Artwork[],
+    commissions: [] as Commission[],
+    hoveredTileKey: null as string | null,
+    map: { tiles: {}, selectedBuilding: null } as MapState,
+    time: { tickCount: 0 },
+    paused: false,
+    tickInterval: BASE_TICK_INTERVAL,
+  };
+};
 
 const initializer: StateCreator<GameState> = (set, get) => ({
   ...createInitialState(),
+  setCityName: (value) => set(() => ({ cityName: value })),
   addFlorins: (amount: number) => set((s) => ({ florins: s.florins + amount })),
   setFlorins: (value: number) => set(() => ({ florins: value })),
   setPopulation: (value: number) => set(() => ({ population: value })),
@@ -302,14 +314,17 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    // v4: grid subdivided 2× (CELL_SIZE 0.5, footprints doubled) — old tile
-    // coordinates are meaningless, so saves are discarded.
-    // (v3: commissions replaced free-play artworks; v2: footprints rescaled — same policy.)
-    version: 4,
+    // v5: cathedral/tavern footprints grew — stamped tile spans no longer match
+    // the metadata, so saves are discarded.
+    // (v4: grid subdivided 2×; v3: commissions replaced free-play artworks;
+    // v2: footprints rescaled — same policy.)
+    version: 5,
     // SSR: hydrate manually from the game route's client effect
     skipHydration: true,
     storage: createJSONStorage(() => (isDemo() ? noopStorage : localStorage)),
     partialize: (s) => ({
+      seed: s.seed,
+      cityName: s.cityName,
       florins: s.florins,
       inspiration: s.inspiration,
       prestige: s.prestige,

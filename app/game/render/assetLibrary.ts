@@ -41,9 +41,10 @@ type ModelDef = {
   parts?: Part[];
   /** Single-piece alternatives picked by position hash (trees etc.). */
   variants?: Part[];
-  /** Paved ground quad under the parts, pad×pad kit units (also sets the design
-   * span). Mottled apron stone by default; `padStyle: "plaza"` for showpiece paving. */
-  pad?: number;
+  /** Paved ground quad under the parts, in kit units — square, or [width, depth]
+   * for rectangular pads (also sets the design span). Mottled apron stone by
+   * default; `padStyle: "plaza"` for showpiece paving. */
+  pad?: number | [number, number];
   /** "plaza" swaps the pad's plain flagstone for the showpiece plaza paving. */
   padStyle?: "plaza";
   /** Fraction of the footprint the composed bounding box fills. Default 0.9. */
@@ -387,21 +388,44 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     fit: 0.88,
     randomRotate: "quarter",
   },
-  // Long tavern hall: two bays under one continuous gable roof (3x2 footprint).
+  // Long tavern hall: three bays under one continuous gable roof, with a
+  // one-tile terrace out front (9x7 footprint). Bays are 3 wide × 1.5 deep in
+  // kit units so the fitted cell scale matches the 6x4 houses — doors/windows
+  // stay kit-sized instead of inflating with the footprint. Wall faces sit at
+  // z ±0.75, so face panels center at ±0.27 (panel is +0.5 from piece center,
+  // +0.02 z-fight nudge). The awning's outer edge at z=1.0 sets the fit box:
+  // 1.75 kit deep on 7 cells keeps the same cells-per-kit-unit as the walls.
   tavern: {
     front: [0, 1],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0] },
-      { file: TOWN + "wall-block.glb", position: [0.5, 0, 0] },
-      { file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE },
-      { file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE },
-      { file: TOWN + "banner-red.glb", position: [0.5, 0.25, 0] },
-      // door + window on the front, windows on the back and far gable end
-      { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.5, 0, -0.02], rotationY: Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, -0.02], rotationY: Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI },
+      { file: TOWN + "wall-block.glb", position: [-1, 0, 0], scale: [1, 1, 1.5] },
+      { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [1, 1, 1.5] },
+      { file: TOWN + "wall-block.glb", position: [1, 0, 0], scale: [1, 1, 1.5] },
+      { file: TOWN + "roof-gable-end.glb", position: [-0.75, 1, 0], rotationY: Math.PI, scale: [1.5, 0.6, 1.5] },
+      { file: TOWN + "roof-gable-end.glb", position: [0.75, 1, 0], scale: [1.5, 0.6, 1.5] },
+      { file: TOWN + "banner-red.glb", position: [1, 0.25, 0] },
+      // door + windows on the front, windows on the back and far gable end
+      { file: TOWN + "wall-door.glb", position: [-1, 0, 0.27], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.27], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [1, 0, 0.27], rotationY: -Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [-1, 0, -0.27], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.27], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [1, 0, -0.27], rotationY: Math.PI / 2 },
+      { file: TOWN + "wall-window-shutters.glb", position: [-1.02, 0, 0], rotationY: Math.PI },
+      // terrace: shallow tiled awning (ridge sunk into the wall, cathedral
+      // lean-to trick) over benches and potted shrubs. Prop scales counter the
+      // global stretch (~1.36x / 1.84z) so they render roughly square.
+      // awning rides just under the eaves — the arched door frame reaches
+      // nearly the full wall height, so anything lower slices through it
+      { file: TOWN + "roof-gable.glb", position: [0, 0.82, 0.75], scale: [2.6, 0.2, 0.5] },
+      // square café tables (the market's open table stand); z=0.9 keeps the legs
+      // clear of the wall face at 0.75, buried so poking past the awning's
+      // z=1.0 fit edge doesn't rescale the walls
+      { file: TOWN + "stall.glb", position: [0.1, 0, 0.9], rotationY: Math.PI, scale: [0.38, 0.52, 0.29], buried: true },
+      { file: TOWN + "stall.glb", position: [0.85, 0, 0.9], rotationY: Math.PI, scale: [0.38, 0.52, 0.29], buried: true },
+      { file: NATURE + "plant_bush.glb", position: [-1.35, 0, 0.86], scale: [0.46, 0.52, 0.34] },
+      { file: NATURE + "plant_bush.glb", position: [-0.55, 0, 0.86], scale: [0.36, 0.42, 0.27] },
+      { file: NATURE + "plant_bushDetailed.glb", position: [1.4, 0, 0.86], scale: [0.46, 0.52, 0.34] },
     ],
     fit: 0.92,
     scaleY: 0.79, // ~16 ft ridge — a public hall, half a notch above the cottage
@@ -424,16 +448,23 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   },
   // Open market square: stalls sit small on a paved pad (the paving sets the
   // bounding box, so the stalls read as furniture, not as the building mass).
+  // 7x4 cells with the stall rows on the two long edges, so adjacent markets
+  // tile into continuous rows of stalls (three span a town-center plaza side).
   market: {
-    pad: 4,
+    pad: [3.5, 2],
     parts: [
-      // Keep every piece inside the pad's ±2 half-extent — anything poking out
-      // grows the measured bounding box and shrinks/shifts the pad off the tile.
-      { file: TOWN + "stall-red.glb", position: [-1, 0.02, -1], rotationY: Math.PI, scale: 1 },
-      { file: TOWN + "stall-green.glb", position: [1, 0.02, -1], rotationY: Math.PI, scale: 1 },
-      { file: TOWN + "stall.glb", position: [-1, 0.02, 1], scale: 1 },
-      { file: TOWN + "cart.glb", position: [1, 0.02, 1], rotationY: Math.PI / 2, scale: 1 },
-      { file: TOWN + "lantern.glb", position: [0, 0.02, 0], scale: 0.8 },
+      // Keep every piece inside the pad's ±1.75 × ±1.0 half-extents — anything
+      // poking out grows the measured bounding box and shrinks/shifts the pad
+      // off the tile. Booths at ~0.62 anchor to the citizens/tavern tables
+      // (kit-native 1.0 towers over the meeples); rows face a central aisle.
+      // Stall is 1x1 native → 0.31 half-extent here, so ±0.65 rides the edge.
+      // Stalls front along +X natively; quarter-turn each row toward the aisle.
+      { file: TOWN + "stall-red.glb", position: [-1.1, 0.02, -0.65], rotationY: -Math.PI / 2, scale: 0.62 },
+      { file: TOWN + "stall-green.glb", position: [0, 0.02, -0.65], rotationY: -Math.PI / 2, scale: 0.62 },
+      { file: TOWN + "stall-red.glb", position: [1.1, 0.02, -0.65], rotationY: -Math.PI / 2, scale: 0.62 },
+      { file: TOWN + "stall-green.glb", position: [-1.1, 0.02, 0.65], rotationY: Math.PI / 2, scale: 0.62 },
+      { file: TOWN + "stall-red.glb", position: [0, 0.02, 0.65], rotationY: Math.PI / 2, scale: 0.62 },
+      { file: TOWN + "stall-green.glb", position: [1.1, 0.02, 0.65], rotationY: Math.PI / 2, scale: 0.62 },
     ],
     fit: 1,
   },
@@ -443,7 +474,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     pad: 6,
     padStyle: "plaza",
     parts: [
-      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 1.4 },
+      // 1.4× footprint with the height squashed to the small fountain's 0.9 —
+      // uniform 1.4 makes the rim read as a parapet, and sinking it instead
+      // drowns the water plane below the rim
+      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: [1.4, 0.9, 1.4] },
       { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 2 },
       { file: TOWN + "lantern.glb", position: [-2.4, 0.02, -2.4] },
       { file: TOWN + "lantern.glb", position: [2.4, 0.02, -2.4] },
@@ -461,6 +495,19 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "lantern.glb", position: [1.55, 0.02, -1.55] },
       { file: TOWN + "lantern.glb", position: [-1.55, 0.02, 1.55] },
       { file: TOWN + "lantern.glb", position: [1.55, 0.02, 1.55] },
+    ],
+    fit: 1,
+  },
+  // Neighborhood piazzetta: open paving with corner lanterns, no centerpiece —
+  // a fountain would crowd a 5-cell square (and the wandering citizens).
+  small_plaza: {
+    pad: 2.5,
+    padStyle: "plaza",
+    parts: [
+      { file: TOWN + "lantern.glb", position: [-0.9, 0.02, -0.9] },
+      { file: TOWN + "lantern.glb", position: [0.9, 0.02, -0.9] },
+      { file: TOWN + "lantern.glb", position: [-0.9, 0.02, 0.9] },
+      { file: TOWN + "lantern.glb", position: [0.9, 0.02, 0.9] },
     ],
     fit: 1,
   },
@@ -754,8 +801,9 @@ export function usesQuarterRotation(buildingId: BuildingId) {
   return MODEL_MANIFEST[buildingId]?.randomRotate === "quarter";
 }
 
-function getPadPair(size: number, style: "plaza" | undefined, scene: Scene) {
-  const on = style === "plaza" ? getPlazaMaterial(size, scene) : getPadMaterial(size, scene);
+function getPadPair(width: number, depth: number, style: "plaza" | undefined, scene: Scene) {
+  // Plaza paving drawers are square-only; only the mottled stone supports rects.
+  const on = style === "plaza" ? getPlazaMaterial(width, scene) : getPadMaterial(width, depth, scene);
   let pair = materialPairs.get(on);
   if (!pair) {
     // Dim the flagstones when the building goes inactive (market short on workers).
@@ -861,12 +909,13 @@ export function instantiateBuilding(
   if (def.pad) {
     // Sets the design span too: the bounding fit below measures the pad, so
     // parts keep the same scale the old paving grid gave them.
-    padMesh = CreateGround(`pad-${buildingId}`, { width: def.pad, height: def.pad }, scene);
+    const [padW, padD] = typeof def.pad === "number" ? [def.pad, def.pad] : def.pad;
+    padMesh = CreateGround(`pad-${buildingId}`, { width: padW, height: padD }, scene);
     padMesh.parent = root;
     padMesh.position.y = 0.02;
-    padMesh.material = getPadPair(def.pad, def.padStyle, scene).on;
+    padMesh.material = getPadPair(padW, padD, def.padStyle, scene).on;
     meshes.push(padMesh);
-    meshKeys.push(`pad:${def.pad}:${def.padStyle ?? "flag"}`);
+    meshKeys.push(`pad:${padW}x${padD}:${def.padStyle ?? "flag"}`);
   }
 
   // Rotate before fitting so rectangular prefabs fill the (rotated) footprint
@@ -979,11 +1028,11 @@ export function createBuildingBatcher(
     if (meshKey.startsWith("pad:")) {
       builtMeshKeys.add(meshKey);
       const [, sizeStr, style] = meshKey.split(":");
-      const size = Number(sizeStr);
-      const pair = getPadPair(size, style === "plaza" ? "plaza" : undefined, scene);
-      const on = CreateGround(`batch-pad-${size}`, { width: size, height: size }, scene);
+      const [width, depth] = sizeStr.split("x").map(Number);
+      const pair = getPadPair(width, depth, style === "plaza" ? "plaza" : undefined, scene);
+      const on = CreateGround(`batch-pad-${sizeStr}`, { width, height: depth }, scene);
       on.material = pair.on;
-      const off = on.clone(`batch-pad-${size}-off`);
+      const off = on.clone(`batch-pad-${sizeStr}-off`);
       off.makeGeometryUnique(); // thin-instance hosts can't share geometry (VAO clash)
       off.material = pair.off;
       // Flat paving pads don't cast — their shadow is just an offset dark rim.

@@ -11,7 +11,7 @@ export const PLAZA_CONNECTION_BONUS = 0.25; // at full strength
 export const PLAZA_REACH = 30; // road cells (0.5 world units each) from the nearest hub until the bonus fades to 0
 
 export const MAIN_PLAZA_ID = "town_center_plaza";
-export const PLAZA_IDS = new Set(["plaza", MAIN_PLAZA_ID]);
+export const PLAZA_IDS = new Set(["plaza", "small_plaza", MAIN_PLAZA_ID]);
 
 /** Minimal structural slice of the store's Tile; one entry per occupied cell. */
 export interface ConnectivityTile {

@@ -33,6 +33,23 @@ export const BUILDING_TYPES = [
     workersRequired: 0,
     maxWorkers: 0,
   },
+  {
+    type: "city",
+    id: "small_plaza",
+    name: "Small Plaza",
+    baseCost: 100,
+    // Width matches the chapel's short edge (5 cells).
+    size: { width: 2.4, height: 0.05, depth: 2.4 },
+    color: "#d9b877",
+    footprint: { width: 5, depth: 5 },
+    paved: true,
+    generates: {
+      inspiration: 2,
+    },
+    isHub: true,
+    workersRequired: 0,
+    maxWorkers: 0,
+  },
   // ponytail: no effects yet — palazzo/cathedral will unlock noble/religious
   // commissions in a later phase; for now they're landmark set pieces.
   {
@@ -52,9 +69,11 @@ export const BUILDING_TYPES = [
     id: "cathedral",
     name: "Cathedral",
     baseCost: 1500,
-    size: { width: 6.3, height: 5.4, depth: 4.5 },
+    // Short edge matches the Town Center Plaza's 12 cells so the facade fronts
+    // it flush, no grass strips.
+    size: { width: 6.3, height: 5.4, depth: 5.4 },
     color: "#d8d2c4",
-    footprint: { width: 14, depth: 10 },
+    footprint: { width: 14, depth: 12 },
     paved: true,
     workersRequired: 0,
     maxWorkers: 0,
@@ -162,9 +181,9 @@ export const BUILDING_TYPES = [
     id: "market",
     name: "Market",
     baseCost: 200,
-    size: { width: 3.8, height: 0.9, depth: 3.8 },
+    size: { width: 3.3, height: 0.9, depth: 1.8 },
     color: "#a9432f",
-    footprint: { width: 8, depth: 8 },
+    footprint: { width: 7, depth: 4 },
     paved: true,
     generates: {
       income: 10,
@@ -190,9 +209,11 @@ export const BUILDING_TYPES = [
     id: "tavern",
     name: "Tavern",
     baseCost: 200,
-    size: { width: 2.6, height: 1.6, depth: 1.7 },
+    // 1.5× the workshop footprint so the two stop reading as the same building,
+    // plus one extra tile of depth for the terrace out front.
+    size: { width: 3.9, height: 1.6, depth: 3.0 },
     color: "#8c5a3c",
-    footprint: { width: 6, depth: 4 },
+    footprint: { width: 9, depth: 7 },
     paved: true,
     amenities: 25,
     workersRequired: 1,

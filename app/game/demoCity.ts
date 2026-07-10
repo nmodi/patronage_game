@@ -32,7 +32,7 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   ...road(34, 46, 45, 47), // south side
 
   // — Cathedral square, west, facing the plaza —
-  [18, 35, "cathedral"], // 14x10, east facade on the ring road
+  [18, 34, "cathedral"], // 14x12, rows flush with the plaza, east facade on the ring road
   [28, 30, "bell_tower"], // campanile at the cathedral's NE corner
   [14, 32, "cypress"], [14, 36, "tree"], [15, 41, "tree"],
 
@@ -48,10 +48,10 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [38, 20, "obelisk"], // marks the head of the avenue
 
   // — Market quarter, east (the palazzo's old grounds) —
-  [48, 36, "market"], // 8x8 against the ring road
+  [48, 34, "market"], [48, 38, "market"], [48, 42, "market"], // 7x4, three stacked along the plaza's east edge
   [48, 32, "cypress"], [51, 32, "cypress"], [54, 32, "cypress"], // flanking row
   [57, 34, "cypress"], [57, 38, "fountain"], [57, 42, "cypress"], // rear garden
-  [48, 48, "tavern", 2], // fronting the dirt lane
+  [46, 48, "tavern", 0], // fronting the dirt lane
   [31, 48, "bakery", 1], // west of the palazzo, on the residential edge
 
   // — Residential quarter, southwest, around the secondary plaza —
@@ -62,13 +62,13 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   ...road(24, 48, 24, 56, "path"), // lane between the house columns
   [20, 53, "townhouse"], [25, 53, "townhouse", 2], // facing the lane
   [14, 56, "chapel", 2], // south of the plaza, door facing it
-  [29, 52, "bush"], [22, 58, "bush"], [30, 60, "tree"],
+  [29, 52, "bush"], [22, 58, "bush"], [22, 60, "tree"],
 
   // — Farmland, southeast, on dirt lanes —
   ...road(48, 46, 55, 46, "dirt_path"), // lane east past the market
   ...road(55, 47, 55, 58, "dirt_path"), // south to the fields
-  [49, 53, "vineyard"],
-  [47, 53, "fence", 1], [49, 58, "fence"],
+  [49, 55, "vineyard"],
+  [47, 55, "fence", 1], [49, 59, "fence"],
   [57, 49, "vineyard", 1],
   [57, 56, "olive_grove"],
   [58, 63, "rocks"], [62, 48, "boulder"],
@@ -92,11 +92,11 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [54, 11, "townhouse", 3], [59, 11, "cottage", 3], // backing the piazza
   [64, 16, "bakery", 3], [64, 20, "cottage", 3], [68, 20, "townhouse", 3],
   [55, 27, "townhouse", 1], [63, 27, "cottage", 1], // south side of the street
-  [47, 27, "cottage"], [68, 27, "tavern", 2],
-  [63, 32, "workshop"], [70, 32, "pigment_trader"], // artisan spillover
+  [47, 27, "cottage"], [68, 26, "tavern", 2],
+  [63, 33, "workshop"], [70, 33, "pigment_trader"], // artisan spillover
 
   // — West quarter: a street past the cathedral, cloister garden behind —
-  ...road(16, 33, 31, 34), // west from the ring road, under the campanile
+  ...road(16, 33, 31, 33), // west from the ring road, under the campanile (one row — the cathedral fronts y34)
   [16, 28, "townhouse", 3], [21, 28, "townhouse", 3], // north side
   [5, 34, "colonnade"], [5, 42, "colonnade"], // cloister quad behind the cathedral
   [7, 38, "fountain"], [3, 36, "cypress"], [3, 39, "cypress"],
@@ -108,6 +108,7 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [36, 59, "cottage", 1], [41, 59, "cottage", 1], // fronting it
   ...road(24, 57, 24, 63, "path"), // residential lane continues south
   ...road(19, 64, 33, 64, "path"), // to a country cross lane
+  [26, 59, "small_plaza"], // piazzetta (5x5) on the country lane
   [19, 66, "cottage", 1], [26, 66, "cottage", 1], [32, 60, "townhouse", 1],
   [34, 66, "olive_grove"], [24, 70, "cypress"],
   [18, 72, "stone_wall"], [24, 72, "stone_wall"], [30, 72, "stone_wall"], // south wall ruins
@@ -122,7 +123,7 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [64, 56, "olive_grove"],
   [64, 48, "fence"], [69, 50, "fence", 1],
   [71, 61, "vineyard"],
-  [70, 59, "rocks"], [72, 36, "tree"],
+  [70, 59, "rocks"], [74, 36, "tree"],
 
   // — Outskirts —
   [24, 16, "tree"], [48, 7, "tree"], [10, 28, "tree"], [60, 30, "tree"], [12, 62, "tree"],

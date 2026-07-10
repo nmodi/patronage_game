@@ -50,6 +50,7 @@ const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }>
 const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   town_center_plaza: Landmark,
   plaza: Landmark,
+  small_plaza: Landmark,
   palazzo: Castle,
   cathedral: Church,
   chapel: Cross,

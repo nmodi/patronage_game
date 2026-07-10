@@ -12,7 +12,7 @@ import { gridToWorld } from "./mapRenderer";
 // Cosmetic wanderers (design doc G5). Pure ambience: no tie to population,
 // no sim meaning. They random-walk the tile network below.
 // Any type:"road" tile is also walkable (path/road/avenue variants).
-const WALKABLE_BUILDINGS = new Set(["plaza", "town_center_plaza", "market"]);
+const WALKABLE_BUILDINGS = new Set(["plaza", "small_plaza", "town_center_plaza", "market"]);
 const MAX_CITIZENS = 16;
 const TILES_PER_CITIZEN = 8;
 // ponytail: one foot height for all surfaces — road quads sit at 0.01, plaza/market

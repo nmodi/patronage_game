@@ -248,10 +248,9 @@ function pavingMaterial(
   return mat;
 }
 
-/** Non-plaza pads (market) share the aprons' mottled stone (size in world units). */
-export function getPadMaterial(worldUnits: number, scene: Scene) {
-  const cells = Math.round(worldUnits / CELL_SIZE);
-  return getApronMaterial(cells, cells, scene);
+/** Non-plaza pads (market) share the aprons' mottled stone (sizes in world units). */
+export function getPadMaterial(worldW: number, worldD: number, scene: Scene) {
+  return getApronMaterial(Math.round(worldW / CELL_SIZE), Math.round(worldD / CELL_SIZE), scene);
 }
 
 const apronMaterials = new Map<string, StandardMaterial>();
