@@ -9,7 +9,7 @@ import { generateSeed, pickCityName } from "~/game/seed";
 import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "~/game/connectivity";
 import { getSupply } from "~/game/materials";
 import { createTick } from "~/game/tick";
-import { BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
+import { BASE_POPULATION_CAP, BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
 
 export interface GridPos {
   x: number;
@@ -69,6 +69,7 @@ export type GameState = {
   removeTile: (position: GridPos) => void;
   getTileAt: (position: GridPos) => Tile | undefined;
   getHousing: () => number;
+  getAmenities: () => number;
   getCalendarLabel: () => string;
   resetGame: () => void;
 };
@@ -288,6 +289,17 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const housing = BUILDING_METADATA_BY_ID[tile.buildingId]?.housing ?? 0;
       return total + Math.round(housing * (1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0)));
     }, 0);
+  },
+
+  // Mirrors the tick's amenity ceiling (active service buildings, plaza-boosted).
+  getAmenities: () => {
+    const tiles = get().map.tiles;
+    const connected = computePlazaConnectivity(tiles);
+    return Object.entries(tiles).reduce((total, [key, tile]) => {
+      if (!tile.isOrigin || !tile.isActive) return total;
+      const base = BUILDING_METADATA_BY_ID[tile.buildingId]?.amenities ?? 0;
+      return total + Math.round(base * (1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0)));
+    }, BASE_POPULATION_CAP);
   },
 
   getCalendarLabel: () => formatMonth(get().time.tickCount),

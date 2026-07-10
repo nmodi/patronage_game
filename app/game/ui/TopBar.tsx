@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Coins, Copy, Crown, Pause, Pencil, Play, RotateCcw, Settings, Sparkles, Users } from "lucide-react";
+import { Check, Coins, Copy, Crown, Home, Info, Pause, Pencil, Play, RotateCcw, Settings, Sparkles, Store, Users } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
@@ -18,6 +18,7 @@ export function TopBar() {
   const setTickInterval = useGameStore((s) => s.setTickInterval);
   const population = useGameStore((s) => s.population);
   const housing = useGameStore((s) => s.getHousing());
+  const amenities = useGameStore((s) => s.getAmenities());
   const resetGame = useGameStore((s) => s.resetGame);
   const cityName = useGameStore((s) => s.cityName);
   const setCityName = useGameStore((s) => s.setCityName);
@@ -78,7 +79,7 @@ export function TopBar() {
         <span className="w-24 whitespace-nowrap border-l border-wood/50 pl-3 font-display text-lg font-semibold text-ink">
           {calendarLabel}
         </span>
-        <div className="flex items-center gap-1 border-l border-wood/50 pl-3">
+        <div className="flex items-center gap-1">
           <button
             className={`rounded-full p-2 transition ${
               paused
@@ -106,19 +107,12 @@ export function TopBar() {
             );
           })}
           </div>
-        </div>
-
-        <div className="flex items-center gap-6">
-          <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} iconClassName="text-prestige-gold" />
-          <ResourceStat icon={Sparkles} label="Inspiration" value={inspiration} iconClassName="text-sienna" />
-          <ResourceStat icon={Crown} label="Prestige" value={prestige} iconClassName="text-prestige-gold" />
-          <ResourceStat
-            icon={Users}
-            label="Population"
-            value={`${population}/${housing}`}
-            iconClassName="text-sienna"
-            valueClassName={population >= housing ? "text-sienna" : undefined}
-          />
+          <div className="flex items-center gap-6 border-l border-wood/50 pl-4">
+            <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} iconClassName="text-prestige-gold" />
+            <ResourceStat icon={Sparkles} label="Inspiration" value={inspiration} iconClassName="text-sienna" />
+            <ResourceStat icon={Crown} label="Prestige" value={prestige} iconClassName="text-prestige-gold" />
+            <PopulationStat population={population} housing={housing} amenities={amenities} />
+          </div>
         </div>
 
         <div className="relative flex items-center gap-2 text-xs text-ink-faint">
@@ -166,6 +160,60 @@ export function TopBar() {
           </Panel>
         </div>
       )}
+    </div>
+  );
+}
+
+function PopulationStat({
+  population,
+  housing,
+  amenities,
+}: {
+  population: number;
+  housing: number;
+  amenities: number;
+}) {
+  // The lower of the two caps is what growth is heading toward.
+  const limiter =
+    housing === amenities ? null : amenities < housing ? "amenities" : "housing";
+
+  return (
+    <div className="group relative flex items-center gap-2.5">
+      <Users className="h-6 w-6 text-sienna" strokeWidth={2} />
+      <div className="flex flex-col leading-tight">
+        <span className="text-xl font-semibold text-ink">{population}</span>
+        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-faint">
+          Population
+          <Info className="h-3 w-3" />
+        </span>
+      </div>
+      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
+        <Panel className="w-56 text-sm">
+          <div className="flex flex-col gap-1.5 normal-case">
+            <Row label="Housing capacity" value={housing} />
+            <Row label="Amenity capacity" value={amenities} />
+          </div>
+          {limiter && (
+            <div className="mt-2.5 flex items-center gap-2 border-t border-wood/50 pt-2.5 text-xs italic text-ink-faint">
+              {limiter === "amenities" ? (
+                <Store className="h-4 w-4 shrink-0 text-sienna" />
+              ) : (
+                <Home className="h-4 w-4 shrink-0 text-sienna" />
+              )}
+              {limiter === "amenities" ? "Amenities are" : "Housing is"} limiting growth.
+            </div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="text-ink-faint">{label}</span>
+      <span className="font-semibold text-ink">{value}</span>
     </div>
   );
 }
