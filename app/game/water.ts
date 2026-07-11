@@ -1,5 +1,5 @@
 // Map water (design doc, G5): a seeded river — and on coastal runs, a sea —
-// as a *derived layer*, not tiles. The store persists only `waterSeed`; the
+// as a *derived layer*, not tiles. The store persists only `mapSeed`; the
 // cells are recomputed from it here. Water blocks placement (the one gate in
 // placeTiles) and everything else ignores it: empty cells already stop the
 // connectivity BFS and citizen walks, so water blocks "by absence". Bridges
@@ -231,18 +231,18 @@ let cachedSeed: string | null = null;
 let cachedBody: WaterBody | null = null;
 
 /** The run's water body, or null when the run has no water (old saves, demo). */
-export function getWater(waterSeed: string | null): WaterBody | null {
-  if (waterSeed == null) return null;
-  if (cachedSeed !== waterSeed || !cachedBody) {
-    cachedBody = generateWater(waterSeed);
-    cachedSeed = waterSeed;
+export function getWater(mapSeed: string | null): WaterBody | null {
+  if (mapSeed == null) return null;
+  if (cachedSeed !== mapSeed || !cachedBody) {
+    cachedBody = generateWater(mapSeed);
+    cachedSeed = mapSeed;
   }
   return cachedBody;
 }
 
 const EMPTY_CELLS: ReadonlySet<string> = new Set();
 
-/** Grid cells ("x,y") blocked by water for this run. Empty when waterSeed is null. */
-export function getWaterCells(waterSeed: string | null): ReadonlySet<string> {
-  return getWater(waterSeed)?.cells ?? EMPTY_CELLS;
+/** Grid cells ("x,y") blocked by water for this run. Empty when mapSeed is null. */
+export function getWaterCells(mapSeed: string | null): ReadonlySet<string> {
+  return getWater(mapSeed)?.cells ?? EMPTY_CELLS;
 }

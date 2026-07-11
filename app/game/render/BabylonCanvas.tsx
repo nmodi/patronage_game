@@ -115,7 +115,7 @@ export function BabylonCanvas() {
     const citizens = createCitizens(scene);
 
     let disposed = false;
-    // Terrain waits for store hydration: the run's waterSeed shapes it (river
+    // Terrain waits for store hydration: the run's mapSeed shapes it (river
     // valley, coast), and it isn't known until the persisted state loads. The
     // loading screen covers the gap; demo mode hydrates immediately.
     let terrain: ReturnType<typeof createTerrain> | null = null;
@@ -126,7 +126,7 @@ export function BabylonCanvas() {
     // A "dry" archetype has no water anywhere — render it exactly like the
     // pre-water plain (and like old riverless saves).
     function wetWater() {
-      const water = getWater(useGameStore.getState().waterSeed);
+      const water = getWater(useGameStore.getState().mapSeed);
       return water && water.archetype !== "dry" ? water : null;
     }
 

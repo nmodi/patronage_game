@@ -201,7 +201,7 @@ export function createPlacementController(scene: Scene) {
     const metadata = BUILDING_METADATA_BY_ID[buildingId];
     if (!metadata || metadata.type !== "road" || positions.length === 0) return null;
 
-    const water = getWaterCells(state.waterSeed);
+    const water = getWaterCells(state.mapSeed);
     const newCells: GridPos[] = [];
     for (const position of positions) {
       if (position.x < 0 || position.x >= GRID_SIZE || position.y < 0 || position.y >= GRID_SIZE) {
@@ -322,7 +322,7 @@ export function createPlacementController(scene: Scene) {
       currentPosition.x + footprint.width <= GRID_SIZE && currentPosition.y + footprint.depth <= GRID_SIZE;
     // Decorations may overlap existing buildings; only their origin cell must be free.
     const canOverlap = metadata.type === "decoration";
-    const water = getWaterCells(state.waterSeed);
+    const water = getWaterCells(state.mapSeed);
     let areaFree = false;
     if (fitsFootprint) {
       areaFree = true;
