@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import { BASE_TICK_INTERVAL } from "~/game/constants";
 import { useGameStore } from "~/stores/useGameStore";
 
-function isTextEntryTarget(target: EventTarget | null) {
+export function isTextEntryTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) return false;
 
   return Boolean(

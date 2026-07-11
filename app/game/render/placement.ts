@@ -80,12 +80,6 @@ export function createPlacementController(scene: Scene) {
     pendingClick = true;
   }
   function handleKeyDown(event: KeyboardEvent) {
-    if (event.key === "Escape") {
-      roadAnchor = null;
-      clearRoadPreview();
-      useGameStore.getState().setSelectedBuilding(null);
-      return;
-    }
     if (event.key.toLowerCase() === "r" && ghostModel) {
       // Recreated next frame by ensureGhost: rectangular footprints swap on odd
       // turns, so the model needs a refit, not just a spin.

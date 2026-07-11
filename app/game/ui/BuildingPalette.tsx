@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Beer,
   Bell,
@@ -37,6 +37,7 @@ import { BUILDING_METADATA_BY_TYPE, type BuildingId } from "~/game/buildings";
 import type { BuildingType } from "~/game/types";
 import { useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
+import { isTextEntryTarget } from "./useGameShortcuts";
 
 const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }> = [
   { type: "road", label: "Roads", icon: Route },
@@ -89,6 +90,39 @@ export function BuildingPalette() {
   const setSelectedBuilding = useGameStore((s) => s.setSelectedBuilding);
   const florins = useGameStore((s) => s.florins);
   const [openCategory, setOpenCategory] = useState<BuildingType | null>(null);
+
+  useEffect(() => {
+    // Layered cancel: 1st press drops placement, 2nd closes the flyout.
+    function cancel(): boolean {
+      const { map, setSelectedBuilding } = useGameStore.getState();
+      if (map.selectedBuilding) {
+        setSelectedBuilding(null);
+        return true;
+      }
+      if (openCategory) {
+        setOpenCategory(null);
+        return true;
+      }
+      return false;
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (isTextEntryTarget(e.target)) return;
+      // Esc is taken by macOS fullscreen, hence the alternates.
+      if (e.key === "Escape" || e.key === "Backspace" || e.key === "`") {
+        if (cancel()) e.preventDefault();
+      }
+    }
+    function onContextMenu(e: MouseEvent) {
+      if (isTextEntryTarget(e.target)) return;
+      if (cancel()) e.preventDefault(); // browser menu only when nothing to cancel
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("contextmenu", onContextMenu);
+    };
+  }, [openCategory]);
 
   const openBuildings = openCategory ? (BUILDING_METADATA_BY_TYPE[openCategory] ?? []) : [];
   const selectedCategory = selectedBuilding
