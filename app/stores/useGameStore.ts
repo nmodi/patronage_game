@@ -4,6 +4,7 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 
 import type { Artist, Artwork, BuildingType, Commission } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
+import { OFFER_EXPIRY_MONTHS } from "~/game/commissions";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
 import { getWaterCells } from "~/game/water";
@@ -30,9 +31,13 @@ export interface Tile {
   builtTick: number; // Month when this building cell was placed
 }
 
+// The demolition tool rides the building-selection slot: camera-drag detach,
+// grid visibility, and the palette's cancel keys all treat it like placement.
+export const RAZE_TOOL = "raze" as const;
+
 export interface MapState {
   tiles: Record<string, Tile>;  // Key is "x,y"
-  selectedBuilding: BuildingId | null;
+  selectedBuilding: BuildingId | typeof RAZE_TOOL | null;
 }
 
 export interface TimeState {
@@ -60,6 +65,10 @@ export type GameState = {
   setPopulation: (value: number) => void;
   hoveredTileKey: string | null;
   setHoveredTile: (key: string | null) => void;
+  // Origin key awaiting raze confirmation (building houses artists or a
+  // commission); null = no prompt. Transient — never persisted.
+  razeTarget: string | null;
+  setRazeTarget: (key: string | null) => void;
   tick: () => void;
   map: MapState;
   time: TimeState;
@@ -68,7 +77,7 @@ export type GameState = {
   setPaused: (value: boolean) => void;
   tickInterval: number;
   setTickInterval: (value: number) => void;
-  setSelectedBuilding: (id: BuildingId | null) => void;
+  setSelectedBuilding: (id: BuildingId | typeof RAZE_TOOL | null) => void;
   placeTile: (position: GridPos, buildingId: BuildingId, rotation?: number) => boolean;
   placeTiles: (positions: GridPos[], buildingId: BuildingId, rotation?: number) => boolean;
   removeTile: (position: GridPos) => void;
@@ -103,6 +112,7 @@ const createInitialState = () => {
     artworks: [] as Artwork[],
     commissions: [] as Commission[],
     hoveredTileKey: null as string | null,
+    razeTarget: null as string | null,
     map: { tiles: {}, selectedBuilding: null } as MapState,
     time: { tickCount: 0 },
     paused: false,
@@ -117,6 +127,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setFlorins: (value: number) => set(() => ({ florins: value })),
   setPopulation: (value: number) => set(() => ({ population: value })),
   setHoveredTile: (key) => set(() => ({ hoveredTileKey: key })),
+  setRazeTarget: (key) => set(() => ({ razeTarget: key })),
 
   tick: createTick(set, get),
 
@@ -155,7 +166,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     })),
 
   setSelectedBuilding: (id) =>
-    set((s) => ({ map: { ...s.map, selectedBuilding: id } })),
+    set((s) => ({ map: { ...s.map, selectedBuilding: id }, razeTarget: null })),
 
   placeTile: (position, buildingId, rotation) => get().placeTiles([position], buildingId, rotation),
 
@@ -293,7 +304,27 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         }
       }
 
-      return { map: { ...s.map, tiles: newTiles } };
+      // Razing salvages half the build cost. Homed artists depart now rather
+      // than waiting for the tick's prune (keeps the roster honest while
+      // paused, and a same-origin rebuild founds a fresh artist), and any
+      // commission worked here re-opens — same shape as reconcileCommissions.
+      const originKey = `${originX},${originY}`;
+      const evicting = s.artists.some((a) => a.homeTileKey === originKey);
+      const orphaned = s.commissions.some((c) => c.workshopKey === originKey);
+      return {
+        florins: s.florins + Math.floor((metadata?.baseCost ?? 0) / 2),
+        ...(evicting ? { artists: s.artists.filter((a) => a.homeTileKey !== originKey) } : {}),
+        ...(orphaned
+          ? {
+              commissions: s.commissions.map((c) =>
+                c.workshopKey === originKey
+                  ? { ...c, workshopKey: undefined, expiresTick: s.time.tickCount + OFFER_EXPIRY_MONTHS }
+                  : c
+              ),
+            }
+          : {}),
+        map: { ...s.map, tiles: newTiles },
+      };
     }),
 
   getTileAt: (position) => {

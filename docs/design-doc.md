@@ -63,6 +63,8 @@ The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, war
 
 Players place buildings individually on the grid — houses included. This is deliberate for the current scope: placing houses is satisfying at small-city scale.
 
+**Raze** *(built — July 2026)*: a demolition tool at the end of the build palette. Click removes a structure; holding the button drags a sweep across roads and decorations. Razing salvages half the build cost as florins. Demolitions that hurt — housed artists, an assigned commission — need a deliberate click plus a confirm card ("Its artists will depart; '…' will be set aside"); sweeps pass over them. Downstream systems self-heal: artists depart immediately, the commission re-opens with a fresh expiry, workers and supplier capacity rebalance next tick.
+
 **Later-phase goal:** neighborhood zoning. Players designate zones ("Workers' Quarter") that auto-fill with tier-appropriate housing as prosperity grows. Not current scope; individual placement is the POC baseline it evolves from.
 
 ### Housing Tiers

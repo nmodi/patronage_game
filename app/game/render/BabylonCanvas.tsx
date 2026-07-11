@@ -12,7 +12,7 @@ import { Scene } from "@babylonjs/core/scene";
 
 import type { BuildingId } from "~/game/buildings";
 import { getWater } from "~/game/water";
-import { useGameStore } from "~/stores/useGameStore";
+import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
   countModelFiles,
   disposeAssetLibrary,
@@ -278,7 +278,9 @@ export function BabylonCanvas() {
         if (state.map.selectedBuilding) camera.inputs.attached.pointers.detachControl();
         else camera.inputs.attached.pointers.attachControl(true);
         tileRenderer.setGridVisible(!!state.map.selectedBuilding);
-        if (state.map.selectedBuilding) queueModels([state.map.selectedBuilding]);
+        if (state.map.selectedBuilding && state.map.selectedBuilding !== RAZE_TOOL) {
+          queueModels([state.map.selectedBuilding]);
+        }
       }
     });
 

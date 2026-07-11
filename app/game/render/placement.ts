@@ -11,7 +11,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { getWaterCells } from "~/game/water";
-import { useGameStore, type GameState, type GridPos } from "~/stores/useGameStore";
+import { RAZE_TOOL, useGameStore, type GameState, type GridPos } from "~/stores/useGameStore";
 import {
   getFrontDirection,
   instantiateBuilding,
@@ -46,9 +46,10 @@ export function createPlacementController(scene: Scene) {
   let ghostBuiltRotation: number | null = null; // rotation the current ghost was fitted with
   let ghostIsValid = true;
   let pendingClick = false;
+  let mouseHeld = false; // raze drag-sweep: keep clearing cells while the button is down
   let roadAnchor: GridPos | null = null;
   let roadPreviewMeshes: Mesh[] = [];
-  let lastSelectedBuilding: BuildingId | null = null;
+  let lastSelectedBuilding: BuildingId | typeof RAZE_TOOL | null = null;
 
   const validMat = new StandardMaterial("ghost-valid", scene);
   validMat.diffuseColor = Color3.White();
@@ -78,6 +79,10 @@ export function createPlacementController(scene: Scene) {
     // Element, not HTMLElement: SVG icons inside HUD buttons are SVGElement.
     if (event.target instanceof Element && event.target.closest("[data-hud]")) return;
     pendingClick = true;
+    mouseHeld = true;
+  }
+  function handleMouseUp(event: MouseEvent) {
+    if (event.button === 0) mouseHeld = false;
   }
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key.toLowerCase() === "r" && ghostModel) {
@@ -87,6 +92,7 @@ export function createPlacementController(scene: Scene) {
     }
   }
   window.addEventListener("mousedown", handleMouseDown);
+  window.addEventListener("mouseup", handleMouseUp);
   window.addEventListener("keydown", handleKeyDown);
 
   function ensureGhost(buildingId: BuildingId, rotation: number | null) {
@@ -289,6 +295,47 @@ export function createPlacementController(scene: Scene) {
       updateHoveredTile(state);
       return;
     }
+
+    if (selectedBuilding === RAZE_TOOL) {
+      clearGhost();
+      roadAnchor = null;
+      updateHoveredTile(state); // tooltip names the target and shows the salvage value
+      const cell = pickGridCell(scene);
+      const tile = cell ? state.getTileAt(cell) : undefined;
+
+      // Red footprint highlight over the doomed structure (the road-preview
+      // quads with invalidMat, repurposed).
+      const cells: GridPos[] = [];
+      if (tile) {
+        const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+        const { width, depth } = metadata
+          ? rotatedFootprint(metadata, tile.rotation)
+          : { width: 1, depth: 1 };
+        for (let dx = 0; dx < width; dx += 1) {
+          for (let dy = 0; dy < depth; dy += 1) {
+            cells.push({ x: tile.origin.x + dx, y: tile.origin.y + dy });
+          }
+        }
+      }
+      updateRoadPreview(cells, false);
+
+      if (tile && (pendingClick || mouseHeld)) {
+        const originKey = `${tile.origin.x},${tile.origin.y}`;
+        const hurts =
+          state.artists.some((a) => a.homeTileKey === originKey) ||
+          state.commissions.some((c) => c.workshopKey === originKey);
+        if (hurts) {
+          // Costly demolitions confirm via the RazeConfirm popover — and only
+          // on a deliberate click; a drag-sweep passes over them.
+          if (pendingClick) state.setRazeTarget(originKey);
+        } else {
+          state.removeTile(tile.origin);
+        }
+      }
+      pendingClick = false;
+      return;
+    }
+
     if (state.hoveredTileKey) state.setHoveredTile(null);
     const metadata = BUILDING_METADATA_BY_ID[selectedBuilding];
     if (!metadata) return;
@@ -384,6 +431,7 @@ export function createPlacementController(scene: Scene) {
 
   function dispose() {
     window.removeEventListener("mousedown", handleMouseDown);
+    window.removeEventListener("mouseup", handleMouseUp);
     window.removeEventListener("keydown", handleKeyDown);
     scene.onBeforeRenderObservable.remove(observer);
     clearGhost();

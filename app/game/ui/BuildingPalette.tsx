@@ -19,6 +19,7 @@ import {
   Milestone,
   Mountain,
   Palette,
+  Pickaxe,
   Pyramid,
   Route,
   Shovel,
@@ -35,7 +36,7 @@ import {
 
 import { BUILDING_METADATA_BY_TYPE, type BuildingId } from "~/game/buildings";
 import type { BuildingType } from "~/game/types";
-import { useGameStore } from "~/stores/useGameStore";
+import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 import { isTextEntryTarget } from "./useGameShortcuts";
 
@@ -202,6 +203,21 @@ export function BuildingPalette() {
             </div>
           );
         })}
+        <button
+          className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2 transition ${
+            selectedBuilding === RAZE_TOOL
+              ? "border-sienna bg-white/80 text-ink"
+              : "border-wood/60 bg-white/50 text-ink hover:bg-white/80"
+          }`}
+          title="Clear the lot for new works — salvage half the cost"
+          onClick={() => {
+            setOpenCategory(null);
+            setSelectedBuilding(selectedBuilding === RAZE_TOOL ? null : RAZE_TOOL);
+          }}
+        >
+          <Pickaxe className="h-5 w-5 text-sienna" strokeWidth={1.75} />
+          <span className="font-display text-xs font-semibold tracking-wider">Raze</span>
+        </button>
       </Panel>
     </div>
   );

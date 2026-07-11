@@ -5,6 +5,7 @@ import { BuildingPalette } from "./BuildingPalette";
 import { BuildingTooltip } from "./BuildingTooltip";
 import { CommissionsPanel } from "./CommissionsPanel";
 import { GalleryPanel } from "./GalleryPanel";
+import { RazeConfirm } from "./RazeConfirm";
 import { TopBar } from "./TopBar";
 
 export function GameHUD() {
@@ -23,6 +24,7 @@ export function GameHUD() {
       </div>
       <BuildingPalette />
       <BuildingTooltip />
+      <RazeConfirm />
     </>
   );
 }

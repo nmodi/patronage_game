@@ -9,7 +9,7 @@ import {
 import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materials";
 import type { BuildingMetadata } from "~/game/types";
 import { staffingEfficiency } from "~/game/workers";
-import { useGameStore } from "~/stores/useGameStore";
+import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 
 function formatAmount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -49,6 +49,7 @@ export function BuildingTooltip() {
   );
   const artists = useGameStore((s) => s.artists);
   const tiles = useGameStore((s) => s.map.tiles);
+  const isRazing = useGameStore((s) => s.map.selectedBuilding === RAZE_TOOL);
   const mouse = useRef({ x: 0, y: 0 });
   const boxRef = useRef<HTMLDivElement>(null);
 
@@ -145,6 +146,11 @@ export function BuildingTooltip() {
         {bonusEligible && plazaStrength === 0 && (
           <div className="mt-1 text-sm italic text-ink-faint">
             Link to a plaza with roads: up to {PLAZA_BONUS_MAX_PCT}
+          </div>
+        )}
+        {isRazing && (
+          <div className="mt-1 text-sm font-semibold text-sienna">
+            Click to raze — salvage {Math.floor(metadata.baseCost / 2)}ƒ
           </div>
         )}
       </div>
