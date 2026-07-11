@@ -17,6 +17,6 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 
 ## Current state vs. doc phases
 
-Phases 0–7 done (placement, tick loop, workers, artists + ranks, artworks, supplier capacity gating) plus graphics G1–G4. Next up: Phase 8 commissions. Roads and houses are player-placed individually — that's intentional current scope (zoning is a later phase; auto-roads were cut).
+Phases 0–8 and 10 done (placement, tick loop, workers, artists + ranks, artworks, supplier capacity gating, commissions, plaza connectivity) plus graphics G1–G4 and most of G5 (seeded water layer — five map archetypes from dry to coastal — + stone bridges; see the doc's water pass). Next up: Phase 9 masterwork display. Roads and houses are player-placed individually — that's intentional current scope (zoning is a later phase; auto-roads were cut).
 
 Layout: `app/game/` = sim logic (building defs, tick loop, worker allocation), `app/game/render/` = Babylon rendering, `app/game/ui/` = DOM overlay UI, `app/stores/useGameStore.ts` = Zustand store. Check there before assuming a system exists.

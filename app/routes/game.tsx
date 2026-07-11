@@ -18,6 +18,10 @@ export const meta: MetaFunction = () => {
 export default function GameWindow() {
   useGameLoop();
   useGameShortcuts();
+  // Remount the canvas when the run seed changes (Restart Game): the whole
+  // seed-shaped world (terrain, water, scatter) rebuilds through the normal
+  // mount path instead of needing selective rebuild plumbing.
+  const seed = useGameStore((s) => s.seed);
 
   useEffect(() => {
     const demo = window.location.search.includes("demo");
@@ -29,7 +33,7 @@ export default function GameWindow() {
 
   return (
     <div className="w-full h-screen relative">
-      <BabylonCanvas />
+      <BabylonCanvas key={seed} />
       <GameHUD />
     </div>
   );

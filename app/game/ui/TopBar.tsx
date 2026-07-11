@@ -2,7 +2,16 @@ import { useState } from "react";
 import { Check, Coins, Copy, Crown, Home, Info, Pause, Pencil, Play, RotateCcw, Settings, Sparkles, Store, Users } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
+import { getWater, type WaterArchetype } from "~/game/water";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
+
+const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
+  dry: "Dry plain",
+  inland: "Inland river",
+  coastal: "Coastal",
+  "scenic-river": "Distant river",
+  "scenic-coast": "Distant coast",
+};
 import { Panel } from "./Panel";
 import { ResourceStat } from "./ResourceStat";
 
@@ -23,6 +32,7 @@ export function TopBar() {
   const cityName = useGameStore((s) => s.cityName);
   const setCityName = useGameStore((s) => s.setCityName);
   const seed = useGameStore((s) => s.seed);
+  const mapSeed = useGameStore((s) => s.mapSeed);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -156,6 +166,11 @@ export function TopBar() {
               Seed: {seed.toUpperCase()}
               {seedCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             </button>
+            {mapSeed != null && (
+              <span className="text-center text-xs text-ink-faint">
+                Map: {ARCHETYPE_LABELS[getWater(mapSeed)!.archetype]}
+              </span>
+            )}
             <span className="text-center text-xs text-ink-faint">v0.1</span>
           </Panel>
         </div>
