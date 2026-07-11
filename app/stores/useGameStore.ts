@@ -92,7 +92,9 @@ export type GameState = {
 // works with ?demo too (LAYOUT placements landing on water simply fail).
 const devMapSeed = () => {
   if (!import.meta.env.DEV || typeof window === "undefined") return null;
-  return new URLSearchParams(window.location.search).get("map");
+  // Lowercased: generated seeds are stored lowercase but the TopBar displays
+  // them uppercase, so a pasted seed would otherwise hash to a different map.
+  return new URLSearchParams(window.location.search).get("map")?.toLowerCase() ?? null;
 };
 
 const createInitialState = () => {
@@ -104,7 +106,7 @@ const createInitialState = () => {
     // Demo stays dry: its hand-placed layout spans nearly the whole grid.
     mapSeed: devMapSeed() ?? (isDemo() ? null : seed),
     cityName: pickCityName(seed),
-    florins: 500,
+    florins: 2000,
     inspiration: 0,
     prestige: 0,
     population: 0,

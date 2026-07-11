@@ -5,6 +5,7 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { seededRng } from "~/game/seed";
 import type { WaterBody } from "~/game/water";
 
 const TERRAIN_SIZE = 320;
@@ -26,15 +27,28 @@ const CHANNEL_DEPTH = 0.5;
 const CARVE_DILATION = 1.1;
 
 // ponytail: two sine octaves, not real noise — reads as rolling farmland at this scale
-function hillHeight(x: number, z: number) {
-  const d = Math.max(Math.abs(x), Math.abs(z)) - FLAT_RADIUS;
-  if (d <= 0) return 0;
-  const t = Math.min(1, d / HILL_RAMP);
-  const ramp = t * t * (3 - 2 * t); // smoothstep
-  const n =
-    Math.sin(x * 0.075 + 1.3) * Math.cos(z * 0.065 + 0.7) +
-    0.45 * Math.sin(x * 0.16 + 3.1) * Math.cos(z * 0.14 + 1.9);
-  return Math.max(0, ramp * (3.0 + n * 2.6));
+// Seeded phases + mild frequency jitter vary the hill layout per map; null seed
+// (pre-water saves, ?demo) keeps the classic constants so old scenery is untouched.
+function makeHillHeight(mapSeed: string | null) {
+  let [f1, f2, f3, f4] = [0.075, 0.065, 0.16, 0.14];
+  let [p1, p2, p3, p4] = [1.3, 0.7, 3.1, 1.9];
+  if (mapSeed != null) {
+    const rand = seededRng(`hills:${mapSeed}`);
+    const jitter = () => 0.8 + rand() * 0.4;
+    [f1, f2, f3, f4] = [f1 * jitter(), f2 * jitter(), f3 * jitter(), f4 * jitter()];
+    const phase = () => rand() * Math.PI * 2;
+    [p1, p2, p3, p4] = [phase(), phase(), phase(), phase()];
+  }
+  return (x: number, z: number) => {
+    const d = Math.max(Math.abs(x), Math.abs(z)) - FLAT_RADIUS;
+    if (d <= 0) return 0;
+    const t = Math.min(1, d / HILL_RAMP);
+    const ramp = t * t * (3 - 2 * t); // smoothstep
+    const n =
+      Math.sin(x * f1 + p1) * Math.cos(z * f2 + p2) +
+      0.45 * Math.sin(x * f3 + p3) * Math.cos(z * f4 + p4);
+    return Math.max(0, ramp * (3.0 + n * 2.6));
+  };
 }
 
 function smoothstep01(t: number) {
@@ -43,7 +57,10 @@ function smoothstep01(t: number) {
 }
 
 /** Analytic ground height including the water valley/channel/sea shaping. */
-function makeHeightAt(water: WaterBody | null): (x: number, z: number) => number {
+function makeHeightAt(
+  water: WaterBody | null,
+  hillHeight: (x: number, z: number) => number
+): (x: number, z: number) => number {
   if (!water) return hillHeight;
   return (x, z) => {
     const rd = water.riverDistance(x, z);
@@ -54,7 +71,11 @@ function makeHeightAt(water: WaterBody | null): (x: number, z: number) => number
     // plain stays flat right up to the buildable cells beside the water.
     const dip = Math.max(
       CHANNEL_DEPTH * (1 - smoothstep01((rd + 0.2) / 0.9)),
-      CHANNEL_DEPTH * smoothstep01((sd + 1.5) / 3)
+      CHANNEL_DEPTH * smoothstep01((sd + 1.5) / 3),
+      // Estuary funnel: the mouth fans open underwater, matching waterMesh's
+      // flared water sheet — otherwise the junction floor hovers at the
+      // waterline and pokes through as sandbar facets.
+      CHANNEL_DEPTH * smoothstep01((5.5 - rd) / 3.5) * smoothstep01((sd + 4) / 4)
     );
     return hillHeight(x, z) * hillMask - dip;
   };
@@ -95,8 +116,12 @@ function makeFieldPatches(rand: () => number): FieldPatch[] {
   return patches;
 }
 
-export function createTerrain(scene: Scene, water: WaterBody | null = null) {
-  const heightAt = makeHeightAt(water);
+export function createTerrain(
+  scene: Scene,
+  water: WaterBody | null = null,
+  mapSeed: string | null = null
+) {
+  const heightAt = makeHeightAt(water, makeHillHeight(mapSeed));
   // Vertex displacement takes the min over a small neighborhood near water
   // (see CARVE_DILATION) — identical to heightAt away from the channel.
   const displacedAt = !water
@@ -152,8 +177,9 @@ export function createTerrain(scene: Scene, water: WaterBody | null = null) {
 
   // Face colors (uniform per triangle so the low-poly facets read): grass tone
   // variation plus rectangular field patches on the hills, sand near water.
-  const rand = mulberry32(1482);
-  const patches = makeFieldPatches(rand);
+  const patches = makeFieldPatches(
+    mapSeed != null ? seededRng(`fields:${mapSeed}`) : mulberry32(1482)
+  );
   const flat = mesh.getVerticesData(VertexBuffer.PositionKind)!;
   const colors = new Float32Array((flat.length / 3) * 4);
   for (let f = 0; f < flat.length; f += 9) {
@@ -170,8 +196,14 @@ export function createTerrain(scene: Scene, water: WaterBody | null = null) {
     if (water) {
       const rd = water.riverDistance(x, z);
       const sd = water.seaDistance(x, z);
-      if (rd < 0.2 || sd > 0.5) color = BED_TONE;
-      else if (rd < 1.6 || sd > -1.8) color = SHORE_TONE;
+      // Depth joins the distance tests so the estuary funnel tints itself:
+      // facets fully under the water surface read bed; facets that touch
+      // the waterline read sand (a steep wall poking above water is a sandy
+      // bank, not dark bed).
+      const yMax = Math.max(flat[f + 1], flat[f + 4], flat[f + 7]);
+      const yMin = Math.min(flat[f + 1], flat[f + 4], flat[f + 7]);
+      if (rd < 0.2 || sd > 0.5 || yMax < -0.13) color = BED_TONE;
+      else if (rd < 1.6 || sd > -1.8 || yMin < -0.03) color = SHORE_TONE;
     }
     for (let v = 0; v < 3; v += 1) {
       const c = (f / 3 + v) * 4;
@@ -193,5 +225,10 @@ export function createTerrain(scene: Scene, water: WaterBody | null = null) {
   mesh.isPickable = false;
   mesh.freezeWorldMatrix();
 
-  return { mesh, heightAt, surfaceAt, rand: mulberry32(93) };
+  return {
+    mesh,
+    heightAt,
+    surfaceAt,
+    rand: mapSeed != null ? seededRng(`scatter:${mapSeed}`) : mulberry32(93),
+  };
 }

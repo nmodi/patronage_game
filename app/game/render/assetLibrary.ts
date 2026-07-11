@@ -391,9 +391,6 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-block.glb", position: [-2, 0, 0.25], tint: "facade" },
       { file: TOWN + "roof-gable.glb", position: [-2, 1, 0.25], tint: "roof" },
       { file: TOWN + "wall-door.glb", position: [-2, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
-      // lanterns flanking the forecourt (buried: overhang, don't shrink the fit)
-      { file: TOWN + "lantern.glb", position: [-1.9, 0, 0.92], buried: true },
-      { file: TOWN + "lantern.glb", position: [1.9, 0, 0.92], buried: true },
       // loggia colonnade
       { file: TOWN + "pillar-stone.glb", position: [-1.5, 0, 0.92] },
       { file: TOWN + "pillar-stone.glb", position: [-0.9, 0, 0.92] },
@@ -449,9 +446,6 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "roof-gable.glb", position: [0, 1, -0.48], scale: [3.62, 0.4, 2.1], tint: "roof" },
       { file: TOWN + "wall-block.glb", position: [0, 0, 1], scale: [4, 1, 1], tint: "mint" },
       { file: TOWN + "roof-gable.glb", position: [0, 1, 0.48], scale: [3.62, 0.4, 2.1], tint: "roof" },
-      // lanterns flanking the central portal (buried: overhang past the facade)
-      { file: TOWN + "lantern.glb", position: [2.3, 0, -0.5], buried: true },
-      { file: TOWN + "lantern.glb", position: [2.3, 0, 0.5], buried: true },
       // facade: central portal + rose window, side portals on the aisle fronts
       { file: TOWN + "wall-door.glb", position: [1.52, 0, 0], tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [1.52, 1, 0], tint: "mint" },
@@ -647,36 +641,20 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // drowns the water plane below the rim
       { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: [1.4, 0.9, 1.4] },
       { file: TOWN + "pillar-stone.glb", position: [0, 0.05, 0], scale: 2 },
-      { file: TOWN + "lantern.glb", position: [-2.4, 0.02, -2.4] },
-      { file: TOWN + "lantern.glb", position: [2.4, 0.02, -2.4] },
-      { file: TOWN + "lantern.glb", position: [-2.4, 0.02, 2.4] },
-      { file: TOWN + "lantern.glb", position: [2.4, 0.02, 2.4] },
     ],
     fit: 1,
   },
   plaza: {
     pad: 4,
     padStyle: "plaza",
-    parts: [
-      { file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.9 },
-      { file: TOWN + "lantern.glb", position: [-1.55, 0.02, -1.55] },
-      { file: TOWN + "lantern.glb", position: [1.55, 0.02, -1.55] },
-      { file: TOWN + "lantern.glb", position: [-1.55, 0.02, 1.55] },
-      { file: TOWN + "lantern.glb", position: [1.55, 0.02, 1.55] },
-    ],
+    parts: [{ file: TOWN + "fountain-round-detail.glb", position: [0, 0.02, 0], scale: 0.9 }],
     fit: 1,
   },
-  // Neighborhood piazzetta: open paving with corner lanterns, no centerpiece —
-  // a fountain would crowd a 5-cell square (and the wandering citizens).
+  // Neighborhood piazzetta: open paving, no centerpiece — a fountain would
+  // crowd a 5-cell square (and the wandering citizens).
   small_plaza: {
     pad: 2.5,
     padStyle: "plaza",
-    parts: [
-      { file: TOWN + "lantern.glb", position: [-0.9, 0.02, -0.9] },
-      { file: TOWN + "lantern.glb", position: [0.9, 0.02, -0.9] },
-      { file: TOWN + "lantern.glb", position: [-0.9, 0.02, 0.9] },
-      { file: TOWN + "lantern.glb", position: [0.9, 0.02, 0.9] },
-    ],
     fit: 1,
   },
   // Freestanding campanile (the cathedral's old bell tower): four stacked
@@ -1188,7 +1166,7 @@ export function instantiateBuilding(
     if (extend?.negX && def.extendNegX) parts = [...parts, ...def.extendNegX];
     if (extend?.posX && def.extendPosX) parts = [...parts, ...def.extendPosX];
   }
-  if (parts.length === 0) return null;
+  if (parts.length === 0 && !def.pad) return null;
 
   const root = new TransformNode(`model-${buildingId}-${gridPos.x}-${gridPos.y}`, scene);
   const buried = new Set<AbstractMesh>();
@@ -1199,7 +1177,7 @@ export function instantiateBuilding(
     if (part.buried) for (const mesh of partMeshes) buried.add(mesh);
     partInstances.push({ part, roots, meshes: partMeshes });
   }
-  if (!partInstances.some((pi) => pi.meshes.length > 0)) {
+  if (!def.pad && !partInstances.some((pi) => pi.meshes.length > 0)) {
     root.dispose();
     return null;
   }
@@ -1353,7 +1331,7 @@ export function instantiateBuilding(
   collectMeshes();
   root.scaling.set(scale, scale * sy, scale);
   const height = (max.y - min.y) * scale * sy;
-  const sink = (parts[0].sinkY ?? def.sinkY ?? 0) * height;
+  const sink = (parts[0]?.sinkY ?? def.sinkY ?? 0) * height;
   root.position.y = -min.y * scale * sy - sink;
   // The pad is the prefab's lowest surface, so the base shift above lands it
   // at exactly y=0 — under the apron (0.005) and roads (0.01). Lift it to

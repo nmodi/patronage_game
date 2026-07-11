@@ -141,7 +141,12 @@ export function createWaterVisuals(
     const sink = smoothstep01((water.seaDistance(x, z) + 6) / 6);
     const floor = lerp(SURFACE_Y + 0.04, BED_Y - 0.05, sink);
     const outY = Math.max(surfaceAt(x, z) - 0.01 + margin, floor);
-    return lerp(RIM_IN_Y, outY, gridBlend(x, z));
+    // In-grid banks dive under the waves right at the coastline; the mouth's
+    // flared water sheet takes over as the visible surface, so the waterline
+    // is simply where the diving bank crosses it — no seam to stitch.
+    const dive = smoothstep01((water.seaDistance(x, z) + 3) / 3);
+    const inY = lerp(RIM_IN_Y, BED_Y - 0.05, dive);
+    return lerp(inY, outY, gridBlend(x, z));
   }
 
   // Bank/lip vertex: [x, y, z] for a cross offset from the channel center.
@@ -156,8 +161,9 @@ export function createWaterVisuals(
   for (let t = -EXTENT; t <= EXTENT; t += 1) {
     const center = water.riverCenterAt(t);
     const [cx, cz] = frame(water.riverAxis, t, center);
-    // Past the coastline the open sea takes over.
-    if (water.seaDistance(cx, cz) > 0) {
+    // Run a few wu past the coastline: the dived banks and bed slide under
+    // the sea instead of cutting off at the mouth over bare terrain carve.
+    if (water.seaDistance(cx, cz) > 3) {
       prev = null;
       continue;
     }
@@ -180,12 +186,16 @@ export function createWaterVisuals(
       for (let s = 0; s < 5; s += 1) {
         const midCross = (prev.points[s][0] + prev.points[s + 1][0] + points[s][0]) / 3;
         const midZ = (prev.points[s][2] + prev.points[s + 1][2] + points[s][2]) / 3;
+        // Diving banks at the mouth shade to bed tone — tan/grass under the
+        // shallow water reads as a milky patch otherwise. Lags the dive so
+        // banks only darken once they're underwater.
+        const dive = smoothstep01((water.seaDistance(midCross, midZ) + 2.1) / 2.1);
         ribbon.quad(
           prev.points[s],
           prev.points[s + 1],
           points[s + 1],
           points[s],
-          toneAt(tones[s], midCross, midZ)
+          Color3.Lerp(toneAt(tones[s], midCross, midZ), BED_TONES[0], dive)
         );
       }
     }
@@ -197,18 +207,28 @@ export function createWaterVisuals(
   // has a sea — coastal or scenic-coast.)
   if (water.coastEdge) {
     let prevShore: number[][] | null = null;
-    for (let u = -EXTENT; u <= EXTENT; u += 2) {
+    for (let u = -EXTENT; u <= EXTENT; u += 1) {
       const tC = coastlineAt(u);
       const [px, pz] = frame(water.riverAxis, tC, u);
       // Break the shore across the river mouth — the river trough (banks and
-      // all, estuary-widened) runs through it there.
-      if (water.riverDistance(px, pz) < 4.5) {
+      // all, estuary-widened) runs through it there. The threshold sits just
+      // past the river's own lip, so beach meets beach with only a thin
+      // wet-sand seam.
+      if (water.riverDistance(px, pz) < 3.6) {
         prevShore = null;
         continue;
       }
       const blend = gridBlend(px, pz);
       const rimOff = lerp(0.7, 1.7, blend);
       const lipOff = rimOff + lerp(2.6, 1.6, blend);
+      // Near the mouth the beach's waterline edge dives under the funnel
+      // water instead of ending on a bare cut face (a dark spit). The tint
+      // lags the dive (like the river banks') so the beach only shades to
+      // bed tone once the rim is actually underwater — tinting by the dive
+      // itself darkens still-dry quads into a dark bar beside the mouth.
+      const rdShore = water.riverDistance(px, pz);
+      const mouthDive = smoothstep01((6 - rdShore) / 2.4);
+      const mouthTint = smoothstep01((5.5 - rdShore) / 1.9);
       const shorePoint = (off: number, kind: "bed" | "rim" | "lip") => {
         const t = tC + coastSign * off;
         const [x, z] = frame(water.riverAxis, t, u);
@@ -217,7 +237,8 @@ export function createWaterVisuals(
         // against the surface directly rather than via bankY's mouth fade.
         const margin = kind === "rim" ? 0.06 : 0.03;
         const outY = Math.max(surfaceAt(x, z) - 0.01 + margin, SURFACE_Y + 0.04);
-        return [x, lerp(RIM_IN_Y, outY, gridBlend(x, z)), z];
+        const y = lerp(RIM_IN_Y, outY, gridBlend(x, z));
+        return [x, kind === "rim" ? lerp(y, BED_Y - 0.05, mouthDive) : y, z];
       };
       const points = [
         shorePoint(-lipOff, "lip"),
@@ -230,7 +251,11 @@ export function createWaterVisuals(
         for (let s = 0; s < 3; s += 1) {
           const midX = (prevShore[s][0] + points[s][0]) / 2;
           const midZ = (prevShore[s][2] + points[s][2]) / 2;
-          ribbon.quad(prevShore[s], prevShore[s + 1], points[s + 1], points[s], toneAt(tones[s], midX, midZ));
+          const tone =
+            s === 0
+              ? toneAt(tones[s], midX, midZ)
+              : Color3.Lerp(toneAt(tones[s], midX, midZ), BED_TONES[0], mouthTint);
+          ribbon.quad(prevShore[s], prevShore[s + 1], points[s + 1], points[s], tone);
         }
       }
       prevShore = points;
@@ -258,14 +283,25 @@ export function createWaterVisuals(
   for (let t = -EXTENT; t <= EXTENT; t += 1.5) {
     const center = water.riverCenterAt(t);
     const [cx, cz] = frame(water.riverAxis, t, center);
-    if (water.seaDistance(cx, cz) > -0.5) {
+    const sd = water.seaDistance(cx, cz);
+    if (sd > 2) {
       prevStrip = null;
-      continue; // the sea sheet takes over at the mouth
+      continue; // fully under the sea sheet by here (past it, given the pinch)
     }
-    const half = water.riverWidthAt(t) / 2 + 0.08;
+    // Mouth funnel: flare across the junction in step with the banks' dive
+    // (banks above the surface still hide the extra width), then pinch back
+    // and duck under the sea sheet past the coastline — a wide sheet lingering
+    // under the sea reads as a pale double-alpha patch. Running to sd 2 keeps
+    // the channel core overlapping the sea sheet even though sections step
+    // 1.5 wu — ending at the coastline leaves a dark sliver across the mouth.
+    const flare =
+      5 * smoothstep01((sd + 4.5) / 4) * (1 - smoothstep01((sd + 0.6) / 0.8));
+    const half = water.riverWidthAt(t) / 2 + 0.08 + flare;
+    // At the surface until the sea sheet's edge (sd -0.2), then duck under it.
+    const y = SURFACE_Y - 0.15 * smoothstep01((sd + 0.35) / 1.2);
     const points = [-half, 0, half].map((off) => {
       const [x, z] = frame(water.riverAxis, t, center + off);
-      return [x, SURFACE_Y, z];
+      return [x, y, z];
     });
     if (prevStrip) {
       waterBuilder.quad(prevStrip[0], prevStrip[1], points[1], points[0], waterColor);

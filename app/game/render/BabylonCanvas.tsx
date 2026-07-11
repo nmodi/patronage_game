@@ -83,6 +83,15 @@ export function BabylonCanvas() {
     camera.panningInertia = 0.8;
     camera.panningSensibility = 300;
     camera.attachControl(true);
+    // &cam=x,z[,radius[,alpha[,beta]]] (dev): frame a spot for headless screenshots.
+    const camFlag = import.meta.env.DEV && new URLSearchParams(window.location.search).get("cam");
+    if (camFlag) {
+      const [cx, cz, cr, ca, cb] = camFlag.split(",").map(Number);
+      camera.target = new Vector3(cx || 0, 0, cz || 0);
+      if (cr) camera.radius = cr;
+      camera.alpha = Number.isFinite(ca) ? ca : Math.PI / 4;
+      camera.beta = Number.isFinite(cb) ? cb : Math.PI / 3.2;
+    }
 
     const hemiLight = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
     hemiLight.intensity = 0.7;
@@ -134,7 +143,9 @@ export function BabylonCanvas() {
     function initWorld() {
       if (disposed || terrain) return;
       const water = wetWater();
-      terrain = createTerrain(scene, water);
+      // Raw mapSeed, not wetWater(): dry-archetype maps still get seeded hills
+      // and scatter; only pre-water saves and ?demo (null) keep the classic look.
+      terrain = createTerrain(scene, water, useGameStore.getState().mapSeed);
       if (water) waterVisuals = createWaterVisuals(scene, water, terrain.surfaceAt);
       maybeScatter();
     }

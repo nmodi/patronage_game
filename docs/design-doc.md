@@ -29,7 +29,7 @@ The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, war
 - Plaza pads pave with sett cobbles in rings radiating from the fountain — the street limestone palette, so pattern (not color) marks the focal point
 - Building aprons are mottled stone in the same street palette (no slab grid) — buildings join roads quietly instead of sitting on lighter flagstone islands
 - **No flat roofs on buildings** — every roof is pitched (gable/hip/point), even if only a shallow pitch; flat kit pieces are allowed only as non-roof slabs (e.g. the colonnade architrave)
-- **Category identity, Florence rules** *(built — July 2026)*: categories read at a glance without breaking the one-town look. Roofs stay terracotta city-wide with only minor variation (~1 in 3 leans slightly brown); facades vary in warm stucco per category (housing cream/pink/sand/white, services cream/sand, workshops sand/cream, suppliers sand/white — position-hashed per building, quoins and door/window panels shift with the wall); civic is pale stone; religious buildings (cathedral, chapel, campanile) keep cream-stone plaster but all their baked trim — corner **quoins**, window/door surrounds, arcade piers — is deep olive-green (verde di Prato marble, ~#58634c), the Duomo's green-and-white banding. Shape grammar: civic alone breaks the skyline (high gables, spires), workshops = gable + dormer + prominent chimney (painter long hall vs sculptor T head-house), suppliers = low hip roofs + visible stock yards (carts, slabs, crates), services = gable-end street bays + banner signs. Mechanism: `Part.tint` in `assetLibrary.ts` — most tints are a diffuse multiply over the shared colormap ("facade"/"roof" resolve from per-category palettes), but accents baked into the atlas that a whole-material multiply can't isolate (the terracotta quoin swatch → mint) use a colormap **texture variant** instead (`TEXTURE_TINTS`, `scripts/make-mint-quoins.py`); either way the tinted material clone joins the thin-instance batch key
+- **Category identity, Florence rules** *(built — July 2026)*: categories read at a glance without breaking the one-town look. Roofs stay terracotta city-wide with only minor variation (~1 in 3 leans slightly brown); facades vary in warm stucco per category (housing cream/pink/sand/white, services cream/sand, workshops sand/cream, suppliers sand/white — position-hashed per building, quoins and door/window panels shift with the wall); civic is pale stone; religious buildings (cathedral, chapel, campanile) keep cream-stone plaster but all their baked trim — corner **quoins**, window/door surrounds, arcade piers — is deep olive-green (verde di Prato marble, ~#58634c), the Duomo's green-and-white banding. Shape grammar: civic alone breaks the skyline (high gables, spires), workshops = gable + dormer + prominent chimney (painter long hall vs sculptor T head-house), suppliers = low hip roofs + visible stock yards (carts, slabs, crates), services = gable-end street bays + banner signs. Crenellations/battlements are reserved for civic *landmarks* only (Town Hall, future walls/gates) — never on housing, workshops, or ordinary civic buildings. Mechanism: `Part.tint` in `assetLibrary.ts` — details in [kitbashing.md](kitbashing.md) (Materials & tinting)
 - Buildings show activity via animations (chimney smoke — exclusive to production buildings: workshops and the bakery); inactive buildings desaturate and lose animations
 - Hover tooltips on all buildings explaining status
 
@@ -73,6 +73,8 @@ Players place buildings individually on the grid — houses included. This is de
 3. Villa
 4. Palazzo
 5. Grand Palazzo
+
+Facade language for tiers 3–5 (when built): graduated **rustication** (rough-cut stone base shading to smooth upper floors — Palazzo Medici/Strozzi), **bifora** (two-light arched) windows, string courses between floors, deep Tuscan eaves. Distinguishes fine housing from the stucco of tiers 1–2 without leaving the palette.
 
 **Row-house blending** *(built)*: cottages and townhouses (interchangeably) merge visually when placed side by side — walls and roof stretch to the shared footprint edge so the houses touch, and window panels on the shared wall drop. Isolated houses keep the inset look; a house adjacent on one side stretches only that side. The door side never blends, and blending is mutual (both facing sides must be door-free), so no house stretches into a neighbor's doorway and the look is independent of placement order. Derived at render time from neighbors via the colonnade's extend machinery (`computeBlend` in `mapRenderer.ts`, structural part stretch in `assetLibrary.ts`) — no store or save changes.
 
@@ -146,6 +148,8 @@ Suppliers have **limited capacity** — the primary scarcity mechanic:
 
 Materials are not consumed — a working artist holds a supplier slot until the work completes. When demand exceeds capacity, additional artists of that type cannot work (oldest workshops keep their slots). Players build more suppliers to expand capacity. This forces the core prioritization: which artists get materials?
 
+**Which suppliers a run offers** is planned to be seed-determined — see [map-resources.md](map-resources.md).
+
 ---
 
 ## Commissions — the Core Loop
@@ -185,10 +189,11 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 
 ### Civic / Landmark
 - **Plaza** / **Small Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Masterworks. The Town Center Plaza is the **Main Plaza** — the connectivity hub; Plazas and Small Plazas (a 5-cell piazzetta, chapel-width) are secondary hubs that refresh its reach
-- **Cathedral** *(model built — placeable landmark, unlock effect still open)* — unlocks religious commissions
+- **Cathedral** *(model built — placeable landmark; effect designed in [building-effects.md](building-effects.md), not yet wired)* — unlocks religious commissions
 - **Market** *(built)* — generates Florins for now. **Planned repurpose:** once a richer economy system takes over money-making, the Market becomes an overflow supply source — spend florins there for extra material capacity when your suppliers are at their limits.
 - **Guildhall** — unlocks craft commissions
-- **Palazzo** *(model built — placeable landmark, unlock effect still open)* — unlocks noble-family commissions
+- **Town Hall (Palazzo Comunale)** — the seat of the player's government: a crenellated civic fortress with a tall off-center tower (Palazzo Vecchio / Bargello type). Effect open — candidates: unlocks civic commissions, or a flat prestige boost. Like the Cathedral, it may break the skyline; civic owns that privilege
+- **Palazzo** *(model built — placeable landmark; effect designed in [building-effects.md](building-effects.md), not yet wired)* — unlocks noble-family commissions (housing + requester unlock — the dual listing is collapsed there)
 - **Banking House** — enables larger noble commissions, boosts florins
 
 ### Production / Artistic
@@ -214,15 +219,26 @@ Workshops are per-discipline: each hosts and spawns only its own artist type.
 
 ### Religious & Ceremonial
 - **Monastery** — illuminated manuscripts; quiet inspiration
-- **Chapel** *(model built — placeable, effect still open)* — neighborhood religious building
+- **Chapel** *(model built — placeable; effect designed in [building-effects.md](building-effects.md), not yet wired)* — neighborhood religious building
 - **Baptistery** — pure prestige; higher-tier Church commissions
 
 ### Trade & Economy
 - **Wool Merchant** — unlocks tapestry commissions
 - **Spice Trader** — prestige + florin boost
 
+### River & Waterfront (future scope — only meaningful on maps with water)
+Historically the Arno banks were industry (dyers' quarter, the Wool Guild's tiratoi drying sheds, mills on the pescaia weir); ports had docks, fondaco warehouses, customs houses. Inland maps get the river-industry set, coastal maps the port set:
+
+- **Dyeworks / Tiratoio** — wool-industry supplier (pairs with the Wool Merchant; serves tapestry/textile commissions)
+- **Water Mill** — florin generator; its weir (pescaia) across the river is the visual anchor
+- **Docks / Wharf** — coastal trade, florin boost
+- **Fondaco (warehouse)** — coastal trade, florin/prestige boost
+- **Shop-lined bridge** — Ponte Vecchio-style variant of the Stone Bridge; the shops make it a florin generator
+
+Design tension to resolve before building any of these: water adjacency must stay a **soft** bonus per principle 6 — these buildings *prefer* water, they never hard-require it to function. Sitting on/over water cells (mill, shop bridge) is placement gating like the Stone Bridge already has, which is fine; a performance penalty for being inland is not.
+
 ### Decorative
-- Tree *(built)*, Cypress *(built — stretched/sunk Kenney pine)*, Bell Tower / Campanile *(built — the cathedral's old tower as a freestanding decoration)*, Fountain *(built)*, Vineyard *(built — dirt furrows planted with rows of vine-on-post trees)*, Olive Grove *(built)*, Colonnade *(built)*, Memorial Column / Obelisk *(built — kitbashed pillar + block + point roof)*, Bush *(built — nature-kit plant variants)*, Rocks + Boulder *(built — nature-kit rocks, limestone tint)*, Wooden Fence *(built — nature-kit rail/plank segments)*, Low Stone Wall *(built — wall-block slab kitbash with end posts)*, Garden, Loggia, Sculpture Display, Gallery Wall
+- Tree *(built)*, Cypress *(built — stretched/sunk Kenney pine)*, Bell Tower / Campanile *(built — the cathedral's old tower as a freestanding decoration)*, Fountain *(built)*, Vineyard *(built — dirt furrows planted with rows of vine-on-post trees)*, Olive Grove *(built)*, Colonnade *(built)*, Memorial Column / Obelisk *(built — kitbashed pillar + block + point roof)*, Bush *(built — nature-kit plant variants)*, Rocks + Boulder *(built — nature-kit rocks, limestone tint)*, Wooden Fence *(built — nature-kit rail/plank segments)*, Low Stone Wall *(built — wall-block slab kitbash with end posts)*, Garden, Loggia, Sculpture Display, Gallery Wall, Tower House (casa-torre — slim San Gimignano-style family tower, a skyline element; small inspiration/prestige boost)
 
 ### Diversity incentive
 - **Diminishing returns:** duplicate buildings of the same type yield less per additional building.
@@ -287,9 +303,9 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 
 ### Later / stretch
 - Richer economy system (replaces the Market as the primary florin source; Market repurposed as overflow material supply, bought with florins when suppliers are maxed)
-- Seed system — a run seed randomizes each new game. Randomly generated per new game as a relatively short alpha string (human-readable/shareable), viewable in the settings menu. *Partially built: the `seed` field now exists (`app/game/seed.ts`, persisted in the store, shown in Settings) and deterministically picks the starting city name (`pickCityName`) — and, since the water pass, the map archetype, river course, and coastline (`app/game/water.ts` via the store's `mapSeed`, which equals the run seed for new games). The influences below are still open — the rest of terrain/resources/factions are not yet wired to it.* It should influence:
-  - Terrain: heights and wilderness scatter. Current fixed constants to thread the seed into: `terrain.ts` — `mulberry32(93)` (returned as `terrain.rand`, drives `assetLibrary.scatterEnvironment`: tree clumps, shrubs, rocks, vineyard patches, fence/wall runs) and `mulberry32(1482)` (field-patch colors). Hill shape itself is currently seedless sine math and would also need the seed (the river valley / coast carve is already seed-driven through the water layer). Note: placed-building variety (`hashPosition(x, y)` in `assetLibrary.ts`) is deliberately position-keyed, not seeded — a building at a cell always looks the same regardless of placement order; keep that.
-  - Available resources on the map (which suppliers/materials this run offers)
+- Seed system — a run seed randomizes each new game. Randomly generated per new game as a relatively short alpha string (human-readable/shareable), viewable in the settings menu. *Partially built: the `seed` field now exists (`app/game/seed.ts`, persisted in the store, shown in Settings) and deterministically picks the starting city name (`pickCityName`) — and, since the water pass, the map archetype, river course, and coastline (`app/game/water.ts` via the store's `mapSeed`, which equals the run seed for new games). Resources/factions below are still open.* It should influence:
+  - Terrain: heights and wilderness scatter *(built — July 2026)*: `createTerrain` takes `mapSeed` and derives namespaced streams via `seededRng` — `hills:` (sine-octave phases + ±20% frequency jitter; amplitude fixed), `scatter:` (returned as `terrain.rand`, drives `assetLibrary.scatterEnvironment`: tree clumps, shrubs, rocks, vineyard patches, fence/wall runs), `fields:` (field-patch colors). Null `mapSeed` (pre-water saves, `?demo`) falls back to the old fixed constants, so legacy scenery and demo screenshots are pixel-identical. Note: placed-building variety stays position-hashed, deliberately not seeded — see [kitbashing.md](kitbashing.md) (Design rules).
+  - Available resources on the map (which suppliers/materials this run offers) — designed in [map-resources.md](map-resources.md)
   - Faction archetypes / personality types — different archetypes value different things and ask for different commissions
   - Types of commissions that pop up
   - (Open list — more dimensions as they come up)
@@ -300,7 +316,8 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
   - Implementation notes: needs per-tile style state (the unused `Tile.variant` field fits), a first click-to-select interaction (`pickGridCell` → `tiles["x,y"]` → origin, same lookup the hover tooltip uses), and a style-picker popover. The renderer diffs tiles by object identity, but `renderOrigin`'s rebuild guard only checks `buildingId`/`extendKey` — the style must join that condition, and the pad batch keys (`pad:<size>:<style>`) already support per-style batches.
 - Neighborhood zoning (zones auto-fill with tier-appropriate housing)
 - Housing tiers 3–5; named family palazzos
-- Expanded building roster (religious, trade, social categories)
+- Expanded building roster (religious, trade, social categories; River & Waterfront set — gated on the water-adjacency design noted in that section)
+- **Lungarno row** — a taller riverfront housing variant that blends into a continuous wall along the water (the Florence lungarno look), reusing the existing row-house blending machinery (`computeBlend`)
 - Diminishing returns on duplicate buildings
 - Campaign scenarios
 
@@ -314,9 +331,9 @@ Art direction: free CC0 packs — Kenney Fantasy Town Kit (buildings/props, kitb
 - **G4 — Life & polish** *(done)*: chimney smoke on active buildings (July 2026: gated to production buildings only — the palazzo's chimney no longer smokes), landmark label pins, rendering pipeline grade
 - **Category identity pass** *(done — July 2026)*: facade/roof tint system + per-category shape grammar and props, see Visual Style. Twins broken: painter vs sculptor workshop (dormer + big chimney vs cross-ridge head-house), bakery vs cottage (projecting gable-end shop bay + oven chimney + banner), marble supplier vs cottage (squat hip roof + cart/slab stock yard); pigment trader's spire squashed to a low hip (spires read civic); townhouse's banner removed (banners = commerce signage)
 - **G5 — Stretch** *(mostly built)*: river + bridge *(built — see Water pass below)*, decorative citizens *(built — `render/citizens.ts`, cosmetic meeples random-walking roads/plazas/markets)*, boats, banners, obelisk model *(built — kitbashed decoration, see Decorative roster)*
-- **Water pass** *(built — July 2026)*: every new game rolls a seeded **map archetype** — **inland** (a river meanders edge-to-edge through the buildable grid, 30%), **coastal** (a sea clips a waterfront strip off one grid edge; the river widens into an estuary and flows into it at a mouth, 30%), **dry** (the classic waterless plain, 15%), **scenic river** (the river runs through the countryside beyond the grid — pure scenery, 15%), or **scenic coast** (sea + estuary entirely beyond the grid edge, 10%). Scenic water keeps ≥1.5 wu clear of the buildable area (asserted in `water.check.ts`), so those maps play exactly like dry ones. The river continues past the grid through a carved valley to the fog line, so it never reads as a canal. Water cells block building — the game's first terrain affordance (an affordance, not a punishment: principle 6 governs bonuses, and old saves stay untouched) — and the **Stone Bridge** (Roads tab, 80ƒ/cell, `roadWidth: 2`, also placeable on land as a causeway) is the one structure allowed onto water; being `type: "road"` it carries drag placement, plaza connectivity, and citizen walks across for free (limestone parapet rails drop on sides that continue onto road/civic cells — `mapRenderer.ts` bridge batch). Sim: `app/game/water.ts` (import-free, verified by `water.check.ts`) derives all water cells from the persisted `mapSeed`; the single sim gate is in `placeTiles`, mirrored by the placement previews. Save v6 is the first *preserving* migration: pre-water saves get `mapSeed: null` — forever dry, since a newly rolled river would collide with their buildings. `?demo` stays dry. Render: the terrain mesh carves a dilated channel/valley/sea floor (`render/terrain.ts`), and `render/waterMesh.ts` builds fine bed/bank/shore ribbons plus a gently wobbling flat-shaded water surface — the codebase's first animated material (CPU vertex wobble + per-face normals on a `StandardMaterial`, so fog and the color grade apply for free). Wilderness scatter avoids the water.
+- **Water pass** *(built — July 2026)*: every new game rolls a seeded **map archetype** — **inland** (a river meanders edge-to-edge through the buildable grid, 30%), **coastal** (a sea clips a waterfront strip off one grid edge; the river widens into an estuary and flows into it at a mouth, 30%), **dry** (the classic waterless plain, 15%), **scenic river** (the river runs through the countryside beyond the grid — pure scenery, 15%), or **scenic coast** (sea + estuary entirely beyond the grid edge, 10%). Scenic water keeps ≥1.5 wu clear of the buildable area (asserted in `water.check.ts`), so those maps play exactly like dry ones. The river continues past the grid through a carved valley to the fog line, so it never reads as a canal. Water cells block building — the game's first terrain affordance (an affordance, not a punishment: principle 6 governs bonuses, and old saves stay untouched) — and the **Stone Bridge** (Roads tab, 80ƒ/cell, `roadWidth: 2`, also placeable on land as a causeway) is the one structure allowed onto water; being `type: "road"` it carries drag placement, plaza connectivity, and citizen walks across for free (limestone parapet rails drop on sides that continue onto road/civic cells — `mapRenderer.ts` bridge batch). Sim: `app/game/water.ts` (import-free, verified by `water.check.ts`) derives all water cells from the persisted `mapSeed`; the single sim gate is in `placeTiles`, mirrored by the placement previews. Save v6 is the first *preserving* migration: pre-water saves get `mapSeed: null` — forever dry, since a newly rolled river would collide with their buildings. `?demo` stays dry. Render: the terrain mesh carves a dilated channel/valley/sea floor (`render/terrain.ts`), and `render/waterMesh.ts` builds fine bed/bank/shore ribbons plus a gently wobbling flat-shaded water surface — the codebase's first animated material (CPU vertex wobble + per-face normals on a `StandardMaterial`, so fog and the color grade apply for free). Wilderness scatter avoids the water. Estuary fix (July 2026): the river-meets-sea junction is a proper funnel — the water strip flares across the mouth and ducks under the sea sheet, river banks and the nearby shore dive underwater (shading to bed tone) instead of ending on cut faces, the terrain carves a matching mouth funnel, and terrain facets near water tint by rendered depth (fully submerged = bed, touches the waterline = sand) so no dry-dark carve pokes through the junction.
 
-Dev helpers: `/?demo` seeds a visual test city, `&pause` freezes the tick for stable screenshots, `&map=<seed>` forces a specific map (water archetype / river course / coast) for iteration — works with `?demo` too.
+Dev helpers: `/?demo` seeds a visual test city, `&pause` freezes the tick for stable screenshots, `&map=<seed>` forces a specific map (water archetype / river course / coast) for iteration — works with `?demo` too, `&cam=x,z[,radius[,alpha[,beta]]]` frames a world position for headless screenshots.
 
 ---
 
