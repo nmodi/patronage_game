@@ -2,8 +2,9 @@ import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
-import type { Artist, Artwork, BuildingType, Commission } from "~/game/types";
+import type { Artist, Artwork, Commission } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
+import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { OFFER_EXPIRY_MONTHS } from "~/game/commissions";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
@@ -13,30 +14,12 @@ import { getSupply } from "~/game/materials";
 import { createTick } from "~/game/tick";
 import { BASE_POPULATION_CAP, BASE_TICK_INTERVAL, GRID_SIZE } from "~/game/constants";
 
-export interface GridPos {
-  x: number;
-  y: number;
-}
-
-export interface Tile {
-  type: BuildingType;
-  buildingId: BuildingId;
-  position: GridPos;  // Grid position for this cell
-  origin: GridPos;    // Top-left cell of the structure
-  isOrigin: boolean;
-  isActive: boolean;
-  variant?: number;   // For different building styles
-  rotation?: number;  // Player-chosen quarter turns (0-3); undefined = seeded random
-  workers: number;   // Number of workers assigned to this tile
-  builtTick: number; // Month when this building cell was placed
-}
-
 // The demolition tool rides the building-selection slot: camera-drag detach,
 // grid visibility, and the palette's cancel keys all treat it like placement.
 export const RAZE_TOOL = "raze" as const;
 
 export interface MapState {
-  tiles: Record<string, Tile>;  // Key is "x,y"
+  tiles: TileMap;  // Key is "x,y"
   selectedBuilding: BuildingId | typeof RAZE_TOOL | null;
 }
 

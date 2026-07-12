@@ -9,8 +9,8 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import type { BuildingMetadata, BuildingType } from "~/game/types";
-import type { Tile } from "~/stores/useGameStore";
 import {
   createBuildingBatcher,
   doorLocalSide,
@@ -32,23 +32,6 @@ import { createSmokePlume, type SmokePlume } from "./smoke";
 const GRID_ALPHA_IDLE = 0;
 const GRID_ALPHA_PLACING = 0.8;
 const GRID_COLOR = "#ffffff";
-
-export function gridToWorld(
-  gridX: number,
-  gridY: number,
-  metadata?: BuildingMetadata,
-  rotation?: number
-) {
-  const footprint = metadata ? rotatedFootprint(metadata, rotation) : { width: 1, depth: 1 };
-  const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
-  const xOffset = ((footprint.width - 1) * CELL_SIZE) / 2;
-  const zOffset = ((footprint.depth - 1) * CELL_SIZE) / 2;
-  const x = gridX * CELL_SIZE - halfGrid + CELL_SIZE / 2 + xOffset;
-  const z = gridY * CELL_SIZE - halfGrid + CELL_SIZE / 2 + zOffset;
-  const height = metadata?.size.height ?? 0.2;
-  const y = metadata?.type === "road" ? 0.001 : height / 2;
-  return { x, y, z };
-}
 
 // Grid lines only need building once; drawn directly instead of pulling in @babylonjs/materials.
 function createGridLines(scene: Scene) {
@@ -192,7 +175,7 @@ function computeSegment(tile: Tile, tiles: Record<string, Tile>): SegmentMask {
 export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerator) {
   const materialCache = new Map<string, StandardMaterial>();
   const active = new Map<string, TileMeshEntry>();
-  let renderedTiles: Record<string, Tile> = {};
+  let renderedTiles: TileMap = {};
   const pendingOrigins = new Set<string>();
   const extensionOrigins = new Set<string>();
   // Kept incrementally so dirt-path redraws don't rescan and sort the entire map.
@@ -527,7 +510,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
    * Returns the building ids present among changed tiles so the caller can
    * preload just those models instead of rescanning the whole map.
    */
-  function queueSync(tiles: Record<string, Tile>) {
+  function queueSync(tiles: TileMap) {
     const changedKeys = new Set<string>();
     const topologyChangedKeys = new Set<string>();
     const changedBuildingIds = new Set<BuildingId>();

@@ -10,8 +10,9 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { gridToWorld, worldToGrid, type GridPos } from "~/game/grid";
 import { getWaterCells } from "~/game/water";
-import { RAZE_TOOL, useGameStore, type GameState, type GridPos } from "~/stores/useGameStore";
+import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
   getFrontDirection,
   instantiateBuilding,
@@ -29,12 +30,7 @@ export function pickGridCell(scene: Scene): GridPos | null {
   if (distance === null) return null;
 
   const hit = ray.origin.add(ray.direction.scale(distance));
-  const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
-  const gridX = Math.floor((hit.x + halfGrid) / CELL_SIZE);
-  const gridY = Math.floor((hit.z + halfGrid) / CELL_SIZE);
-
-  if (gridX < 0 || gridX >= GRID_SIZE || gridY < 0 || gridY >= GRID_SIZE) return null;
-  return { x: gridX, y: gridY };
+  return worldToGrid(hit.x, hit.z);
 }
 
 export function createPlacementController(scene: Scene) {
@@ -238,7 +234,6 @@ export function createPlacementController(scene: Scene) {
 
   function updateRoadPreview(positions: GridPos[], canPlace: boolean) {
     ensureRoadPreviewCount(positions.length);
-    const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
     for (let i = 0; i < roadPreviewMeshes.length; i += 1) {
       const mesh = roadPreviewMeshes[i];
       const position = positions[i];
@@ -246,11 +241,8 @@ export function createPlacementController(scene: Scene) {
         mesh.setEnabled(false);
         continue;
       }
-      mesh.position.set(
-        position.x * CELL_SIZE - halfGrid + CELL_SIZE / 2,
-        0.004,
-        position.y * CELL_SIZE - halfGrid + CELL_SIZE / 2
-      );
+      const world = gridToWorld(position.x, position.y);
+      mesh.position.set(world.x, 0.004, world.z);
       mesh.material = canPlace ? validMat : invalidMat;
       mesh.setEnabled(true);
     }
@@ -391,11 +383,12 @@ export function createPlacementController(scene: Scene) {
     const canAfford = state.florins >= metadata.baseCost;
     const canPlaceHere = fitsFootprint && areaFree && canAfford;
 
-    const xOffset = ((footprint.width - 1) * CELL_SIZE) / 2;
-    const zOffset = ((footprint.depth - 1) * CELL_SIZE) / 2;
-    const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
-    const xPos = currentPosition.x * CELL_SIZE - halfGrid + CELL_SIZE / 2 + xOffset;
-    const zPos = currentPosition.y * CELL_SIZE - halfGrid + CELL_SIZE / 2 + zOffset;
+    const { x: xPos, z: zPos } = gridToWorld(
+      currentPosition.x,
+      currentPosition.y,
+      metadata,
+      effectiveRotation ?? undefined
+    );
 
     setGhostVisible(true);
     if (ghostModel) {

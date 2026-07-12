@@ -2,8 +2,8 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
-import { useGameStore, type Tile } from "~/stores/useGameStore";
-import { gridToWorld } from "./mapRenderer";
+import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
+import { useGameStore } from "~/stores/useGameStore";
 import {
   createPrimitiveFigureFactory,
   type CitizenFigure,
@@ -24,8 +24,6 @@ const FOOT_Y = 0.03;
 const STRIDE_LEN = 0.22;
 // Yaw smoothing rate (per second) — a 90° grid turn resolves in ~0.2s.
 const TURN_RATE = 12;
-
-type GridPos = { x: number; y: number };
 
 type Citizen = {
   figure: CitizenFigure;
@@ -148,7 +146,7 @@ export function createCitizens(scene: Scene) {
     }
   });
 
-  function sync(tiles: Record<string, Tile>) {
+  function sync(tiles: TileMap) {
     walkable = new Set();
     spawnTiles = [];
     for (const tile of Object.values(tiles)) {

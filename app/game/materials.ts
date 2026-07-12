@@ -1,5 +1,5 @@
 import type { Artist, ArtistType } from "./types.ts";
-import type { Tile } from "~/stores/useGameStore";
+import type { TileMap } from "./grid.ts";
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 
 export const MATERIAL_BY_ARTIST_TYPE: Partial<Record<ArtistType, string>> = {
@@ -50,7 +50,7 @@ export function computeSupply(
 
 /** Store/UI adapter: capacity from staffed supplier tiles, demand from working founders. */
 export function getSupply(
-  tiles: Record<string, Tile>,
+  tiles: TileMap,
   artists: Artist[]
 ): Partial<Record<ArtistType, MaterialSupply>> {
   const suppliers: { artistType: ArtistType; capacity: number }[] = [];
