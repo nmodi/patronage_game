@@ -236,8 +236,7 @@ function getPadPair(width: number, depth: number, style: "plaza" | undefined, sc
 
 function instantiatePart(
   part: Part,
-  parent: TransformNode,
-  scene: Scene
+  parent: TransformNode
 ): { roots: TransformNode[]; meshes: AbstractMesh[] } {
   const container = containers.get(part.file);
   if (!container) return { roots: [], meshes: [] };
@@ -352,7 +351,7 @@ export function instantiateBuilding(
   type PartInstance = { part: Part; roots: TransformNode[]; meshes: AbstractMesh[] };
   const partInstances: PartInstance[] = [];
   for (const part of parts) {
-    const { roots, meshes: partMeshes } = instantiatePart(part, root, scene);
+    const { roots, meshes: partMeshes } = instantiatePart(part, root);
     if (part.buried) for (const mesh of partMeshes) buried.add(mesh);
     partInstances.push({ part, roots, meshes: partMeshes });
   }
