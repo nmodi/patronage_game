@@ -1,33 +1,11 @@
 import assert from "node:assert";
 
-import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "./buildings.ts";
-import type { GridPos, TileMap } from "./grid.ts";
+import { BUILDING_METADATA_BY_ID, rotatedFootprint } from "./buildings.ts";
+import type { TileMap } from "./grid.ts";
+import { stamp } from "./checkHelpers.ts";
 import { OFFER_EXPIRY_MONTHS } from "./commissions.ts";
 import { getRazeImpact, getRazeSalvage, razeBuilding } from "./raze.ts";
 import type { Artist, Commission } from "./types.ts";
-
-function stamp(buildingId: BuildingId, origin: GridPos, rotation?: number): TileMap {
-  const metadata = BUILDING_METADATA_BY_ID[buildingId];
-  const { width, depth } = rotatedFootprint(metadata, rotation);
-  const tiles: TileMap = {};
-  for (let dx = 0; dx < width; dx += 1) {
-    for (let dy = 0; dy < depth; dy += 1) {
-      const position = { x: origin.x + dx, y: origin.y + dy };
-      tiles[`${position.x},${position.y}`] = {
-        buildingId,
-        type: metadata.type,
-        position,
-        origin: { ...origin },
-        isOrigin: dx === 0 && dy === 0,
-        isActive: true,
-        rotation,
-        workers: 0,
-        builtTick: 0,
-      };
-    }
-  }
-  return tiles;
-}
 
 const artist = (id: string, homeTileKey: string): Artist => ({
   id,

@@ -11,9 +11,9 @@ import {
   OFFER_EXPIRY_MONTHS,
   REQUESTERS,
 } from "./commissions.ts";
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "./buildings.ts";
 import { ARTWORK_PRESTIGE, WORK_DURATION_MONTHS } from "./artists.ts";
-import type { Tile, TileMap } from "./grid.ts";
+import { tile } from "./checkHelpers.ts";
+import type { TileMap } from "./grid.ts";
 import type { MaterialSupply } from "./materials.ts";
 import type { Artist, Commission } from "./types.ts";
 
@@ -38,16 +38,8 @@ const offer = (extra: Partial<Commission> = {}): Commission => ({
   ...extra,
 });
 
-const homeTile = (buildingId: BuildingId, active = true): Tile => ({
-  buildingId,
-  type: BUILDING_METADATA_BY_ID[buildingId].type,
-  position: { x: 5, y: 5 },
-  origin: { x: 5, y: 5 },
-  isOrigin: true,
-  isActive: active,
-  workers: 2,
-  builtTick: 0,
-});
+const homeTile = (buildingId: Parameters<typeof tile>[0], active = true) =>
+  tile(buildingId, 5, 5, { workers: 2, isActive: active });
 
 const availableSupply: MaterialSupply = {
   capacity: 3,

@@ -1,7 +1,8 @@
 import assert from "node:assert";
 
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "./buildings.ts";
-import type { GridPos, Tile, TileMap } from "./grid.ts";
+import { tile } from "./checkHelpers.ts";
+import type { TileMap } from "./grid.ts";
 import {
   planLinearPlacement,
   planPlacement,
@@ -15,19 +16,6 @@ const snapshot = (
   mapSeed: string | null = null
 ): PlacementSnapshot => ({ florins, mapSeed, map: { tiles } });
 
-function tile(buildingId: BuildingId, position: GridPos): Tile {
-  return {
-    buildingId,
-    type: BUILDING_METADATA_BY_ID[buildingId].type,
-    position,
-    origin: position,
-    isOrigin: true,
-    isActive: true,
-    workers: 0,
-    builtTick: 0,
-  };
-}
-
 assert.equal(planPlacement(snapshot(), [], "cottage"), null);
 assert.equal(planPlacement(snapshot(), [{ x: 0, y: 0 }], "missing" as BuildingId), null);
 assert.equal(planPlacement(snapshot(), [{ x: -1, y: 0 }], "cottage"), null);
@@ -40,13 +28,13 @@ assert.equal(cottagePlan?.totalCost, BUILDING_METADATA_BY_ID.cottage.baseCost);
 assert.equal(cottagePlan?.freeCells.size, 16);
 
 {
-  const occupied = { "1,0": tile("cottage", { x: 1, y: 0 }) };
+  const occupied = { "1,0": tile("cottage", 1, 0) };
   const plan = planPlacement(snapshot(occupied), [{ x: 0, y: 0 }], "tree");
   assert.ok(plan);
   assert.equal(plan.freeCells.size, 3);
   assert.ok(!plan.freeCells.has("1,0"));
   assert.equal(
-    planPlacement(snapshot({ "0,0": tile("cottage", { x: 0, y: 0 }) }), [{ x: 0, y: 0 }], "tree"),
+    planPlacement(snapshot({ "0,0": tile("cottage", 0, 0) }), [{ x: 0, y: 0 }], "tree"),
     null
   );
 }
@@ -75,7 +63,7 @@ assert.equal(
 }
 
 {
-  const tiles = { "0,0": tile("path", { x: 0, y: 0 }) };
+  const tiles = { "0,0": tile("path", 0, 0) };
   const plan = planLinearPlacement(snapshot(tiles), [{ x: 0, y: 0 }, { x: 1, y: 0 }], "road");
   assert.deepEqual(plan?.positions, [{ x: 1, y: 0 }]);
   assert.equal(plan?.totalCost, BUILDING_METADATA_BY_ID.road.baseCost);
@@ -83,12 +71,12 @@ assert.equal(
 }
 
 {
-  const fence = { "0,0": tile("fence", { x: 0, y: 0 }) };
+  const fence = { "0,0": tile("fence", 0, 0) };
   assert.deepEqual(
     planLinearPlacement(snapshot(fence), [{ x: 0, y: 0 }, { x: 1, y: 0 }], "fence")?.positions,
     [{ x: 1, y: 0 }]
   );
-  const wall = { "0,0": tile("stone_wall", { x: 0, y: 0 }) };
+  const wall = { "0,0": tile("stone_wall", 0, 0) };
   assert.equal(planLinearPlacement(snapshot(wall), [{ x: 0, y: 0 }], "fence"), null);
   assert.equal(planLinearPlacement(snapshot(fence), [{ x: 0, y: 0 }], "road"), null);
 }

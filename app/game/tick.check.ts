@@ -1,22 +1,13 @@
 import assert from "node:assert";
 
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "./buildings.ts";
-import type { Tile, TileMap } from "./grid.ts";
+import { tile } from "./checkHelpers.ts";
+import type { TileMap } from "./grid.ts";
 import { advanceTick, type TickSnapshot } from "./tick.ts";
 import type { Artist, Commission } from "./types.ts";
 
-function tile(buildingId: BuildingId, x: number, y: number, active = false): Tile {
-  return {
-    buildingId,
-    type: BUILDING_METADATA_BY_ID[buildingId].type,
-    position: { x, y },
-    origin: { x, y },
-    isOrigin: true,
-    isActive: active,
-    workers: 0,
-    builtTick: 0,
-  };
-}
+// Unstaffed buildings start inactive; advanceTick recomputes staffing itself.
+const inactive = (buildingId: Parameters<typeof tile>[0], x: number, y: number) =>
+  tile(buildingId, x, y, { isActive: false });
 
 function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapshot {
   return {
@@ -38,8 +29,8 @@ const noRandomEvent = () => 1;
 // Staffing activates amenities before this month's population cap is applied.
 {
   const tiles = {
-    "0,0": tile("cottage", 0, 0, true),
-    "5,5": tile("bakery", 5, 5),
+    "0,0": tile("cottage", 0, 0),
+    "5,5": inactive("bakery", 5, 5),
   };
   const out = advanceTick(snapshot(tiles, { population: 1 }), noRandomEvent);
   assert.equal(out.tiles["5,5"]?.isActive, true);
@@ -51,8 +42,8 @@ const noRandomEvent = () => 1;
 // A staffed market produces florins and population still moves by only one.
 {
   const tiles = {
-    "0,0": tile("townhouse", 0, 0, true),
-    "5,5": tile("market", 5, 5),
+    "0,0": tile("townhouse", 0, 0),
+    "5,5": inactive("market", 5, 5),
   };
   const out = advanceTick(snapshot(tiles, { population: 3 }), noRandomEvent);
   assert.equal(out.florins, 110);
@@ -82,7 +73,7 @@ const noRandomEvent = () => 1;
     workshopKey: "5,5",
   };
   const out = advanceTick(
-    snapshot({ "5,5": tile("workshop", 5, 5) }, {
+    snapshot({ "5,5": inactive("workshop", 5, 5) }, {
       population: 2,
       inspiration: 1,
       artists: [founder],
@@ -119,8 +110,8 @@ const noRandomEvent = () => 1;
   const out = advanceTick(
     snapshot(
       {
-        "5,5": tile("workshop", 5, 5),
-        "10,10": tile("pigment_trader", 10, 10),
+        "5,5": inactive("workshop", 5, 5),
+        "10,10": inactive("pigment_trader", 10, 10),
       },
       {
         population: 4,
