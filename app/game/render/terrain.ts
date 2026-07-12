@@ -5,7 +5,7 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
-import { seededRng } from "~/game/seed";
+import { mulberry32, positionToneIndex, seededRng } from "~/game/random";
 import type { WaterBody } from "~/game/water";
 
 const TERRAIN_SIZE = 320;
@@ -78,17 +78,6 @@ function makeHeightAt(
       CHANNEL_DEPTH * smoothstep01((5.5 - rd) / 3.5) * smoothstep01((sd + 4) / 4)
     );
     return hillHeight(x, z) * hillMask - dip;
-  };
-}
-
-function mulberry32(seed: number) {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
 
@@ -185,8 +174,7 @@ export function createTerrain(
   for (let f = 0; f < flat.length; f += 9) {
     const x = (flat[f] + flat[f + 3] + flat[f + 6]) / 3;
     const z = (flat[f + 2] + flat[f + 5] + flat[f + 8]) / 3;
-    const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453);
-    let color = GRASS_TONES[Math.floor(hash % GRASS_TONES.length)];
+    let color = GRASS_TONES[positionToneIndex(x, z, GRASS_TONES.length)];
     for (const p of patches) {
       if (Math.abs(x - p.x) < p.w / 2 && Math.abs(z - p.z) < p.d / 2) {
         color = p.color;

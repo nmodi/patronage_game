@@ -16,6 +16,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { positionToneIndex } from "~/game/random";
 import type { WaterBody } from "~/game/water";
 
 const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
@@ -46,8 +47,7 @@ function gridBlend(x: number, z: number) {
 
 /** Same position hash the terrain uses, so lip faces melt into the grass. */
 function toneAt(tones: Color3[], x: number, z: number) {
-  const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453);
-  return tones[Math.floor(hash % tones.length)];
+  return tones[positionToneIndex(x, z, tones.length)];
 }
 
 /** Accumulates unindexed (flat-shaded) triangles with per-face colors. */

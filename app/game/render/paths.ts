@@ -5,6 +5,7 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { mulberry32 } from "~/game/random";
 
 // Procedural limestone paving for roads and plaza pads. The Kenney kit's
 // colormap UVs are flat-color palette lookups, so surface detail has to come
@@ -31,17 +32,6 @@ const TRAVERTINE_TONES = ["#ddd5c2", "#e2dbca", "#d7cfbc", "#e0d8c6"];
 const DIRT_BASE = "#c9a172";
 const DIRT_TONES = ["#b98f60", "#d4ad7e", "#bd9464", "#8f6f4e"];
 const DIRT_EDGE = "#ab8a6c";
-
-function mulberry32(seed: number) {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 function drawPaving(
   ctx: CanvasRenderingContext2D,

@@ -10,9 +10,9 @@
 // same transform as mapRenderer's gridToWorld. Compass: east = +X, west = -X,
 // north = +Z, south = -Z.
 
-// No runtime imports: water.check.ts runs this file under plain Node.
+import { seededRng } from "./random.ts";
 
-// Mirrors ~/game/constants (duplicated so this file stays import-free).
+// Map raster dimensions; water.check locks these to the playable grid extent.
 const GRID_SIZE = 120;
 const CELL_SIZE = 0.5;
 const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
@@ -60,27 +60,6 @@ export interface WaterBody {
   seaDistance(x: number, z: number): number;
 }
 
-// mulberry32 + FNV-1a (same algorithm as seed.ts, kept local — see header).
-function mulberry32(seed: number): () => number {
-  let a = seed;
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-function hashString(s: string): number {
-  let h = 2166136261 >>> 0;
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
-
 function smoothstep(t: number): number {
   const c = Math.min(1, Math.max(0, t));
   return c * c * (3 - 2 * c);
@@ -89,7 +68,7 @@ function smoothstep(t: number): number {
 export function generateWater(seed: string): WaterBody {
   // Namespaced hash: the run seed also feeds pickCityName — keep the streams
   // independent so adding water didn't reshuffle existing derived picks.
-  const rand = mulberry32(hashString(`water:${seed}`));
+  const rand = seededRng(`water:${seed}`);
 
   // Archetype roll: most runs get water in play (it's the feature), but the
   // classic dry plain and scenery-only water keep the map pool varied.

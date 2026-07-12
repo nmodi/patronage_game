@@ -3,10 +3,22 @@
 import assert from "node:assert";
 
 import { generateSeed, pickCityName, seededRng } from "./seed.ts";
+import { positionToneIndex } from "./random.ts";
 
 // Deterministic: the same seed always yields the same name and RNG stream.
 assert.equal(pickCityName("abc"), pickCityName("abc"));
 assert.equal(seededRng("abc")(), seededRng("abc")());
+const golden = seededRng("abc");
+assert.deepEqual([golden(), golden(), golden(), golden()], [
+  0.5166419988963753,
+  0.6596221292857081,
+  0.0018796597141772509,
+  0.8993499737698585,
+]);
+assert.deepEqual(
+  [positionToneIndex(0, 0, 3), positionToneIndex(1.25, -4.5, 5), positionToneIndex(12, 9, 4)],
+  [0, 3, 3]
+);
 
 // Seeds spread across the pool — some pair of seeds must differ.
 const names = new Set(
