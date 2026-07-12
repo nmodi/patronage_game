@@ -28,7 +28,8 @@ import {
   type GridSide,
   type SegmentMask,
 } from "./modelManifest";
-import { createDirtPathOverlay, getApronMaterial } from "./paths";
+import { createDirtPathOverlay } from "./dirtPathOverlay";
+import { getApronMaterial } from "./paths";
 import { createRoadRenderer } from "./roadRenderer";
 import { createSmokePlume, type SmokePlume } from "./smoke";
 
