@@ -83,7 +83,18 @@ assert.equal(
   agrees(snapshot({ "0,0": tile("cottage", 0, 0) }), { x: 0, y: 0 }, "tree");
   agrees(snapshot({}, 10_000, waterSeed), { x, y }, "path");
   agrees(snapshot({}, 10_000, waterSeed), { x, y }, "bridge");
+
+  // Linear runs hit the same water gate: blocked for roads, exempt for bridges.
+  assert.equal(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "road"), null);
+  assert.ok(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "bridge"));
 }
+
+// Linear placement charges only new cells and rejects duplicates/short funds.
+assert.equal(planLinearPlacement(snapshot({}, 24), [{ x: 0, y: 0 }], "path"), null);
+assert.equal(
+  planLinearPlacement(snapshot(), [{ x: 0, y: 0 }, { x: 0, y: 0 }], "road"),
+  null
+);
 
 {
   const tiles = { "0,0": tile("path", 0, 0) };

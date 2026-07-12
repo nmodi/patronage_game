@@ -125,8 +125,9 @@ export function canPlaceAt(
 }
 
 /**
- * Plan a drag-placed road or linear decoration. Existing compatible cells join
- * the run for free; only newly claimed cells are validated and charged.
+ * Plan a drag-placed road or linear decoration in one pass (these are all
+ * 1×1-footprint cells). Existing compatible cells join the run for free; only
+ * newly claimed cells are validated (water blocks all but bridges) and charged.
  */
 export function planLinearPlacement(
   state: PlacementSnapshot,
@@ -138,13 +139,20 @@ export function planLinearPlacement(
     return null;
   }
 
+  const water = getWaterCells(state.mapSeed);
+  const isBridge = buildingId === "bridge";
   const newCells: GridPos[] = [];
+  const freeCells = new Set<string>();
   for (const position of positions) {
     if (position.x < 0 || position.x >= GRID_SIZE || position.y < 0 || position.y >= GRID_SIZE) {
       return null;
     }
-    const tile = state.map.tiles[`${position.x},${position.y}`];
+    const key = `${position.x},${position.y}`;
+    const tile = state.map.tiles[key];
     if (!tile) {
+      if (freeCells.has(key)) return null; // drag positions may not overlap
+      if (!isBridge && water.has(key)) return null;
+      freeCells.add(key);
       newCells.push(position);
       continue;
     }
@@ -153,12 +161,7 @@ export function planLinearPlacement(
     if (!joinable) return null;
   }
 
-  if (newCells.length > 0) return planPlacement(state, newCells, buildingId);
-  return {
-    metadata,
-    footprint: metadata.footprint,
-    positions: [],
-    freeCells: new Set(),
-    totalCost: 0,
-  };
+  const totalCost = metadata.baseCost * newCells.length;
+  if (state.florins < totalCost) return null;
+  return { metadata, footprint: metadata.footprint, positions: newCells, freeCells, totalCost };
 }
