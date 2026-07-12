@@ -6,6 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "vite preview",
+    "test": "tsx --test app/game/*.check.ts",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {
@@ -33,6 +34,7 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "tailwindcss": "^4.1.13",
+    "tsx": "^4.23.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",
     "vite-tsconfig-paths": "^5.1.4"
