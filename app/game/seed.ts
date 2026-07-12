@@ -5,8 +5,6 @@
 
 import { seededRng } from "./random.ts";
 
-export { seededRng } from "./random.ts";
-
 // ponytail: fixed pool, fictional Renaissance-Italian names.
 const CITY_NAMES = [
   "Bellafonte",

@@ -2,8 +2,8 @@
 // Run: node --experimental-strip-types app/game/seed.check.ts
 import assert from "node:assert";
 
-import { generateSeed, pickCityName, seededRng } from "./seed.ts";
-import { positionToneIndex } from "./random.ts";
+import { generateSeed, pickCityName } from "./seed.ts";
+import { positionToneIndex, seededRng } from "./random.ts";
 
 // Deterministic: the same seed always yields the same name and RNG stream.
 assert.equal(pickCityName("abc"), pickCityName("abc"));
