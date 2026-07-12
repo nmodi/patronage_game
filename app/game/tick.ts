@@ -1,165 +1,189 @@
-import type { StateCreator } from "zustand";
+import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
+import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
+import type { TileMap } from "./grid.ts";
+import { getSupply } from "./materials.ts";
+import { computeCityMetrics } from "./metrics.ts";
+import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./artists.ts";
+import { maybeOfferCommission, reconcileCommissions } from "./commissions.ts";
+import type { Artist, Artwork, Commission } from "./types.ts";
+import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./workers.ts";
 
-import type { GameState } from "~/stores/useGameStore";
-import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "~/game/workers";
-import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "~/game/artists";
-import { maybeOfferCommission, reconcileCommissions } from "~/game/commissions";
-import { getSupply } from "~/game/materials";
-import { computeCityMetrics } from "~/game/metrics";
-import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "~/game/connectivity";
+export interface TickSnapshot {
+  florins: number;
+  inspiration: number;
+  prestige: number;
+  population: number;
+  artists: Artist[];
+  artworks: Artwork[];
+  commissions: Commission[];
+  time: { tickCount: number };
+  map: { tiles: TileMap };
+}
 
-type StoreSet = Parameters<StateCreator<GameState>>[0];
-type StoreGet = Parameters<StateCreator<GameState>>[1];
+export interface TickTransition {
+  florins: number;
+  inspiration: number;
+  prestige: number;
+  population: number;
+  artists: Artist[];
+  artworks: Artwork[];
+  commissions: Commission[];
+  tickCount: number;
+  tiles: TileMap;
+}
 
-export const createTick = (set: StoreSet, get: StoreGet) =>
-  () => {
-    const state = get();
-    const tiles = state.map.tiles;
+/** Advance the simulation by one month without depending on the Zustand adapter. */
+export function advanceTick(
+  state: TickSnapshot,
+  rng: () => number = Math.random
+): TickTransition {
+  const tiles = state.map.tiles;
 
-    const staffables: StaffableBuilding[] = [];
-    for (const tile of Object.values(tiles)) {
-      if (!tile.isOrigin) continue;
-      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-      if (!metadata) continue;
-      staffables.push({
-        key: `${tile.position.x},${tile.position.y}`,
-        type: metadata.type,
-        workersRequired: metadata.workersRequired ?? 0,
-        maxWorkers: Math.max(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0),
-      });
+  const staffables: StaffableBuilding[] = [];
+  for (const tile of Object.values(tiles)) {
+    if (!tile.isOrigin) continue;
+    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+    if (!metadata) continue;
+    staffables.push({
+      key: `${tile.position.x},${tile.position.y}`,
+      type: metadata.type,
+      workersRequired: metadata.workersRequired ?? 0,
+      maxWorkers: Math.max(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0),
+    });
+  }
+  const allocation = allocateWorkers(staffables, state.population);
+
+  let tilesChanged = false;
+  const updatedTiles: TileMap = {};
+  for (const [key, tile] of Object.entries(tiles)) {
+    const required = BUILDING_METADATA_BY_ID[tile.buildingId]?.workersRequired ?? 0;
+    const workers = required > 0 ? allocation.get(`${tile.origin.x},${tile.origin.y}`) ?? 0 : 0;
+    const isActive = workers >= required;
+    if (tile.workers === workers && tile.isActive === isActive) {
+      updatedTiles[key] = tile;
+    } else {
+      updatedTiles[key] = { ...tile, workers, isActive };
+      tilesChanged = true;
     }
-    const allocation = allocateWorkers(staffables, state.population);
+  }
 
-    let tilesChanged = false;
-    const updatedTiles: GameState["map"]["tiles"] = {};
-    for (const [key, tile] of Object.entries(tiles)) {
-      const required = BUILDING_METADATA_BY_ID[tile.buildingId]?.workersRequired ?? 0;
-      const workers = required > 0 ? allocation.get(`${tile.origin.x},${tile.origin.y}`) ?? 0 : 0;
-      const isActive = workers >= required;
-      if (tile.workers === workers && tile.isActive === isActive) {
-        updatedTiles[key] = tile; // keep identity so renderer/tooltip skip unchanged tiles
-      } else {
-        updatedTiles[key] = { ...tile, workers, isActive };
-        tilesChanged = true;
-      }
+  // Working workshops beyond supplier capacity stall; oldest workshops retain
+  // their slots. Material blocking shares the normal inactive feedback path.
+  const supply = getSupply(updatedTiles, state.artists);
+  const blockedOrigins = new Set<string>();
+  for (const artist of state.artists) {
+    if (artist.workProgress == null) continue;
+    const material = supply[artist.type];
+    if (material && !material.allowed.has(artist.homeTileKey)) {
+      blockedOrigins.add(artist.homeTileKey);
     }
-
-    // Material gating (Phase 7): working workshops beyond supply capacity stall —
-    // same visual and progress freeze as losing workers. Oldest workshops keep
-    // their materials. ponytail: blocked folds into tile.isActive; side effect:
-    // blocked workshops also stop attracting arrivals (maybeArriveArtist checks
-    // the same flag).
-    const supply = getSupply(updatedTiles, state.artists);
-    const blockedOrigins = new Set<string>();
-    for (const a of state.artists) {
-      if (a.workProgress == null) continue;
-      const s = supply[a.type];
-      if (s && !s.allowed.has(a.homeTileKey)) blockedOrigins.add(a.homeTileKey);
-    }
-    if (blockedOrigins.size > 0) {
-      for (const [key, tile] of Object.entries(updatedTiles)) {
-        if (!tile.isActive || !blockedOrigins.has(`${tile.origin.x},${tile.origin.y}`)) continue;
-        updatedTiles[key] = { ...tile, isActive: false };
-        tilesChanged = true;
-      }
-    }
-
-    // Plaza connectivity (Phase 10): strength per building, radiating from the
-    // Main Plaza through roads with falloff, refreshed by secondary plazas.
-    // Always a nudge — everything below works at full base rate off-network.
-    const connected = computePlazaConnectivity(updatedTiles);
-    const plazaBoost = (key: string) =>
-      1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0);
-
-    // Population drifts one per month toward min(housing, amenities). Staffed
-    // service buildings raise the ceiling past the unserviced base — the doc's
-    // "services unlock population thresholds", no supply chains.
-    const { housing, amenities } = computeCityMetrics(updatedTiles, connected);
-    const populationCap = Math.min(housing, amenities);
-    const population = state.population + Math.sign(populationCap - state.population);
-
-    // Staffing past the minimum boosts output linearly, up to +50% at maxWorkers.
-    let florinDelta = 0;
-    let inspirationDelta = 0;
+  }
+  if (blockedOrigins.size > 0) {
     for (const [key, tile] of Object.entries(updatedTiles)) {
-      if (!tile.isOrigin || !tile.isActive) continue;
-      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-      if (!metadata?.generates) continue;
-      const efficiency =
-        staffingEfficiency(
-          metadata.workersRequired ?? 0,
-          metadata.maxWorkers ?? 0,
-          tile.workers
-        ) * plazaBoost(key);
-      florinDelta += (metadata.generates.income ?? 0) * efficiency;
-      inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
+      if (!tile.isActive || !blockedOrigins.has(`${tile.origin.x},${tile.origin.y}`)) continue;
+      updatedTiles[key] = { ...tile, isActive: false };
+      tilesChanged = true;
     }
+  }
 
-    // Artists live in workshops on top of the worker pool. Prune any whose home
-    // workshop is gone (covers demolition, one-tick lag — no removeTile change),
-    // then roll a passive monthly arrival into a cooled-down active workshop
-    // with a free slot.
-    const inspiration = state.inspiration + Math.round(inspirationDelta);
-    const isWorkshop = (key: string) => {
-      const tile = updatedTiles[key];
-      return !!tile?.isOrigin && BUILDING_METADATA_BY_ID[tile.buildingId]?.artistCapacity != null;
-    };
-    let artists = state.artists.filter((a) => isWorkshop(a.homeTileKey));
-    let artistsChanged = artists.length !== state.artists.length;
+  const connected = computePlazaConnectivity(updatedTiles);
+  const plazaBoost = (key: string) =>
+    1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0);
 
-    const workshops: WorkshopSlot[] = [];
-    for (const tile of Object.values(updatedTiles)) {
-      if (!tile.isOrigin) continue;
-      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-      if (metadata?.artistCapacity == null) continue;
-      workshops.push({
-        key: `${tile.position.x},${tile.position.y}`,
-        capacity: metadata.artistCapacity,
-        artistType: metadata.artistType ?? "painter",
-        isActive: tile.isActive,
-        builtTick: tile.builtTick ?? 0,
-      });
-    }
-    const arrival = maybeArriveArtist(workshops, artists, inspiration, state.time.tickCount);
-    if (arrival) {
-      artists = [...artists, arrival];
-      artistsChanged = true;
-    }
+  const { housing, amenities } = computeCityMetrics(updatedTiles, connected);
+  const populationCap = Math.min(housing, amenities);
+  const population = state.population + Math.sign(populationCap - state.population);
 
-    // Commissions (Phase 8): expire stale offers and re-open orphaned
-    // assignments, then roll a periodic new offer — same cadence pattern as
-    // artist arrivals.
-    const workshopKeys = new Set(workshops.map((w) => w.key));
-    const reconciled = reconcileCommissions(state.commissions, workshopKeys, state.time.tickCount);
-    let commissions = reconciled.commissions;
-    let commissionsChanged = reconciled.changed;
-    const offer = maybeOfferCommission(commissions, artists, state.time.tickCount);
-    if (offer) {
-      commissions = [...commissions, offer];
-      commissionsChanged = true;
-    }
+  let florinDelta = 0;
+  let inspirationDelta = 0;
+  for (const [key, tile] of Object.entries(updatedTiles)) {
+    if (!tile.isOrigin || !tile.isActive) continue;
+    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+    if (!metadata?.generates) continue;
+    const efficiency =
+      staffingEfficiency(
+        metadata.workersRequired ?? 0,
+        metadata.maxWorkers ?? 0,
+        tile.workers
+      ) * plazaBoost(key);
+    florinDelta += (metadata.generates.income ?? 0) * efficiency;
+    inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
+  }
 
-    const work = progressArtworks(artists, workshops, commissions, inspiration, state.time.tickCount, connected);
-    if (work.changed) {
-      artists = work.artists;
-      artistsChanged = true;
-    }
-    if (work.finishedCommissionIds.length > 0) {
-      const finished = new Set(work.finishedCommissionIds);
-      commissions = commissions.filter((c) => !finished.has(c.id));
-      commissionsChanged = true;
-    }
-
-    set((s) => ({
-      florins: s.florins + Math.round(florinDelta) + work.florins,
-      inspiration: s.inspiration + Math.round(inspirationDelta),
-      prestige: s.prestige + work.prestige,
-      population,
-      artists: artistsChanged ? artists : s.artists,
-      artworks: work.completed.length ? [...s.artworks, ...work.completed] : s.artworks,
-      commissions: commissionsChanged ? commissions : s.commissions,
-      time: { tickCount: s.time.tickCount + 1 },
-      map: tilesChanged ? { ...s.map, tiles: updatedTiles } : s.map,
-    }));
+  const inspiration = state.inspiration + Math.round(inspirationDelta);
+  const isWorkshop = (key: string) => {
+    const tile = updatedTiles[key];
+    return !!tile?.isOrigin && BUILDING_METADATA_BY_ID[tile.buildingId]?.artistCapacity != null;
   };
+  let artists = state.artists.filter((artist) => isWorkshop(artist.homeTileKey));
+  let artistsChanged = artists.length !== state.artists.length;
+
+  const workshops: WorkshopSlot[] = [];
+  for (const tile of Object.values(updatedTiles)) {
+    if (!tile.isOrigin) continue;
+    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+    if (metadata?.artistCapacity == null) continue;
+    workshops.push({
+      key: `${tile.position.x},${tile.position.y}`,
+      capacity: metadata.artistCapacity,
+      artistType: metadata.artistType ?? "painter",
+      isActive: tile.isActive,
+      builtTick: tile.builtTick ?? 0,
+    });
+  }
+  const arrival = maybeArriveArtist(
+    workshops,
+    artists,
+    inspiration,
+    state.time.tickCount,
+    rng
+  );
+  if (arrival) {
+    artists = [...artists, arrival];
+    artistsChanged = true;
+  }
+
+  const workshopKeys = new Set(workshops.map((workshop) => workshop.key));
+  const reconciled = reconcileCommissions(
+    state.commissions,
+    workshopKeys,
+    state.time.tickCount
+  );
+  let commissions = reconciled.commissions;
+  let commissionsChanged = reconciled.changed;
+  const offer = maybeOfferCommission(commissions, artists, state.time.tickCount, rng);
+  if (offer) {
+    commissions = [...commissions, offer];
+    commissionsChanged = true;
+  }
+
+  const work = progressArtworks(
+    artists,
+    workshops,
+    commissions,
+    inspiration,
+    state.time.tickCount,
+    connected
+  );
+  if (work.changed) {
+    artists = work.artists;
+    artistsChanged = true;
+  }
+  if (work.finishedCommissionIds.length > 0) {
+    const finished = new Set(work.finishedCommissionIds);
+    commissions = commissions.filter((commission) => !finished.has(commission.id));
+    commissionsChanged = true;
+  }
+
+  return {
+    florins: state.florins + Math.round(florinDelta) + work.florins,
+    inspiration: state.inspiration + Math.round(inspirationDelta),
+    prestige: state.prestige + work.prestige,
+    population,
+    artists: artistsChanged ? artists : state.artists,
+    artworks: work.completed.length ? [...state.artworks, ...work.completed] : state.artworks,
+    commissions: commissionsChanged ? commissions : state.commissions,
+    tickCount: state.time.tickCount + 1,
+    tiles: tilesChanged ? updatedTiles : tiles,
+  };
+}

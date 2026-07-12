@@ -11,7 +11,7 @@ import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
 import { getSupply } from "~/game/materials";
 import { getAmenityCapacity, getHousingCapacity } from "~/game/metrics";
-import { createTick } from "~/game/tick";
+import { advanceTick } from "~/game/tick";
 import { BASE_TICK_INTERVAL } from "~/game/constants";
 
 // The demolition tool rides the building-selection slot: camera-drag detach,
@@ -114,7 +114,21 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setHoveredTile: (key) => set(() => ({ hoveredTileKey: key })),
   setRazeTarget: (key) => set(() => ({ razeTarget: key })),
 
-  tick: createTick(set, get),
+  tick: () =>
+    set((s) => {
+      const next = advanceTick(s);
+      return {
+        florins: next.florins,
+        inspiration: next.inspiration,
+        prestige: next.prestige,
+        population: next.population,
+        artists: next.artists,
+        artworks: next.artworks,
+        commissions: next.commissions,
+        time: { tickCount: next.tickCount },
+        map: next.tiles === s.map.tiles ? s.map : { ...s.map, tiles: next.tiles },
+      };
+    }),
 
   resetGame: () => set(createInitialState()),
 
