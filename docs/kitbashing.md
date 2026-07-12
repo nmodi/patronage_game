@@ -1,6 +1,6 @@
 # Kitbashing Notes
 
-Field notes from building the prefabs in `app/game/render/assetLibrary.ts` (`MODEL_MANIFEST`). Source kits: Kenney Fantasy Town Kit + Nature Kit (CC0), GLBs in `public/models/`. Retint via `scripts/retint-colormap.py`.
+Field notes from building the prefabs in `app/game/render/modelManifest.ts` (`MODEL_MANIFEST`). Source kits: Kenney Fantasy Town Kit + Nature Kit (CC0), GLBs in `public/models/`. Retint via `scripts/retint-colormap.py`.
 
 ## Piece geometry conventions (Fantasy Town Kit)
 

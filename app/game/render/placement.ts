@@ -14,12 +14,11 @@ import { gridToWorld, worldToGrid, type GridPos } from "~/game/grid";
 import { planLinearPlacement, planPlacement } from "~/game/placementRules";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
-  getFrontDirection,
   instantiateBuilding,
   overrideMaterials,
-  usesQuarterRotation,
   type BuildingModel,
 } from "./assetLibrary";
+import { getFrontDirection, usesQuarterRotation } from "./modelManifest";
 
 const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
 

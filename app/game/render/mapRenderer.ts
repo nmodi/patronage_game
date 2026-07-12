@@ -13,19 +13,21 @@ import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import type { BuildingMetadata, BuildingType } from "~/game/types";
 import {
   createBuildingBatcher,
+  hasModel,
+  type PlacedBuilding,
+} from "./assetLibrary";
+import {
   doorLocalSide,
   effectiveRotation,
   getBlendGroup,
   hasExtensions,
-  hasModel,
   isSegment,
   localSideForGrid,
   reactsToNeighbors,
   type BlendSides,
   type GridSide,
-  type PlacedBuilding,
   type SegmentMask,
-} from "./assetLibrary";
+} from "./modelManifest";
 import { createDirtPathOverlay, getApronMaterial, getRoadMaterial } from "./paths";
 import { createSmokePlume, type SmokePlume } from "./smoke";
 
