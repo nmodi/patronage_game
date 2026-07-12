@@ -5,8 +5,7 @@ import { Images, X } from "lucide-react";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { RANK_LABEL } from "~/game/artists";
 import { Panel } from "./Panel";
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+import { capitalizeLabel } from "./format";
 
 // Circular HUD button (top-left row) + fullscreen codex modal.
 export function GalleryPanel() {
@@ -71,8 +70,8 @@ export function GalleryPanel() {
                         </span>
                         <span className="text-xs text-ink-faint">
                           {artist
-                            ? `${artist.name}, ${RANK_LABEL[artist.rank]} ${capitalize(w.artistType)}`
-                            : capitalize(w.artistType)}
+                            ? `${artist.name}, ${RANK_LABEL[artist.rank]} ${capitalizeLabel(w.artistType)}`
+                            : capitalizeLabel(w.artistType)}
                         </span>
                         <span className="text-[10px] text-ink-faint">
                           {w.requester ? `For ${w.requester} · ` : ""}

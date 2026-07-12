@@ -5,8 +5,7 @@ import { getSupply } from "~/game/materials";
 import { canAssignCommission } from "~/game/commissions";
 import { HudPanel } from "./Panel";
 import type { Commission } from "~/game/types";
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+import { capitalizeLabel } from "./format";
 
 function CommissionThumb({ title }: { title: string }) {
   return (
@@ -100,7 +99,7 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                   <Clock className="h-4 w-4" /> {c.durationMonths} mo
                 </span>
                 <span className="text-sm font-semibold text-sienna">
-                  Requires: {capitalize(c.artistType)}
+                  Requires: {capitalizeLabel(c.artistType)}
                   {monthsLeft < 4 && <span> · expires in {monthsLeft} mo</span>}
                 </span>
                 {workshops.length > 0 ? (

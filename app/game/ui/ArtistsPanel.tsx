@@ -5,8 +5,7 @@ import { RANK_LABEL } from "~/game/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materials";
 import { HudPanel } from "./Panel";
-
-const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+import { capitalizeLabel } from "./format";
 
 const ARTIST_ICONS: Record<string, LucideIcon> = {
   painter: Palette,
@@ -80,7 +79,7 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
                   Bottega di {founder.name}
                 </span>
                 <span className="text-sm text-ink-faint">
-                  {RANK_LABEL[founder.rank]} {capitalize(founder.type)} · {members.length}{" "}
+                  {RANK_LABEL[founder.rank]} {capitalizeLabel(founder.type)} · {members.length}{" "}
                   {members.length === 1 ? "artist" : "artists"}
                 </span>
                 {working ? (

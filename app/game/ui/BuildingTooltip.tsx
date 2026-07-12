@@ -10,6 +10,7 @@ import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materi
 import type { BuildingMetadata } from "~/game/types";
 import { staffingEfficiency } from "~/game/workers";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
+import { capitalizeLabel } from "./format";
 
 function formatAmount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
@@ -121,7 +122,7 @@ export function BuildingTooltip() {
         )}
         {metadata.supplies && material && materialStatus && (
           <div className="text-sm text-ink-faint">
-            {material.charAt(0).toUpperCase() + material.slice(1)}: {materialStatus.inUse}/
+            {capitalizeLabel(material)}: {materialStatus.inUse}/
             {materialStatus.capacity} {metadata.supplies.artistType}s
           </div>
         )}
