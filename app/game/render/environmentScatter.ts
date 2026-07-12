@@ -5,6 +5,7 @@ import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { CYPRESS_STRETCH, CYPRESS_VARIANTS, NATURE, TOWN } from "./modelManifest";
+import { prepareThinInstanceHost } from "./thinInstanceHost";
 
 const SCATTER_OLIVE = [NATURE + "tree_default.glb", NATURE + "tree_fat.glb", NATURE + "tree_oak.glb"];
 const SCATTER_ROCKS = [NATURE + "rock_smallA.glb", NATURE + "rock_smallD.glb", NATURE + "rock_smallG.glb"];
@@ -199,16 +200,7 @@ export function scatterEnvironment(
       for (const child of root.getChildMeshes(false)) {
         const mesh = child as Mesh;
         const local = mesh.computeWorldMatrix(true).clone();
-        mesh.parent = null;
-        mesh.position.setAll(0);
-        mesh.rotationQuaternion = null;
-        mesh.rotation.setAll(0);
-        mesh.scaling.setAll(1);
-        mesh.isPickable = false;
-        // Thin-instance hosts must not share geometry: Babylon caches VAOs on
-        // the geometry, so co-owning hosts would clobber each other's
-        // instance-buffer bindings (GL "vertex buffer not big enough").
-        mesh.makeGeometryUnique();
+        prepareThinInstanceHost(mesh);
         meshes.push({ mesh, local });
         hosts.push(mesh);
       }
@@ -259,4 +251,3 @@ export function scatterEnvironment(
     },
   };
 }
-

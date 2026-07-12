@@ -38,6 +38,7 @@ import {
   scatterEnvironment as buildEnvironmentScatter,
 } from "./environmentScatter";
 import { disposePathMaterials, getPadMaterial, getPlazaMaterial } from "./paths";
+import { prepareThinInstanceHost } from "./thinInstanceHost";
 
 registerBuiltInLoaders();
 
@@ -557,7 +558,6 @@ export function createBuildingBatcher(
   const dirty = new Set<Batch>();
 
   function registerHost(meshKey: string, mesh: Mesh, state: "on" | "off", castsShadow: boolean) {
-    mesh.isPickable = false;
     mesh.setEnabled(false);
     batches.set(`${meshKey}@${state}`, { mesh, instances: new Map() });
     onHostCreated?.(mesh, castsShadow);
@@ -574,8 +574,9 @@ export function createBuildingBatcher(
       const pair = getPadPair(width, depth, style === "plaza" ? "plaza" : undefined, scene);
       const on = CreateGround(`batch-pad-${sizeStr}`, { width, height: depth }, scene);
       on.material = pair.on;
+      prepareThinInstanceHost(on);
       const off = on.clone(`batch-pad-${sizeStr}-off`);
-      off.makeGeometryUnique(); // thin-instance hosts can't share geometry (VAO clash)
+      prepareThinInstanceHost(off);
       off.material = pair.off;
       // Flat paving pads don't cast — their shadow is just an offset dark rim.
       registerHost(meshKey, on, "on", false);
@@ -602,19 +603,11 @@ export function createBuildingBatcher(
     meshes.forEach((mesh, i) => {
       const key = `${file}#${i}${tintId ? `~${tintId}` : ""}`;
       builtMeshKeys.add(key);
-      mesh.parent = null;
-      mesh.position.setAll(0);
-      mesh.rotationQuaternion = null;
-      mesh.rotation.setAll(0);
-      mesh.scaling.setAll(1);
-      // Thin-instance hosts must not share geometry: Babylon caches VAOs on the
-      // geometry, so co-owning hosts (incl. the scatter's) would clobber each
-      // other's instance-buffer bindings (GL "vertex buffer not big enough").
-      mesh.makeGeometryUnique();
+      prepareThinInstanceHost(mesh);
       let pair = mesh.material ? materialPairs.get(mesh.material) : undefined;
       if (pair && tintId) pair = getTintedPair(pair, tintId);
       const off = mesh.clone(`${mesh.name}-off`, null);
-      off.makeGeometryUnique();
+      prepareThinInstanceHost(off);
       if (pair) {
         mesh.material = pair.on;
         off.material = pair.off;
