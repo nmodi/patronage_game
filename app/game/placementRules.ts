@@ -22,6 +22,23 @@ export interface PlacementPlan {
   totalCost: number;
 }
 
+/** One footprint cell, shared by the batch planner and the preview check:
+ * occupied cells block unless a decoration overlaps a non-origin cell, and
+ * free cells block on water for everything but bridges. */
+function checkCell(
+  tiles: TileMap,
+  water: ReadonlySet<string>,
+  key: string,
+  isOriginCell: boolean,
+  canOverlap: boolean,
+  isBridge: boolean
+): "blocked" | "occupied" | "free" {
+  if (tiles[key]) {
+    return !canOverlap || isOriginCell ? "blocked" : "occupied";
+  }
+  return !isBridge && water.has(key) ? "blocked" : "free";
+}
+
 /** Authoritative validation for a batch of building origins. */
 export function planPlacement(
   state: PlacementSnapshot,
@@ -36,6 +53,7 @@ export function planPlacement(
   const freeCells = new Set<string>();
   const water = getWaterCells(state.mapSeed);
   const canOverlap = metadata.type === "decoration";
+  const isBridge = buildingId === "bridge";
 
   for (const position of positions) {
     if (
@@ -50,14 +68,19 @@ export function planPlacement(
     for (let dx = 0; dx < footprint.width; dx += 1) {
       for (let dy = 0; dy < footprint.depth; dy += 1) {
         const key = `${position.x + dx},${position.y + dy}`;
-        if (freeCells.has(key)) return null;
-
-        if (state.map.tiles[key]) {
-          if (!canOverlap || (dx === 0 && dy === 0)) return null;
-          continue;
+        const cell = checkCell(
+          state.map.tiles,
+          water,
+          key,
+          dx === 0 && dy === 0,
+          canOverlap,
+          isBridge
+        );
+        if (cell === "blocked") return null;
+        if (cell === "free") {
+          if (freeCells.has(key)) return null; // batch positions may not overlap
+          freeCells.add(key);
         }
-        if (buildingId !== "bridge" && water.has(key)) return null;
-        freeCells.add(key);
       }
     }
   }
@@ -65,6 +88,40 @@ export function planPlacement(
   const totalCost = metadata.baseCost * positions.length;
   if (state.florins < totalCost) return null;
   return { metadata, footprint, positions, freeCells, totalCost };
+}
+
+/** planPlacement for a single origin as a boolean, allocation-free — safe to
+ * call every frame from the placement ghost. */
+export function canPlaceAt(
+  state: PlacementSnapshot,
+  position: GridPos,
+  buildingId: BuildingId,
+  rotation?: number
+): boolean {
+  const metadata = BUILDING_METADATA_BY_ID[buildingId];
+  if (!metadata || state.florins < metadata.baseCost) return false;
+
+  const footprint = rotatedFootprint(metadata, rotation);
+  if (
+    position.x < 0 ||
+    position.y < 0 ||
+    position.x + footprint.width > GRID_SIZE ||
+    position.y + footprint.depth > GRID_SIZE
+  ) {
+    return false;
+  }
+
+  const water = getWaterCells(state.mapSeed);
+  const canOverlap = metadata.type === "decoration";
+  const isBridge = buildingId === "bridge";
+  for (let dx = 0; dx < footprint.width; dx += 1) {
+    for (let dy = 0; dy < footprint.depth; dy += 1) {
+      const key = `${position.x + dx},${position.y + dy}`;
+      const cell = checkCell(state.map.tiles, water, key, dx === 0 && dy === 0, canOverlap, isBridge);
+      if (cell === "blocked") return false;
+    }
+  }
+  return true;
 }
 
 /**

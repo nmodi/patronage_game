@@ -11,7 +11,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
 import { gridToWorld, worldToGrid, type GridPos } from "~/game/grid";
-import { planLinearPlacement, planPlacement } from "~/game/placementRules";
+import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
 import { getRazeImpact } from "~/game/raze";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
@@ -325,13 +325,12 @@ export function createPlacementController(scene: Scene) {
     if (!ensureGhost(selectedBuilding, effectiveRotation)) return;
 
     const footprint = rotatedFootprint(metadata, effectiveRotation ?? undefined);
-    const canPlaceHere =
-      planPlacement(
-        state,
-        [currentPosition],
-        selectedBuilding,
-        effectiveRotation ?? undefined
-      ) != null;
+    const canPlaceHere = canPlaceAt(
+      state,
+      currentPosition,
+      selectedBuilding,
+      effectiveRotation ?? undefined
+    );
 
     const { x: xPos, z: zPos } = gridToWorld(
       currentPosition.x,

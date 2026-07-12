@@ -4,6 +4,7 @@ import { BUILDING_METADATA_BY_ID, type BuildingId } from "./buildings.ts";
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
 import {
+  canPlaceAt,
   planLinearPlacement,
   planPlacement,
   type PlacementSnapshot,
@@ -60,6 +61,28 @@ assert.equal(
   const [x, y] = waterCell.split(",").map(Number) as [number, number];
   assert.equal(planPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "path"), null);
   assert.ok(planPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "bridge"));
+
+  // The ghost's boolean check agrees with the authoritative planner everywhere.
+  const agrees = (
+    state: PlacementSnapshot,
+    position: { x: number; y: number },
+    buildingId: Parameters<typeof canPlaceAt>[2],
+    rotation?: number
+  ) =>
+    assert.equal(
+      canPlaceAt(state, position, buildingId, rotation),
+      planPlacement(state, [position], buildingId, rotation) != null
+    );
+  agrees(snapshot(), { x: -1, y: 0 }, "cottage");
+  agrees(snapshot(), { x: 117, y: 0 }, "cottage");
+  agrees(snapshot(), { x: 115, y: 0 }, "workshop", 1);
+  agrees(snapshot(), { x: 115, y: 0 }, "workshop", 0);
+  agrees(snapshot(), { x: 0, y: 0 }, "cottage");
+  agrees(snapshot({}, 149), { x: 0, y: 0 }, "cottage");
+  agrees(snapshot({ "1,0": tile("cottage", 1, 0) }), { x: 0, y: 0 }, "tree");
+  agrees(snapshot({ "0,0": tile("cottage", 0, 0) }), { x: 0, y: 0 }, "tree");
+  agrees(snapshot({}, 10_000, waterSeed), { x, y }, "path");
+  agrees(snapshot({}, 10_000, waterSeed), { x, y }, "bridge");
 }
 
 {
