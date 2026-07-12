@@ -9,6 +9,13 @@ import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTa
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { Scene } from "@babylonjs/core/scene";
+import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
+import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
+import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
+// Side-effect registrations the tree-shaken build needs for the pipelines above.
+import "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent";
+import "@babylonjs/core/Rendering/geometryBufferRendererSceneComponent";
+import "@babylonjs/core/Rendering/prePassRendererSceneComponent";
 
 import type { BuildingId } from "~/game/buildings";
 import { getWater } from "~/game/water";
@@ -119,6 +126,48 @@ export function BabylonCanvas() {
     curves.shadowsDensity = 5;
     scene.imageProcessingConfiguration.colorCurves = curves;
     scene.imageProcessingConfiguration.colorCurvesEnabled = true;
+
+    // --- Rendering upgrade (demo) — additive, no new assets. Toggle off with &nofx. ---
+    if (!window.location.search.includes("nofx")) {
+      // Screen-space ambient occlusion: contact shadows under eaves, in the gaps
+      // between massed buildings, where wall meets ground. The single biggest depth
+      // lift for flat-shaded low-poly geometry. Guarded — needs WebGL2/depth.
+      try {
+        const ssao = new SSAO2RenderingPipeline("ssao", scene, { ssaoRatio: 0.75, blurRatio: 1 }, [
+          camera,
+        ]);
+        ssao.radius = 0.6;
+        ssao.totalStrength = 1.25;
+        ssao.base = 0.05;
+        ssao.samples = 16;
+        ssao.maxZ = 120;
+        ssao.minZAspect = 0.2;
+        ssao.expensiveBlur = true;
+      } catch (err) {
+        console.warn("SSAO unavailable, skipping:", err);
+      }
+
+      // Post pipeline: ACES tone-map + subtle bloom/sharpen/vignette + FXAA. It shares
+      // the scene image-processing config, so the warm ColorCurves grade above carries
+      // through (Babylon flips applyByPostProcess, moving the grade from the material
+      // stage to this post pass — no double application).
+      const pipeline = new DefaultRenderingPipeline("upgrade", true, scene, [camera]);
+      scene.imageProcessingConfiguration.toneMappingEnabled = true;
+      scene.imageProcessingConfiguration.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
+      scene.imageProcessingConfiguration.contrast = 1.1;
+      scene.imageProcessingConfiguration.exposure = 1.05;
+      scene.imageProcessingConfiguration.vignetteEnabled = true;
+      scene.imageProcessingConfiguration.vignetteWeight = 1.4;
+      pipeline.bloomEnabled = true;
+      pipeline.bloomThreshold = 0.85;
+      pipeline.bloomWeight = 0.15;
+      pipeline.bloomKernel = 64;
+      pipeline.bloomScale = 0.5;
+      pipeline.sharpenEnabled = true;
+      pipeline.sharpen.edgeAmount = 0.25;
+      pipeline.sharpen.colorAmount = 1.0;
+      pipeline.fxaaEnabled = true;
+    }
 
     const tileRenderer = createTileRenderer(scene, shadowGenerator);
     const placementController = createPlacementController(scene);
