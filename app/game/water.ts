@@ -7,14 +7,12 @@
 //
 // Coordinates: grid cell (gx, gy) has its center at world
 // x = gx * CELL_SIZE - HALF_GRID + CELL_SIZE / 2 (same for z from gy) — the
-// same transform as mapRenderer's gridToWorld. Compass: east = +X, west = -X,
+// same transform as grid.ts. Compass: east = +X, west = -X,
 // north = +Z, south = -Z.
 
+import { CELL_SIZE, GRID_SIZE } from "./constants.ts";
 import { seededRng } from "./random.ts";
 
-// Map raster dimensions; water.check locks these to the playable grid extent.
-const GRID_SIZE = 120;
-const CELL_SIZE = 0.5;
 const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
 
 /** Water must stay this far (world units) from the grid edges parallel to the

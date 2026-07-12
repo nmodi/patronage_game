@@ -2,10 +2,9 @@
 // Run: node --experimental-strip-types app/game/water.check.ts
 import assert from "node:assert";
 
+import { CELL_SIZE, GRID_SIZE } from "./constants.ts";
 import { generateWater, getWater, getWaterCells, type WaterBody } from "./water.ts";
 
-const GRID_SIZE = 120;
-const CELL_SIZE = 0.5;
 const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
 
 const cellCenter = (g: number) => g * CELL_SIZE - HALF_GRID + CELL_SIZE / 2;
