@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { getRazeImpact, getRazeSalvage } from "~/game/raze";
 import { useGameStore } from "~/stores/useGameStore";
@@ -12,11 +14,11 @@ export function RazeConfirm() {
   const setRazeTarget = useGameStore((s) => s.setRazeTarget);
   const removeTile = useGameStore((s) => s.removeTile);
   const tile = useGameStore((s) => (s.razeTarget ? s.map.tiles[s.razeTarget] : undefined));
-  const artistCount = useGameStore(
-    (s) => getRazeImpact(s.artists, s.commissions, s.razeTarget).artistCount
-  );
-  const commission = useGameStore(
-    (s) => getRazeImpact(s.artists, s.commissions, s.razeTarget).commission
+  const artists = useGameStore((s) => s.artists);
+  const commissions = useGameStore((s) => s.commissions);
+  const { artistCount, commission } = useMemo(
+    () => getRazeImpact(artists, commissions, razeTarget),
+    [artists, commissions, razeTarget]
   );
 
   if (!razeTarget || !tile) return null;
