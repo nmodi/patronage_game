@@ -1,21 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArcRotateCamera } from "@babylonjs/core/Cameras/arcRotateCamera";
-import { Engine } from "@babylonjs/core/Engines/engine";
-import { DirectionalLight } from "@babylonjs/core/Lights/directionalLight";
-import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
-import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
-import { ColorCurves } from "@babylonjs/core/Materials/colorCurves";
-import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
-import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
-import { Scene } from "@babylonjs/core/scene";
-import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
-import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
-import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
-// Side-effect registrations the tree-shaken build needs for the pipelines above.
-import "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent";
-import "@babylonjs/core/Rendering/geometryBufferRendererSceneComponent";
-import "@babylonjs/core/Rendering/prePassRendererSceneComponent";
 
 import type { BuildingId } from "~/game/buildings";
 import { getWater } from "~/game/water";
@@ -30,6 +14,7 @@ import {
 import { createCitizens } from "./citizens";
 import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
+import { createRenderScene } from "./sceneSetup";
 import { createTerrain } from "./terrain";
 import { createWaterVisuals } from "./waterMesh";
 
@@ -53,120 +38,12 @@ export function BabylonCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Readback is only needed by the development screenshot workflow. Keeping the
-    // back buffer in production costs both GPU memory and frame time.
-    const engine = new Engine(canvas, true, { preserveDrawingBuffer: import.meta.env.DEV, stencil: true });
-    const scene = new Scene(engine);
-    // ponytail: dev-only hooks for headless screenshot verification (see memory: dev-verification-workflow)
+    const { engine, scene, camera, shadowGenerator } = createRenderScene(canvas);
+
+    // Dev-only hooks for headless screenshot and scripted placement checks.
     if (import.meta.env.DEV) {
-      (window as unknown as { __scene: Scene }).__scene = scene;
-      // Scripted placement/assertions in headless checks drive the store directly.
+      (window as unknown as { __scene: typeof scene }).__scene = scene;
       (window as unknown as { __store: typeof useGameStore }).__store = useGameStore;
-      // &synccompile: block on shader compiles so virtual-time captures don't miss meshes
-      if (window.location.search.includes("synccompile")) {
-        engine.getCaps().parallelShaderCompile = undefined;
-      }
-    }
-    // ponytail: Scene defaults to preventDefault()-ing pointerdown/up, which suppresses the
-    // browser's compat mousedown/mouseup events that placement.ts listens for on window.
-    scene.preventDefaultOnPointerDown = false;
-    scene.preventDefaultOnPointerUp = false;
-    scene.useRightHandedSystem = true;
-    scene.clearColor = Color4.FromColor3(Color3.FromHexString("#e9c98f"), 1);
-    scene.fogMode = Scene.FOGMODE_LINEAR;
-    scene.fogColor = Color3.FromHexString("#e9c98f");
-    // Keep the fog ~10wu past max zoom (upperRadiusLimit) so the city never fogs out.
-    scene.fogStart = 90;
-    scene.fogEnd = 115;
-
-    const camera = new ArcRotateCamera("camera", 0, 0, 10, Vector3.Zero(), scene);
-    camera.setPosition(new Vector3(14, 12, 14));
-    camera.fov = (50 * Math.PI) / 180;
-    camera.lowerRadiusLimit = 3;
-    camera.upperRadiusLimit = 80;
-    camera.lowerBetaLimit = Math.PI / 3;
-    camera.upperBetaLimit = Math.PI / 2 - 0.02;
-    camera.inertia = 0.8;
-    camera.panningInertia = 0.8;
-    camera.panningSensibility = 300;
-    camera.attachControl(true);
-    // &cam=x,z[,radius[,alpha[,beta]]] (dev): frame a spot for headless screenshots.
-    const camFlag = import.meta.env.DEV && new URLSearchParams(window.location.search).get("cam");
-    if (camFlag) {
-      const [cx, cz, cr, ca, cb] = camFlag.split(",").map(Number);
-      camera.target = new Vector3(cx || 0, 0, cz || 0);
-      if (cr) camera.radius = cr;
-      camera.alpha = Number.isFinite(ca) ? ca : Math.PI / 4;
-      camera.beta = Number.isFinite(cb) ? cb : Math.PI / 3.2;
-    }
-
-    const hemiLight = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-    hemiLight.intensity = 0.7;
-
-    const dirLight = new DirectionalLight("dir", new Vector3(-1, -1, -1), scene);
-    dirLight.position = new Vector3(5, 5, 5);
-    dirLight.intensity = 1.5;
-
-    const shadowGenerator = new ShadowGenerator(2048, dirLight);
-    shadowGenerator.useBlurExponentialShadowMap = true;
-    // Light and casters are static between placements — render the shadow map
-    // only when the tile renderer says casters changed, not every frame.
-    const shadowMap = shadowGenerator.getShadowMap();
-    if (shadowMap) shadowMap.refreshRate = RenderTargetTexture.REFRESHRATE_RENDER_ONCE;
-
-    // Warm Renaissance grade: push the whole frame toward golden hour.
-    // Curves go on the scene config *before* the pipeline is built so the
-    // image-processing shader compiles with them from the start (setting
-    // colorCurvesEnabled after breaks under &synccompile's serial compiles).
-    const curves = new ColorCurves();
-    curves.globalHue = 25; // orange target hue
-    curves.globalDensity = 10; // strength of the shift toward it
-    curves.globalSaturation = 3; // slight richness lift
-    curves.shadowsHue = 25; // keep shadows warm too, so they don't fight the grade
-    curves.shadowsDensity = 5;
-    scene.imageProcessingConfiguration.colorCurves = curves;
-    scene.imageProcessingConfiguration.colorCurvesEnabled = true;
-
-    // --- Rendering upgrade (demo) — additive, no new assets. Toggle off with &nofx. ---
-    if (!window.location.search.includes("nofx")) {
-      // Screen-space ambient occlusion: contact shadows under eaves, in the gaps
-      // between massed buildings, where wall meets ground. The single biggest depth
-      // lift for flat-shaded low-poly geometry. Guarded — needs WebGL2/depth.
-      try {
-        const ssao = new SSAO2RenderingPipeline("ssao", scene, { ssaoRatio: 0.75, blurRatio: 1 }, [
-          camera,
-        ]);
-        ssao.radius = 0.6;
-        ssao.totalStrength = 1.25;
-        ssao.base = 0.05;
-        ssao.samples = 16;
-        ssao.maxZ = 120;
-        ssao.minZAspect = 0.2;
-        ssao.expensiveBlur = true;
-      } catch (err) {
-        console.warn("SSAO unavailable, skipping:", err);
-      }
-
-      // Post pipeline: ACES tone-map + subtle bloom/sharpen/vignette + FXAA. It shares
-      // the scene image-processing config, so the warm ColorCurves grade above carries
-      // through (Babylon flips applyByPostProcess, moving the grade from the material
-      // stage to this post pass — no double application).
-      const pipeline = new DefaultRenderingPipeline("upgrade", true, scene, [camera]);
-      scene.imageProcessingConfiguration.toneMappingEnabled = true;
-      scene.imageProcessingConfiguration.toneMappingType = ImageProcessingConfiguration.TONEMAPPING_ACES;
-      scene.imageProcessingConfiguration.contrast = 1.1;
-      scene.imageProcessingConfiguration.exposure = 1.05;
-      scene.imageProcessingConfiguration.vignetteEnabled = true;
-      scene.imageProcessingConfiguration.vignetteWeight = 1.4;
-      pipeline.bloomEnabled = true;
-      pipeline.bloomThreshold = 0.85;
-      pipeline.bloomWeight = 0.15;
-      pipeline.bloomKernel = 64;
-      pipeline.bloomScale = 0.5;
-      pipeline.sharpenEnabled = true;
-      pipeline.sharpen.edgeAmount = 0.25;
-      pipeline.sharpen.colorAmount = 1.0;
-      pipeline.fxaaEnabled = true;
     }
 
     const tileRenderer = createTileRenderer(scene, shadowGenerator);
