@@ -164,7 +164,7 @@ export function BabylonCanvas() {
           placementController.refresh();
           scheduleTileWork();
         } catch (error) {
-          console.error("Model preload failed:", error);
+          if (!disposed) console.error("Model preload failed:", error);
         }
       }
       modelLoadRunning = false;
@@ -193,7 +193,9 @@ export function BabylonCanvas() {
           envModelsReady = true;
           maybeScatter();
         })
-        .catch((error) => console.error("Environment preload failed:", error));
+        .catch((error) => {
+          if (!disposed) console.error("Environment preload failed:", error);
+        });
     }, 750);
 
     // &ghost=<buildingId> (dev): enter placement mode with the pointer parked
