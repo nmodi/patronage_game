@@ -10,6 +10,7 @@ import { canAssignCommission } from "~/game/commissions";
 import { canDisplayWork } from "~/game/display";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
+import { DEMO_MAP_SEED } from "~/game/demoLayout";
 import { getSupply } from "~/game/materials";
 import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
@@ -95,8 +96,9 @@ const createInitialState = () => {
   const seed = isDemo() ? "demo" : generateSeed();
   return {
     seed,
-    // Demo stays dry: its hand-placed layout spans nearly the whole grid.
-    mapSeed: devMapSeed() ?? (isDemo() ? null : seed),
+    // Demo runs on DEMO_MAP_SEED — an inland river down the east, clear of the
+    // hand-placed west-bank city (see demoLayout.ts). ?map= still overrides.
+    mapSeed: devMapSeed() ?? (isDemo() ? DEMO_MAP_SEED : seed),
     cityName: pickCityName(seed),
     florins: 2000,
     inspiration: 0,
