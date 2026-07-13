@@ -14,6 +14,7 @@ import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import type { Artwork, BuildingMetadata, BuildingType } from "~/game/types";
 import {
   createBuildingBatcher,
+  expectsModel,
   hasModel,
   type PlacedBuilding,
 } from "./assetLibrary";
@@ -362,18 +363,27 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   ): TileMeshEntry {
     const apron = createApron(tile, metadata);
     const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-    const placed = batcher.place(
-      tile.buildingId,
-      rotatedFootprint(metadata, tile.rotation),
-      tile.position,
-      x,
-      z,
-      tile.rotation,
-      extend,
-      blend,
-      tile.isActive,
-      segment
-    );
+    // A pad-bearing building (plaza, market) whose kit parts haven't streamed in
+    // yet would otherwise batch as pad-only and never recover — the batched pad
+    // makes `placed` non-null, so no box placeholder is created and
+    // upgradeModels (which only revisits boxes) skips it forever. Fall back to
+    // the box like any modelless building so the load→upgrade path rebuilds it
+    // with its full model once the kit files arrive.
+    const modelReady = hasModel(tile.buildingId) || !expectsModel(tile.buildingId);
+    const placed = modelReady
+      ? batcher.place(
+          tile.buildingId,
+          rotatedFootprint(metadata, tile.rotation),
+          tile.position,
+          x,
+          z,
+          tile.rotation,
+          extend,
+          blend,
+          tile.isActive,
+          segment
+        )
+      : null;
     let box: Mesh | null = null;
     let smoke: SmokePlume | null = null;
     if (placed) {

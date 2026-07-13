@@ -270,6 +270,15 @@ export function hasModel(buildingId: BuildingId) {
   return parts.length > 0 && parts.every((part) => containers.has(part.file));
 }
 
+/** True when the manifest references kit files for this building, regardless of
+ * load state — distinguishes a pad-only building (plaza pad, no parts) from one
+ * whose parts are merely still streaming. */
+export function expectsModel(buildingId: BuildingId) {
+  const def = MODEL_MANIFEST[buildingId];
+  if (!def) return false;
+  return (segmentSpecParts(def) ?? def.parts ?? def.variants ?? []).length > 0;
+}
+
 export type BuildingModel = {
   root: TransformNode;
   meshes: AbstractMesh[];
