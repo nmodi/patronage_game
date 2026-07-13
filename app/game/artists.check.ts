@@ -9,6 +9,7 @@ import {
   ARTIST_ARRIVAL_CHANCE,
   ARTIST_ARRIVAL_COOLDOWN_MONTHS,
   RANK_XP,
+  XP_RATES,
   type WorkshopSlot,
 } from "./artists.ts";
 import type { Artist, ArtistType, Commission } from "./types.ts";
@@ -198,32 +199,64 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.equal(uninspired.artists[0], a);
 }
 
-// Idle workshop untouched; stale workProgress on a non-founder is ignored.
+// Idle workshop still trains: no work progress, but active-workshop members
+// gain passive practice XP every tick (stale workProgress on a non-founder
+// doesn't drive completion, but doesn't block practice either).
 {
   const a = painter();
   const out = progressArtworks([a], [workshop("5,5")], [commission("5,5")], 3, 10);
-  assert.equal(out.changed, false);
-  assert.equal(out.artists[0], a);
+  assert.equal(out.changed, true);
+  assert.ok(Math.abs(out.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
 
   const stale = [painter(), painter({ id: "p2", homeTileKey: "5,5", workProgress: 3 })];
   const ignored = progressArtworks(stale, [workshop("5,5")], [commission("5,5")], 3, 10);
-  assert.equal(ignored.changed, false);
-  assert.equal(ignored.artists[1], stale[1]);
+  assert.equal(ignored.changed, true);
+  assert.equal(ignored.artists[1]!.workProgress, 3); // stale progress untouched, only xp ticks
+  assert.ok(Math.abs(ignored.artists[1]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
 }
 
-// Founder with workProgress but no commission behind it → skipped, no crash.
+// Founder with workProgress but no commission behind it → progress skipped,
+// but the active workshop still trains it, no crash.
 {
   const a = painter({ workProgress: 2 });
   const out = progressArtworks([a], [workshop("5,5")], [], 3, 10);
-  assert.equal(out.changed, false);
-  assert.equal(out.artists[0], a);
+  assert.equal(out.changed, true);
+  assert.equal(out.artists[0]!.workProgress, 2);
+  assert.ok(Math.abs(out.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
 }
 
-// An open offer (no workshopKey) drives nothing.
+// An open offer (no workshopKey) drives no progress, but practice still runs.
 {
   const a = painter({ workProgress: 2 });
   const out = progressArtworks([a], [workshop("5,5")], [commission("5,5", { workshopKey: undefined })], 3, 10);
-  assert.equal(out.changed, false);
+  assert.equal(out.changed, true);
+  assert.ok(Math.abs(out.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
+}
+
+// A higher-ranked workshop-mate teaches: practice rate multiplies for anyone
+// ranked below the workshop's max; equal/top rank gets the untaught rate.
+{
+  const untaught = progressArtworks(
+    [painter({ rank: "master" }), painter({ id: "p2", homeTileKey: "5,5", rank: "master" })],
+    [workshop("5,5")],
+    [],
+    3,
+    10
+  );
+  assert.ok(Math.abs(untaught.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
+  assert.ok(Math.abs(untaught.artists[1]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
+
+  const taught = progressArtworks(
+    [painter(), painter({ id: "p2", homeTileKey: "5,5", rank: "master" })],
+    [workshop("5,5")],
+    [],
+    3,
+    10
+  );
+  const untaughtRate = XP_RATES.practicePerMonth;
+  const taughtRate = XP_RATES.practicePerMonth * XP_RATES.teachingMultiplier;
+  assert.ok(Math.abs(taught.artists[0]!.xp! - taughtRate) < 1e-9); // apprentice: taught
+  assert.ok(Math.abs(taught.artists[1]!.xp! - untaughtRate) < 1e-9); // master: never taught
 }
 
 // Completion mints the commissioned artwork and pays its reward; every member gains xp.
@@ -244,9 +277,10 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.deepEqual(out.finishedCommissionIds, ["c-5,5"]);
   assert.equal(out.prestige, 3);
   assert.equal(out.florins, 50);
-  assert.equal(out.artists[0]!.xp, 1);
+  const completionXp = XP_RATES.perCompletedWork + XP_RATES.practicePerMonth;
+  assert.ok(Math.abs(out.artists[0]!.xp! - completionXp) < 1e-9);
   assert.equal(out.artists[0]!.workProgress, undefined);
-  assert.equal(out.artists[1]!.xp, 1); // whole workshop learns
+  assert.ok(Math.abs(out.artists[1]!.xp! - completionXp) < 1e-9); // whole workshop learns
 }
 
 // A bronze commission's material is copied onto the minted artwork (for the
@@ -301,6 +335,13 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
     [workshop("5,5")], [commission("5,5")], 3, 10
   );
   assert.equal(toGrand.artists[0]!.rank, "grand_master");
+
+  // Practice alone (no commission, so no completion bonus) can also rank up.
+  const toJourneymanFromPractice = progressArtworks(
+    [painter({ xp: journeymanXp - XP_RATES.practicePerMonth })],
+    [workshop("5,5")], [], 3, 10
+  );
+  assert.equal(toJourneymanFromPractice.artists[0]!.rank, "journeyman");
 }
 
 // Workshop with no artists at all → no progress, no crash.

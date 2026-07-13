@@ -2,6 +2,7 @@ import assert from "node:assert";
 
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
+import { XP_RATES } from "./artists.ts";
 import { advanceTick, type TickSnapshot } from "./tick.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
 
@@ -128,7 +129,7 @@ const noRandomEvent = () => 1;
   assert.equal(out.artworks.length, 1);
   assert.equal(out.artworks[0]?.name, "Fresco");
   assert.equal(out.artists[0]?.workProgress, undefined);
-  assert.equal(out.artists[0]?.xp, 1);
+  assert.ok(Math.abs(out.artists[0]!.xp! - (XP_RATES.perCompletedWork + XP_RATES.practicePerMonth)) < 1e-9);
 }
 
 // A displayed work trickles inspiration city-wide and boosts its host (+5%).

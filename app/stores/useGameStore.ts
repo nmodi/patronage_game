@@ -17,7 +17,7 @@ import { computeCityMetrics } from "~/game/metrics";
 import { razeBuilding } from "~/game/raze";
 import { migrateSave, SAVE_VERSION } from "~/game/saveMigration";
 import { advanceTick } from "~/game/tick";
-import { BASE_TICK_INTERVAL } from "~/game/constants";
+import { BASE_TICK_INTERVAL, STARTING_FLORINS } from "~/game/constants";
 
 // The demolition tool rides the building-selection slot: camera-drag detach,
 // grid visibility, and the palette's cancel keys all treat it like placement.
@@ -100,7 +100,7 @@ const createInitialState = () => {
     // hand-placed west-bank city (see demoLayout.ts). ?map= still overrides.
     mapSeed: devMapSeed() ?? (isDemo() ? DEMO_MAP_SEED : seed),
     cityName: pickCityName(seed),
-    florins: 2000,
+    florins: STARTING_FLORINS,
     inspiration: 0,
     prestige: 0,
     population: 0,

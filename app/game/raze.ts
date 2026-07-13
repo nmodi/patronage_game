@@ -1,5 +1,6 @@
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "./buildings.ts";
 import { reopenCommission } from "./commissions.ts";
+import { RAZE_SALVAGE_FRACTION } from "./constants.ts";
 import type { GridPos, TileMap } from "./grid.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
 
@@ -54,9 +55,9 @@ export function getRazeImpact(
   };
 }
 
-/** Half the build cost, rounded down once per razed structure. */
+/** RAZE_SALVAGE_FRACTION of the build cost, rounded down once per razed structure. */
 export function getRazeSalvage(buildingId: BuildingId): number {
-  return Math.floor((BUILDING_METADATA_BY_ID[buildingId]?.baseCost ?? 0) / 2);
+  return Math.floor((BUILDING_METADATA_BY_ID[buildingId]?.baseCost ?? 0) * RAZE_SALVAGE_FRACTION);
 }
 
 /** Apply every demolition consequence without depending on the Zustand adapter. */

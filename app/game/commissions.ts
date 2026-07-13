@@ -1,4 +1,12 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
+import {
+  BRONZE_COMMISSION_CHANCE,
+  COMMISSION_OFFER_CHANCE,
+  FLORINS_PER_PRESTIGE,
+  MAX_OPEN_OFFERS,
+  OFFER_EXPIRY_MONTHS,
+  REQUESTER_REWARD_SKEW,
+} from "./constants.ts";
 import type { TileMap } from "./grid.ts";
 import { MATERIAL_BY_ARTIST_TYPE, type MaterialSupply } from "./materials.ts";
 import type { Artist, ArtistRank, Commission } from "./types.ts";
@@ -14,10 +22,12 @@ import {
 // Runtime dependencies stay inside the game layer so the self-check remains
 // executable without React, Zustand, or Babylon.
 
-export const COMMISSION_OFFER_CHANCE = 0.15; // per month, when under the cap
-export const MAX_OPEN_OFFERS = 3;
-export const OFFER_EXPIRY_MONTHS = 12;
-export const BRONZE_COMMISSION_CHANCE = 1 / 3; // share of sculpture offers cast in bronze (the pricier medium)
+export {
+  BRONZE_COMMISSION_CHANCE,
+  COMMISSION_OFFER_CHANCE,
+  MAX_OPEN_OFFERS,
+  OFFER_EXPIRY_MONTHS,
+} from "./constants.ts";
 
 /** Return an assigned commission to the open pool with a fresh expiry. */
 export function reopenCommission(commission: Commission, currentTick: number): Commission {
@@ -96,16 +106,16 @@ export function maybeOfferCommission(
     );
   const requester = pick(REQUESTERS, rng);
   const basePrestige = ARTWORK_PRESTIGE[bestRank];
-  const baseFlorins = 25 * basePrestige;
+  const baseFlorins = FLORINS_PER_PRESTIGE * basePrestige;
 
   let florins = baseFlorins;
   let prestige = basePrestige;
   if (requester.mix === "florins") {
-    florins = baseFlorins * 2;
-    prestige = Math.max(1, Math.round(basePrestige / 2));
+    florins = baseFlorins * REQUESTER_REWARD_SKEW;
+    prestige = Math.max(1, Math.round(basePrestige / REQUESTER_REWARD_SKEW));
   } else if (requester.mix === "prestige") {
-    florins = Math.round(baseFlorins / 2);
-    prestige = basePrestige * 2;
+    florins = Math.round(baseFlorins / REQUESTER_REWARD_SKEW);
+    prestige = basePrestige * REQUESTER_REWARD_SKEW;
   }
 
   return {

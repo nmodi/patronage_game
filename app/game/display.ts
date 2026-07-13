@@ -6,17 +6,28 @@
 
 // No React/Zustand/Babylon imports: display.check.ts runs this under plain Node.
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
+import {
+  DEFAULT_ARTWORK_PRESTIGE,
+  DISPLAY_HOST_BONUS,
+  DISPLAY_HOST_BONUS_MAX_WORKS,
+  DISPLAY_INSPIRATION_PER_PRESTIGE,
+  DISPLAY_PRESTIGE_PER_PRESTIGE,
+} from "./constants.ts";
 import type { TileMap } from "./grid.ts";
 import type { ArtistType, Artwork, DisplaySlotDef, DisplaySlotKind } from "./types.ts";
 
 // --- Tunables (one block) ---------------------------------------------------
 // Quality = the minting commission's prestige (roughly 1..20; see
 // maybeOfferCommission — ARTWORK_PRESTIGE 1..10, doubled by "prestige" requesters).
-export const DEFAULT_ARTWORK_PRESTIGE = 2; // pre-Phase-9 works with no prestige field
-export const DISPLAY_HOST_BONUS = 0.05; // host effectiveness per displayed work
-export const DISPLAY_HOST_BONUS_MAX_WORKS = 5; // cap: +25%
-export const DISPLAY_INSPIRATION_PER_PRESTIGE = 0.25; // inspiration/tick per work (q8 ≈ 2, half a plaza)
-export const DISPLAY_PRESTIGE_PER_PRESTIGE = 0.02; // prestige/tick, church hosts (q20 ≈ 4.8/yr — flavor)
+// The numeric knobs themselves live in constants.ts; re-exported here so
+// existing import paths (display.check.ts etc.) keep working.
+export {
+  DEFAULT_ARTWORK_PRESTIGE,
+  DISPLAY_HOST_BONUS,
+  DISPLAY_HOST_BONUS_MAX_WORKS,
+  DISPLAY_INSPIRATION_PER_PRESTIGE,
+  DISPLAY_PRESTIGE_PER_PRESTIGE,
+} from "./constants.ts";
 export const CHURCH_HOST_IDS: ReadonlySet<string> = new Set(["cathedral", "chapel"]);
 
 export const SLOT_KINDS_BY_ARTIST: Record<ArtistType, readonly DisplaySlotKind[]> = {

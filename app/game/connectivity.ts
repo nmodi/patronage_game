@@ -5,10 +5,11 @@
 // never a gate: disconnected buildings work at full base rate (Key Design
 // Principle 6).
 
-// No runtime imports: connectivity.check.ts runs this file under plain Node.
+// Only imports from dependency-free sim modules: connectivity.check.ts runs
+// this file under plain Node.
 
-export const PLAZA_CONNECTION_BONUS = 0.25; // at full strength
-export const PLAZA_REACH = 30; // road cells (0.5 world units each) from the nearest hub until the bonus fades to 0
+import { PLAZA_CONNECTION_BONUS, PLAZA_REACH } from "./constants.ts";
+export { PLAZA_CONNECTION_BONUS, PLAZA_REACH };
 
 export const MAIN_PLAZA_ID = "town_center_plaza";
 export const PLAZA_IDS = new Set(["plaza", "small_plaza", MAIN_PLAZA_ID]);

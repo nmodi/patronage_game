@@ -1,7 +1,8 @@
+import { MAX_STAFFING_BONUS } from "./constants.ts";
 import type { BuildingType } from "./types";
 
-// No runtime imports here: workers.check.ts runs this file under plain Node
-// (type-only imports are stripped).
+// Only imports from dependency-free sim modules: workers.check.ts runs this
+// file under plain Node.
 
 export interface StaffableBuilding {
   key: string;
@@ -12,8 +13,8 @@ export interface StaffableBuilding {
 
 /**
  * Linear output multiplier for staffing above the minimum: 1x at workersRequired,
- * up to 1.5x at maxWorkers. Shared by tick.ts (applies it) and BuildingTooltip.tsx
- * (previews it) so they can't drift apart.
+ * up to (1 + MAX_STAFFING_BONUS)x at maxWorkers. Shared by tick.ts (applies it)
+ * and BuildingTooltip.tsx (previews it) so they can't drift apart.
  */
 export function staffingEfficiency(
   workersRequired: number,
@@ -21,7 +22,10 @@ export function staffingEfficiency(
   workers: number
 ): number {
   if (workersRequired <= 0 || maxWorkers <= workersRequired) return 1;
-  return 1 + (0.5 * Math.max(0, workers - workersRequired)) / (maxWorkers - workersRequired);
+  return (
+    1 +
+    (MAX_STAFFING_BONUS * Math.max(0, workers - workersRequired)) / (maxWorkers - workersRequired)
+  );
 }
 
 // essential > production > luxury (design doc); unlisted types trail.

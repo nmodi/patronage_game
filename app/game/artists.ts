@@ -1,12 +1,25 @@
 import type { Artist, ArtistRank, ArtistType, Artwork, Commission } from "./types";
 import { PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
 import { displayBoost } from "./display.ts";
+import {
+  ARTIST_ARRIVAL_CHANCE,
+  ARTIST_ARRIVAL_COOLDOWN_MONTHS,
+  EXTRA_ARTIST_PACE_BONUS,
+  RANK_XP,
+  XP_RATES,
+} from "./constants.ts";
 
 // Runtime imports limited to dependency-free sim modules: artists.check.ts
 // runs this file under plain Node (type-only imports are stripped).
 
-export const ARTIST_ARRIVAL_CHANCE = 0.1; // per month, when a slot is open
-export const ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2;
+export {
+  ARTIST_ARRIVAL_CHANCE,
+  ARTIST_ARRIVAL_COOLDOWN_MONTHS,
+  ARTWORK_PRESTIGE,
+  RANK_XP,
+  WORK_DURATION_MONTHS,
+  XP_RATES,
+} from "./constants.ts";
 
 export interface WorkshopSlot {
   key: string; // origin key "x,y"
@@ -89,26 +102,6 @@ export function maybeArriveArtist(
   return createArtist(open[0]!.key, open[0]!.artistType, rng);
 }
 
-export const WORK_DURATION_MONTHS: Record<ArtistRank, number> = {
-  apprentice: 6,
-  journeyman: 5,
-  artisan: 5,
-  virtuoso: 4,
-  master: 4,
-  renowned_master: 3,
-  grand_master: 3,
-};
-
-export const ARTWORK_PRESTIGE: Record<ArtistRank, number> = {
-  apprentice: 1,
-  journeyman: 2,
-  artisan: 3,
-  virtuoso: 4,
-  master: 6,
-  renowned_master: 8,
-  grand_master: 10,
-};
-
 export const RANK_LABEL: Record<ArtistRank, string> = {
   apprentice: "Apprentice",
   journeyman: "Journeyman",
@@ -118,17 +111,6 @@ export const RANK_LABEL: Record<ArtistRank, string> = {
   renowned_master: "Renowned Master",
   grand_master: "Grand Master",
 };
-
-// xp = completed works, cumulative thresholds with escalating steps so each
-// promotion takes years of game time and top ranks stay rare.
-export const RANK_XP: { rank: ArtistRank; xp: number }[] = [
-  { rank: "grand_master", xp: 40 },
-  { rank: "renowned_master", xp: 30 },
-  { rank: "master", xp: 22 },
-  { rank: "virtuoso", xp: 15 },
-  { rank: "artisan", xp: 9 },
-  { rank: "journeyman", xp: 4 },
-];
 
 export const RANK_ORDER: Record<ArtistRank, number> = {
   apprentice: 0,
@@ -170,9 +152,9 @@ export const BRONZE_TITLES = [
   "Equestrian Monument of the Condottiere",
 ];
 
-/** xp+1 with rank-up at the RANK_XP thresholds; never demotes. */
-function gainXp(a: Artist): Pick<Artist, "xp" | "rank"> {
-  const xp = (a.xp ?? 0) + 1;
+/** xp+amount with rank-up at the RANK_XP thresholds; never demotes. */
+function gainXp(a: Artist, amount: number): Pick<Artist, "xp" | "rank"> {
+  const xp = (a.xp ?? 0) + amount;
   const earned = RANK_XP.find((r) => xp >= r.xp)?.rank;
   const rank = earned && RANK_ORDER[earned] > RANK_ORDER[a.rank] ? earned : a.rank;
   return { xp, rank };
@@ -225,9 +207,12 @@ export function progressArtworks(
   const activeKeys = new Set(workshops.filter((at) => at.isActive).map((at) => at.key));
   const founders = new Map<string, Artist>();
   const counts = new Map<string, number>();
+  const workshopMaxRank = new Map<string, number>(); // for teaching: any workshop-mate, not just the founder
   for (const a of artists) {
     if (!founders.has(a.homeTileKey)) founders.set(a.homeTileKey, a);
     counts.set(a.homeTileKey, (counts.get(a.homeTileKey) ?? 0) + 1);
+    const rank = RANK_ORDER[a.rank];
+    if (rank > (workshopMaxRank.get(a.homeTileKey) ?? -1)) workshopMaxRank.set(a.homeTileKey, rank);
   }
 
   const advancing = new Map<string, number>(); // key → new progress
@@ -242,7 +227,7 @@ export function progressArtworks(
     const commission = byKey.get(key);
     if (!commission) continue; // orphaned progress; reconcile re-opens the offer
     const pace =
-      (1 + 0.5 * ((counts.get(key) ?? 1) - 1)) *
+      (1 + EXTRA_ARTIST_PACE_BONUS * ((counts.get(key) ?? 1) - 1)) *
       (1 + PLAZA_CONNECTION_BONUS * (plazaConnected?.get(key) ?? 0)) *
       displayBoost(displayCounts?.get(key) ?? 0);
     const progress = founder.workProgress + pace;
@@ -266,18 +251,28 @@ export function progressArtworks(
     florins += commission.florins;
   }
 
-  if (advancing.size === 0 && completedKeys.size === 0) return idle;
+  const anyPracticing = artists.some((a) => activeKeys.has(a.homeTileKey));
+  if (advancing.size === 0 && completedKeys.size === 0 && !anyPracticing) return idle;
 
   const next = artists.map((a) => {
-    if (completedKeys.has(a.homeTileKey)) {
-      const isFounder = founders.get(a.homeTileKey) === a;
-      return { ...a, ...gainXp(a), ...(isFounder ? { workProgress: undefined } : {}) };
-    }
-    const progress = advancing.get(a.homeTileKey);
-    if (progress != null && founders.get(a.homeTileKey) === a) {
-      return { ...a, workProgress: progress };
-    }
-    return a;
+    const key = a.homeTileKey;
+    if (!activeKeys.has(key)) return a; // workshop inactive: no practice, no progress
+
+    const completing = completedKeys.has(key);
+    const maxRank = workshopMaxRank.get(key) ?? RANK_ORDER[a.rank];
+    const taught = RANK_ORDER[a.rank] < maxRank;
+    const xpGain =
+      XP_RATES.practicePerMonth * (taught ? XP_RATES.teachingMultiplier : 1) +
+      (completing ? XP_RATES.perCompletedWork : 0);
+
+    const isFounder = founders.get(key) === a;
+    const progress = advancing.get(key);
+    return {
+      ...a,
+      ...gainXp(a, xpGain),
+      ...(completing && isFounder ? { workProgress: undefined } : {}),
+      ...(!completing && progress != null && isFounder ? { workProgress: progress } : {}),
+    };
   });
 
   return { artists: next, completed, finishedCommissionIds, prestige, florins, changed: true };

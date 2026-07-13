@@ -122,10 +122,10 @@ Commissions arrive from flavorful requesters: **the Church**, **named noble fami
 Painters, Sculptors, Architects *(painters + sculptors spawnable today)*
 
 ### Progression
-- Seven ranks, earned by completing works: **Apprentice → Journeyman → Artisan → Virtuoso → Master → Renowned Master → Grand Master** (XP thresholds: 4 / 9 / 15 / 22 / 30 / 40 completed works)
+- Seven ranks, earned through continuous XP: **Apprentice → Journeyman → Artisan → Virtuoso → Master → Renowned Master → Grand Master** (XP thresholds: 4 / 9 / 15 / 22 / 30 / 40, unchanged)
 - Steps escalate — each promotion takes years of game time, and top ranks are rare; an artist's full career runs roughly a dozen game years
 - Higher rank = faster work, more prestige per completion (every tier changes at least one)
-- **Light teaching:** a Master-or-above housed in a workshop accelerates the XP gain of co-housed apprentices. One multiplier — no lineage tracking, no death events.
+- **Light teaching *(built)*:** every artist gains minor passive XP each month just by being in a staffed workshop; a strictly higher-ranked workshop-mate multiplies that rate (generalizes "Master teaches apprentices" — any rank gap teaches). Completing a work stays the big one-time gain. All rates tunable via `XP_RATES` in `app/game/artists.ts`. One multiplier — no lineage tracking, no death events.
 
 ### Needs
 - A staffed workshop with a free slot (artists arrive passively when the city has inspiration)
@@ -285,7 +285,7 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 
 ## Development Phases
 
-### Done (Phases 0–10)
+### Done (Phases 0–11)
 - **0 Setup** — project scaffold, empty scene, camera
 - **1 Placement** — grid placement, costs, build menu, ghost
 - **2 Time** — tick loop, calendar, pause/speed
@@ -297,9 +297,9 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 - **8 Commissions** — DONE. System-generated offers (per-month chance, capped open offers, 12-month offer expiry; requesters are flavor strings that skew the florin/prestige mix); one-step assign-to-workshop UI in the right panel; progress per tick; completion mints the named artwork and pays out. Replaced the click-to-start artwork flow. Faction-driven offer generation is a later phase.
 - **9 Work display** — DONE. Buildings and plazas carry typed **display slots** (`BuildingMetadata.displaySlots` — `painting`/`statue` interior, `plinth` exterior with a footprint cell); painter works fill painting slots, sculptor works fill statue/plinth slots (`app/game/display.ts` `canDisplayWork` guard, shared by the store actions and both assign UIs). **Two assign flows**: click a slotted building → `DisplayPanel` modal (fill an empty slot from storage, recall a filled one; a direct click on a filled plinth opens that work's detail — driven by the placement controller's idle click → `inspectTarget`), and the Gallery codex's per-work "Display at… / Recall". **Incentive (both, small)**: every displayed work trickles city **Inspiration** per tick scaled by its captured commission prestige — except church hosts (cathedral, chapel), which trickle **Prestige** — and the host runs **+5% more effective per work, capped +25%**, a second scalar threaded beside plaza connectivity through the tick, `computeCityMetrics`, and `progressArtworks` (`computeDisplaySummary`). **Render** (`app/game/render/displayArt.ts`): a plinth shows a stone pedestal always (empty = an invitation) + a marble statue when filled (the citizen figure re-posed via `createStatueMesh`); paintings display on a free-standing framed **easel** out front with a procedural hashed canvas — a wall-flush canvas got lost against the ornate low-poly kit facades, so it stands in the open like a statue. New **Sculpture Display** decoration (a placeable plinth). Raze self-heals: a razed host's works return to storage and the confirm card warns. No save migration — the new `Artwork.prestige`/`displayedAt` fields are optional. *Still open: displayed art is placeholder procedural (custom low-poly statue/painting models later); single-Town-Center-Plaza enforcement still carries over from Phase 10.*
 - **10 Plaza connectivity (soft spatial inspiration)** — DONE, reframed from radius to network distance: the bonus radiates from the Main Plaza (Town Center Plaza) through roads with linear falloff (zero at 15 tiles), refreshed to full by secondary plazas on the network (`app/game/connectivity.ts` 0-1 BFS). Up to +25% by connection strength: generator output + service amenities (tick), commission progress (`progressArtworks`), housing capacity (`getHousing`); tooltip shows the current % or the "Link to a plaza with roads" hint. Gives roads a purpose; never a requirement or penalty. *Still open: enforce a single Town Center Plaza per city.*
+- **11 Artist training & light teaching** — DONE. XP is now continuous instead of purely completion-driven: every artist in a staffed, active workshop gains small passive practice XP each month, multiplied when a strictly higher-ranked workshop-mate shares the space (generalizes "Master teaches apprentices" to any rank gap), and completing a work still grants its one-time bonus on top. Rank-up thresholds are unchanged. All rates live in `XP_RATES` (`app/game/artists.ts`, next to `RANK_XP`) for easy tuning. No UI or save changes — rank labels already surfaced rank-ups, and `Artist.xp` was already a fractional-friendly optional field.
 
 ### Next
-- **11 — Light teaching**: master-in-workshop XP multiplier for co-housed apprentices.
 - **12 — Renaissance milestone**: prestige threshold → festival event + title card; play continues.
 
 ### Later / stretch

@@ -1,5 +1,6 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
+import { POPULATION_DRIFT_PER_MONTH } from "./constants.ts";
 import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
 import { assignedMaterials, getSupply, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts";
@@ -99,7 +100,8 @@ export function advanceTick(
 
   const { housing, amenities } = computeCityMetrics(updatedTiles, connected, display.counts);
   const populationCap = Math.min(housing, amenities);
-  const population = state.population + Math.sign(populationCap - state.population);
+  const population =
+    state.population + Math.sign(populationCap - state.population) * POPULATION_DRIFT_PER_MONTH;
 
   let florinDelta = 0;
   let inspirationDelta = 0;
