@@ -35,6 +35,18 @@ export interface Artwork {
   artistId: string;
   artistType: ArtistType;
   completedTick: number;
+  prestige?: number; // commission prestige captured at mint; undefined (pre-Phase-9) = default quality
+  displayedAt?: { key: string; slot: number }; // host origin key + slot index; undefined = in storage
+}
+
+export type DisplaySlotKind = "painting" | "statue" | "plinth";
+
+export interface DisplaySlotDef {
+  kind: DisplaySlotKind;
+  // Plinths only: footprint cell the pedestal stands on, in the unrotated
+  // (metadata) frame; rotated into the stamped frame by rotateSlotCell.
+  // Invariant: plinth hosts must not use randomRotate (all current ones comply).
+  cell?: { x: number; y: number };
 }
 
 export interface Commission {
@@ -80,4 +92,5 @@ export interface BuildingMetadata {
   linear?: boolean; // drag-placed like roads: each cell is an independent 1×1 segment tile
   paved?: boolean; // render a flagstone apron over the full footprint (joins plazas visually)
   supplies?: { artistType: ArtistType; capacity: number }; // supplier: N concurrently-working artists
+  displaySlots?: readonly DisplaySlotDef[]; // masterwork display sites (Phase 9)
 }

@@ -53,6 +53,7 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [57, 34, "cypress"], [57, 38, "fountain"], [57, 42, "cypress"], // rear garden
   [46, 48, "tavern", 0], // fronting the dirt lane
   [31, 48, "bakery", 1], // west of the palazzo, on the residential edge
+  [60, 38, "sculpture_display"], // statue pedestal in the market's rear garden
 
   // — Residential quarter, southwest, around the secondary plaza —
   ...road(12, 46, 31, 47), // spur street west from the ring
@@ -147,13 +148,19 @@ export function seedDemoCity() {
   // Fill the town and run one tick so buildings render staffed even under &pause.
   useGameStore.getState().setPopulation(useGameStore.getState().getHousing());
   useGameStore.getState().tick();
-  // Completed works so the gallery codex has content in demo mode.
-  const founder = useGameStore.getState().artists[0];
-  if (founder) {
+  // Completed works so the gallery codex + display slots have content in demo mode.
+  const artists = useGameStore.getState().artists;
+  const painter = artists.find((a) => a.type === "painter");
+  const sculptor = artists.find((a) => a.type === "sculptor");
+  if (painter && sculptor) {
     useGameStore.setState({
       artworks: [
-        { id: "demo-art-1", name: "Madonna of the Lilies", requester: "The Church", artistId: founder.id, artistType: founder.type, completedTick: 14 },
-        { id: "demo-art-2", name: "Portrait of Contessina de' Bardi", requester: "House Medici", artistId: founder.id, artistType: founder.type, completedTick: 43 },
+        // Displayed at the cathedral (painting slot → framed easel out front; church → prestige trickle).
+        { id: "demo-art-1", name: "Madonna of the Lilies", requester: "The Church", artistId: painter.id, artistType: "painter", completedTick: 14, prestige: 6, displayedAt: { key: "18,34", slot: 0 } },
+        // In storage — exercises the gallery's "Display at…" flow.
+        { id: "demo-art-2", name: "Portrait of Contessina de' Bardi", requester: "House Medici", artistId: painter.id, artistType: "painter", completedTick: 43, prestige: 8 },
+        // On a Town Center Plaza plinth (plinth slot → marble statue).
+        { id: "demo-art-3", name: "David in Marble", requester: "House Medici", artistId: sculptor.id, artistType: "sculptor", completedTick: 51, prestige: 10, displayedAt: { key: "34,34", slot: 0 } },
       ],
     });
   }

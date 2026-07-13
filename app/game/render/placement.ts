@@ -10,6 +10,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
+import { plinthSlotAt } from "~/game/display";
 import { gridToWorld, worldToGrid, type GridPos } from "~/game/grid";
 import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
 import { getRazeImpact } from "~/game/raze";
@@ -19,7 +20,11 @@ import {
   overrideMaterials,
   type BuildingModel,
 } from "./assetLibrary";
-import { getFrontDirection, usesQuarterRotation } from "./modelManifest";
+import {
+  effectiveRotation as resolveRotation,
+  getFrontDirection,
+  usesQuarterRotation,
+} from "./modelManifest";
 
 const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
 
@@ -43,6 +48,10 @@ export function createPlacementController(scene: Scene) {
   let ghostIsValid = true;
   let pendingClick = false;
   let mouseHeld = false; // raze drag-sweep: keep clearing cells while the button is down
+  let inspectClick = false; // a completed idle click (not a camera-orbit drag) awaiting resolution
+  let downX = 0;
+  let downY = 0;
+  let downOnHud = false;
   let roadAnchor: GridPos | null = null;
   let roadPreviewMeshes: Mesh[] = [];
   let lastSelectedBuilding: BuildingId | typeof RAZE_TOOL | null = null;
@@ -72,13 +81,24 @@ export function createPlacementController(scene: Scene) {
 
   function handleMouseDown(event: MouseEvent) {
     if (event.button !== 0) return;
+    downX = event.clientX;
+    downY = event.clientY;
     // Element, not HTMLElement: SVG icons inside HUD buttons are SVGElement.
-    if (event.target instanceof Element && event.target.closest("[data-hud]")) return;
+    downOnHud = event.target instanceof Element && !!event.target.closest("[data-hud]");
+    if (downOnHud) return;
     pendingClick = true;
     mouseHeld = true;
   }
   function handleMouseUp(event: MouseEvent) {
-    if (event.button === 0) mouseHeld = false;
+    if (event.button !== 0) return;
+    mouseHeld = false;
+    if (downOnHud) return;
+    // With no tool active the camera keeps pointer control, so an inspect is a
+    // near-stationary click — an orbit drag moves the cursor and is ignored.
+    // Tools consume their own clicks (place/raze), so skip inspect for them.
+    if (useGameStore.getState().map.selectedBuilding) return;
+    if (event.target instanceof Element && event.target.closest("[data-hud]")) return;
+    if (Math.hypot(event.clientX - downX, event.clientY - downY) < 5) inspectClick = true;
   }
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key.toLowerCase() === "r" && ghostModel) {
@@ -258,6 +278,32 @@ export function createPlacementController(scene: Scene) {
       clearGhost();
       pendingClick = false;
       updateHoveredTile(state);
+      if (inspectClick) {
+        inspectClick = false;
+        const cell = pickGridCell(scene);
+        const tile = cell ? state.map.tiles[`${cell.x},${cell.y}`] : undefined;
+        const metadata = tile ? BUILDING_METADATA_BY_ID[tile.buildingId] : undefined;
+        if (tile && metadata?.displaySlots) {
+          const key = `${tile.origin.x},${tile.origin.y}`;
+          const r = resolveRotation(tile.buildingId, tile.origin, tile.rotation);
+          const slotIndex = plinthSlotAt(
+            metadata.displaySlots,
+            metadata.footprint,
+            r,
+            cell!.x - tile.origin.x,
+            cell!.y - tile.origin.y
+          );
+          // A direct click on a filled plinth cell jumps to that work's detail.
+          const filled =
+            slotIndex != null &&
+            state.artworks.some(
+              (w) => w.displayedAt?.key === key && w.displayedAt.slot === slotIndex
+            );
+          state.setInspectTarget({ key, slot: filled ? slotIndex : undefined });
+        } else {
+          state.setInspectTarget(null); // click on empty ground closes the panel
+        }
+      }
       return;
     }
 
@@ -286,7 +332,7 @@ export function createPlacementController(scene: Scene) {
 
       if (tile && (pendingClick || mouseHeld)) {
         const originKey = `${tile.origin.x},${tile.origin.y}`;
-        const impact = getRazeImpact(state.artists, state.commissions, originKey);
+        const impact = getRazeImpact(state.artists, state.commissions, state.artworks, originKey);
         if (impact.needsConfirmation) {
           // Costly demolitions confirm via the RazeConfirm popover — and only
           // on a deliberate click; a drag-sweep passes over them.

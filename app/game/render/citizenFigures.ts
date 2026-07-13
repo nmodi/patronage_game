@@ -215,6 +215,23 @@ function makeMat(scene: Scene, name: string, hex: string): StandardMaterial {
   return mat;
 }
 
+/**
+ * A statically-posed figure for masterwork statues (Phase 9): one variant, all
+ * three material slots collapsed onto `material`. Reuses the citizen silhouette
+ * as the generic statue until custom low-poly sculptures exist. Caller owns
+ * placement, scaling, and disposal (the material is shared, not disposed here).
+ */
+export function createStatueMesh(scene: Scene, variantIndex: number, material: Material): Mesh {
+  const idx = ((variantIndex % VARIANTS.length) + VARIANTS.length) % VARIANTS.length;
+  const slots: Slots = { robe: material, accent: material, skin: material };
+  const parts = VARIANTS[idx]!(scene, slots);
+  // One material → merge into a single-material mesh (no MultiMaterial).
+  const merged = Mesh.MergeMeshes(parts, true, true, undefined, false, false)!;
+  merged.material = material;
+  merged.isPickable = false;
+  return merged;
+}
+
 type Template = { mesh: Mesh; slots: Slots };
 
 export function createPrimitiveFigureFactory(scene: Scene): FigureFactory {

@@ -16,6 +16,13 @@ export const BUILDING_TYPES = [
     isHub: true,
     workersRequired: 0,
     maxWorkers: 0,
+    // Plinths at the pad corners, clear of the central fountain keep-out.
+    displaySlots: [
+      { kind: "plinth", cell: { x: 2, y: 2 } },
+      { kind: "plinth", cell: { x: 9, y: 2 } },
+      { kind: "plinth", cell: { x: 2, y: 9 } },
+      { kind: "plinth", cell: { x: 9, y: 9 } },
+    ],
   },
   {
     type: "city",
@@ -32,6 +39,11 @@ export const BUILDING_TYPES = [
     isHub: true,
     workersRequired: 0,
     maxWorkers: 0,
+    // Two plinths flanking the fountain (point-symmetric across the center).
+    displaySlots: [
+      { kind: "plinth", cell: { x: 1, y: 3 } },
+      { kind: "plinth", cell: { x: 6, y: 4 } },
+    ],
   },
   {
     type: "city",
@@ -49,6 +61,8 @@ export const BUILDING_TYPES = [
     isHub: true,
     workersRequired: 0,
     maxWorkers: 0,
+    // One central plinth (the piazzetta has no fountain).
+    displaySlots: [{ kind: "plinth", cell: { x: 2, y: 2 } }],
   },
   // ponytail: no effects yet — palazzo/cathedral will unlock noble/religious
   // commissions in a later phase; for now they're landmark set pieces.
@@ -63,6 +77,13 @@ export const BUILDING_TYPES = [
     paved: true,
     workersRequired: 0,
     maxWorkers: 0,
+    displaySlots: [
+      { kind: "painting" },
+      { kind: "painting" },
+      { kind: "painting" },
+      { kind: "statue" },
+      { kind: "statue" },
+    ],
   },
   {
     type: "city",
@@ -77,6 +98,14 @@ export const BUILDING_TYPES = [
     paved: true,
     workersRequired: 0,
     maxWorkers: 0,
+    displaySlots: [
+      { kind: "painting" },
+      { kind: "painting" },
+      { kind: "painting" },
+      { kind: "painting" },
+      { kind: "statue" },
+      { kind: "statue" },
+    ],
   },
   {
     type: "city",
@@ -89,6 +118,7 @@ export const BUILDING_TYPES = [
     paved: true,
     workersRequired: 0,
     maxWorkers: 0,
+    displaySlots: [{ kind: "painting" }, { kind: "painting" }, { kind: "statue" }],
   },
   {
     type: "artist",
@@ -103,6 +133,7 @@ export const BUILDING_TYPES = [
     maxWorkers: 4,
     artistCapacity: 2,
     artistType: "painter",
+    displaySlots: [{ kind: "painting" }],
   },
   {
     type: "artist",
@@ -117,6 +148,10 @@ export const BUILDING_TYPES = [
     maxWorkers: 4,
     artistCapacity: 2,
     artistType: "sculptor",
+    // Display plinth in the stone yard, front-right of the +X bay (cell (4,3)
+    // ≈ model-local (0.42, 0.68), the old decorative plinth's spot) — clear of
+    // the -X-bay door.
+    displaySlots: [{ kind: "plinth", cell: { x: 4, y: 3 } }],
   },
   {
     type: "residential",
@@ -149,6 +184,7 @@ export const BUILDING_TYPES = [
     housing: 8,
     workersRequired: 0,
     maxWorkers: 0,
+    displaySlots: [{ kind: "painting" }],
   },
   {
     type: "materials",
@@ -218,6 +254,7 @@ export const BUILDING_TYPES = [
     amenities: 25,
     workersRequired: 1,
     maxWorkers: 2,
+    displaySlots: [{ kind: "painting" }],
   },
   // Road variants share type "road" (sim/render key off the type); they differ
   // only in how many cells the drag tool stamps perpendicular to the stretch.
@@ -398,6 +435,18 @@ export const BUILDING_TYPES = [
     color: "#d8d2c4",
     paved: true,
     footprint: { width: 3, depth: 3 },
+  },
+  {
+    // A statue pedestal placeable anywhere; 3×3 so the plinth centers on a cell.
+    type: "decoration",
+    id: "sculpture_display",
+    name: "Sculpture Display",
+    baseCost: 40,
+    size: { width: 0.5, height: 0.35, depth: 0.5 },
+    color: "#d8d2c4",
+    paved: true,
+    footprint: { width: 3, depth: 3 },
+    displaySlots: [{ kind: "plinth", cell: { x: 1, y: 1 } }],
   },
 ] as const satisfies ReadonlyArray<BuildingMetadata>;
 

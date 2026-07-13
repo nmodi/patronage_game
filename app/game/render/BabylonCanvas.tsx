@@ -181,6 +181,7 @@ export function BabylonCanvas() {
 
     const initialTiles = useGameStore.getState().map.tiles;
     queueMap(initialTiles);
+    tileRenderer.syncDisplay(useGameStore.getState().artworks);
     citizens.sync(initialTiles);
 
     // The environment is intentionally non-blocking: it loads after the city
@@ -211,6 +212,10 @@ export function BabylonCanvas() {
       if (state.map.tiles !== prevState.map.tiles) {
         queueMap(state.map.tiles);
         citizens.sync(state.map.tiles);
+      }
+      if (state.artworks !== prevState.artworks) {
+        tileRenderer.syncDisplay(state.artworks);
+        scheduleTileWork();
       }
       if (state.map.selectedBuilding !== prevState.map.selectedBuilding) {
         // Only detach pointer drag (it fights placement); wheel zoom stays live.

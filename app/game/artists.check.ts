@@ -155,6 +155,30 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.equal(other.artists[0]!.workProgress, 1);
 }
 
+// Displayed works in the workshop speed it up too (+5% each), stacking with plaza.
+{
+  const withDisplay = progressArtworks(
+    [painter({ workProgress: 0 })],
+    [workshop("5,5")],
+    [commission("5,5")],
+    3,
+    10,
+    undefined,
+    new Map([["5,5", 2]])
+  );
+  assert.ok(Math.abs(withDisplay.artists[0]!.workProgress! - 1.1) < 1e-9);
+  const stacked = progressArtworks(
+    [painter({ workProgress: 0 })],
+    [workshop("5,5")],
+    [commission("5,5")],
+    3,
+    10,
+    new Map([["5,5", 1]]),
+    new Map([["5,5", 2]])
+  );
+  assert.ok(Math.abs(stacked.artists[0]!.workProgress! - 1.25 * 1.1) < 1e-9);
+}
+
 // A second artist speeds the work up with diminishing returns: +1.5/month.
 {
   const crew = [painter({ workProgress: 0 }), painter({ id: "p2", homeTileKey: "5,5" })];
@@ -215,6 +239,7 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.equal(out.completed[0]!.completedTick, 42);
   assert.equal(out.completed[0]!.name, "Test Fresco");
   assert.equal(out.completed[0]!.requester, "The Church");
+  assert.equal(out.completed[0]!.prestige, 3); // commission prestige captured for display quality
   assert.deepEqual(out.finishedCommissionIds, ["c-5,5"]);
   assert.equal(out.prestige, 3);
   assert.equal(out.florins, 50);

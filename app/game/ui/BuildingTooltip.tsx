@@ -6,6 +6,7 @@ import {
   PLAZA_CONNECTION_BONUS,
   PLAZA_IDS,
 } from "~/game/connectivity";
+import { displayBoost } from "~/game/display";
 import { blockedReason, getSupply, MATERIAL_BY_ARTIST_TYPE } from "~/game/materials";
 import { getRazeSalvage } from "~/game/raze";
 import type { BuildingMetadata } from "~/game/types";
@@ -19,12 +20,17 @@ function formatAmount(value: number) {
 
 const PLAZA_BONUS_MAX_PCT = `+${Math.round(PLAZA_CONNECTION_BONUS * 100)}%`;
 
-function getActiveEffects(metadata: BuildingMetadata, workers: number, plazaStrength: number) {
+function getActiveEffects(
+  metadata: BuildingMetadata,
+  workers: number,
+  plazaStrength: number,
+  displayedCount: number
+) {
   const effects: string[] = [];
-  const plazaBoost = 1 + PLAZA_CONNECTION_BONUS * plazaStrength;
+  const displayMult = displayBoost(displayedCount);
+  const hostBoost = (1 + PLAZA_CONNECTION_BONUS * plazaStrength) * displayMult;
   const multiplier =
-    staffingEfficiency(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0, workers) *
-    plazaBoost;
+    staffingEfficiency(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0, workers) * hostBoost;
 
   if (metadata.generates?.income) {
     effects.push(`+${formatAmount(metadata.generates.income * multiplier)} Florins / month`);
@@ -33,13 +39,16 @@ function getActiveEffects(metadata: BuildingMetadata, workers: number, plazaStre
     effects.push(`+${formatAmount(metadata.generates.inspiration * multiplier)} Inspiration / month`);
   }
   if (metadata.amenities) {
-    effects.push(`+${Math.round(metadata.amenities * plazaBoost)} amenities`);
+    effects.push(`+${Math.round(metadata.amenities * hostBoost)} amenities`);
   }
   if (metadata.housing) {
-    effects.push(`+${Math.round(metadata.housing * plazaBoost)} housing`);
+    effects.push(`+${Math.round(metadata.housing * hostBoost)} housing`);
   }
   if (plazaStrength > 0) {
     effects.push(`Plaza connection: +${Math.round(PLAZA_CONNECTION_BONUS * plazaStrength * 100)}%`);
+  }
+  if (displayedCount > 0) {
+    effects.push(`Masterworks on display: ${displayedCount} (+${Math.round((displayMult - 1) * 100)}%)`);
   }
 
   return effects;
@@ -50,6 +59,7 @@ export function BuildingTooltip() {
     s.hoveredTileKey ? s.map.tiles[s.hoveredTileKey] : undefined
   );
   const artists = useGameStore((s) => s.artists);
+  const artworks = useGameStore((s) => s.artworks);
   const tiles = useGameStore((s) => s.map.tiles);
   const isRazing = useGameStore((s) => s.map.selectedBuilding === RAZE_TOOL);
   const mouse = useRef({ x: 0, y: 0 });
@@ -85,10 +95,16 @@ export function BuildingTooltip() {
       metadata.artistCapacity != null ||
       metadata.housing != null ||
       metadata.amenities != null);
+  const originKey = `${tile.origin.x},${tile.origin.y}`;
   const plazaStrength = bonusEligible
-    ? computePlazaConnectivity(tiles).get(`${tile.origin.x},${tile.origin.y}`) ?? 0
+    ? computePlazaConnectivity(tiles).get(originKey) ?? 0
     : 0;
-  const activeEffects = isActive ? getActiveEffects(metadata, tile.workers, plazaStrength) : [];
+  const displayedCount = metadata.displaySlots
+    ? artworks.filter((w) => w.displayedAt?.key === originKey).length
+    : 0;
+  const activeEffects = isActive
+    ? getActiveEffects(metadata, tile.workers, plazaStrength, displayedCount)
+    : [];
 
   // Material supply status (Phase 7): citywide per-material totals, so a
   // supplier reads "Pigment: 2/3 painters" and a staffed-but-blocked workshop

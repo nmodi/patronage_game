@@ -4,6 +4,7 @@ import { Check, Coins, Copy, Crown, Feather, Home, Info, Pause, Pencil, Play, Ro
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { getWater, type WaterArchetype } from "~/game/water";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
+import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
 
 const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
@@ -28,7 +29,11 @@ export function TopBar() {
   const setTickInterval = useGameStore((s) => s.setTickInterval);
   const population = useGameStore((s) => s.population);
   const tiles = useGameStore((s) => s.map.tiles);
-  const { housing, amenities } = useMemo(() => computeCityMetrics(tiles), [tiles]);
+  const artworks = useGameStore((s) => s.artworks);
+  const { housing, amenities } = useMemo(
+    () => computeCityMetrics(tiles, undefined, computeDisplaySummary(tiles, artworks).counts),
+    [tiles, artworks]
+  );
   const resetGame = useGameStore((s) => s.resetGame);
   const cityName = useGameStore((s) => s.cityName);
   const setCityName = useGameStore((s) => s.setCityName);
@@ -121,7 +126,7 @@ export function TopBar() {
           <div className="flex items-center gap-6 border-l border-wood/50 pl-4">
             <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} iconClassName="text-prestige-gold" />
             <ResourceStat icon={Feather} label="Inspiration" value={inspiration} iconClassName="text-sienna" />
-            <ResourceStat icon={Crown} label="Prestige" value={prestige} iconClassName="text-prestige-gold" />
+            <ResourceStat icon={Crown} label="Prestige" value={Math.floor(prestige)} iconClassName="text-prestige-gold" />
             <PopulationStat population={population} housing={housing} amenities={amenities} />
           </div>
         </div>

@@ -1,11 +1,12 @@
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "./buildings.ts";
 import { reopenCommission } from "./commissions.ts";
 import type { GridPos, TileMap } from "./grid.ts";
-import type { Artist, Commission } from "./types.ts";
+import type { Artist, Artwork, Commission } from "./types.ts";
 
 export interface RazeSnapshot {
   florins: number;
   artists: Artist[];
+  artworks: Artwork[];
   commissions: Commission[];
   map: { tiles: TileMap };
   time: { tickCount: number };
@@ -14,6 +15,7 @@ export interface RazeSnapshot {
 export interface RazeTransition {
   florins: number;
   artists: Artist[];
+  artworks: Artwork[];
   commissions: Commission[];
   tiles: TileMap;
 }
@@ -21,6 +23,7 @@ export interface RazeTransition {
 export interface RazeImpact {
   artistCount: number;
   commission: Commission | undefined;
+  displayedWorkCount: number;
   needsConfirmation: boolean;
 }
 
@@ -28,20 +31,26 @@ export interface RazeImpact {
 export function getRazeImpact(
   artists: Artist[],
   commissions: Commission[],
+  artworks: Artwork[],
   originKey: string | null
 ): RazeImpact {
   if (!originKey) {
-    return { artistCount: 0, commission: undefined, needsConfirmation: false };
+    return { artistCount: 0, commission: undefined, displayedWorkCount: 0, needsConfirmation: false };
   }
   let artistCount = 0;
   for (const artist of artists) {
     if (artist.homeTileKey === originKey) artistCount += 1;
   }
+  let displayedWorkCount = 0;
+  for (const work of artworks) {
+    if (work.displayedAt?.key === originKey) displayedWorkCount += 1;
+  }
   const commission = commissions.find((item) => item.workshopKey === originKey);
   return {
     artistCount,
     commission,
-    needsConfirmation: artistCount > 0 || commission != null,
+    displayedWorkCount,
+    needsConfirmation: artistCount > 0 || commission != null || displayedWorkCount > 0,
   };
 }
 
@@ -77,12 +86,18 @@ export function razeBuilding(
 
   const evicting = state.artists.some((artist) => artist.homeTileKey === originKey);
   const reopening = state.commissions.some((item) => item.workshopKey === originKey);
+  const recalling = state.artworks.some((work) => work.displayedAt?.key === originKey);
 
   return {
     florins: state.florins + getRazeSalvage(tile.buildingId),
     artists: evicting
       ? state.artists.filter((artist) => artist.homeTileKey !== originKey)
       : state.artists,
+    artworks: recalling
+      ? state.artworks.map((work) =>
+          work.displayedAt?.key === originKey ? { ...work, displayedAt: undefined } : work
+        )
+      : state.artworks,
     commissions: reopening
       ? state.commissions.map((item) =>
           item.workshopKey === originKey

@@ -18,7 +18,7 @@ Every effect below plugs into one of these existing anchor points — which is w
 - **Plaza connectivity** — `computePlazaConnectivity` + the `isHub` flag in `app/game/connectivity.ts`; the one spatial system
 - **Amenity ceiling** — the `amenities` field summed in the tick loop
 - **Teaching multiplier** — Phase 11 hook (planned)
-- **Masterwork display sites** — Phase 9 hook (planned)
+- **Masterwork display sites** *(built — Phase 9)* — `displaySlots` on the building def; displayed works trickle inspiration (or prestige in churches) and boost the host, via `app/game/display.ts` `computeDisplaySummary`
 
 ---
 
@@ -39,7 +39,7 @@ The most important slot — landmarks widen the *input* to the core loop rather 
 | Glassblower | Stained-glass commissions |
 | Monastery | Illuminated-manuscript commissions — gated on Monastery **and** Paper Mill both existing (the first two-building combo unlock; still one boolean in the offer generator) |
 
-Cathedral extras: completing it pays a **one-time prestige lump** (the consecration moment), and once Phase 9 lands it doubles as a masterwork display site (see the toolkit).
+Cathedral extras: completing it pays a **one-time prestige lump** (the consecration moment), and *(built — Phase 9)* it doubles as a masterwork display site — 4 painting + 2 statue slots, and as a church its displayed works trickle prestige (see the toolkit).
 
 ### 2. Passive resource trickle
 
@@ -90,7 +90,7 @@ The slots above say *what* each building does; these are the cheap levers that e
 4. **Arrival shaping** — terms in `maybeArriveArtist` (a Loggia or "Osteria degli Artisti" raises artist arrival chance).
 5. **Connectivity relays** — `isHub` on non-plaza buildings (Bell Tower now; maybe Market later, piazza-del-mercato style).
 6. **XP multipliers** — Phase 11 hook (School: apprentice XP boost; Anatomical Theatre: one-time permanent work-speed bump once built).
-7. **Display sites** — Phase 9 hook: alternate masterwork homes with different permanent trickles (plaza display = inspiration, cathedral display = prestige). One choice per finished work, no management.
+7. **Display sites** *(built — Phase 9)*: masterwork homes with different permanent trickles (plaza/most buildings = inspiration, church display = prestige) plus a small per-work host-effectiveness boost (+5% each, cap +25%). One choice per finished work, no management. `app/game/display.ts` (`displaySlots`, `computeDisplaySummary`, `canDisplayWork`).
 
 ---
 

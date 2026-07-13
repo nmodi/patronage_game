@@ -19,6 +19,7 @@ import {
   Milestone,
   Mountain,
   Palette,
+  PersonStanding,
   Pickaxe,
   Pyramid,
   Route,
@@ -84,6 +85,7 @@ const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   boulder: Mountain,
   fence: Fence,
   stone_wall: BrickWall,
+  sculpture_display: PersonStanding,
 };
 
 export function BuildingPalette({

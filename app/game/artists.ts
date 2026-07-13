@@ -1,5 +1,6 @@
 import type { Artist, ArtistRank, ArtistType, Artwork, Commission } from "./types";
 import { PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
+import { displayBoost } from "./display.ts";
 
 // Runtime imports limited to dependency-free sim modules: artists.check.ts
 // runs this file under plain Node (type-only imports are stripped).
@@ -188,7 +189,8 @@ export function progressArtworks(
   commissions: Commission[],
   inspiration: number,
   currentTick: number,
-  plazaConnected?: Map<string, number> // workshop origin key → plaza strength (0..1]
+  plazaConnected?: Map<string, number>, // workshop origin key → plaza strength (0..1]
+  displayCounts?: Map<string, number> // workshop origin key → displayed-work count
 ): {
   artists: Artist[];
   completed: Artwork[];
@@ -233,7 +235,8 @@ export function progressArtworks(
     if (!commission) continue; // orphaned progress; reconcile re-opens the offer
     const pace =
       (1 + 0.5 * ((counts.get(key) ?? 1) - 1)) *
-      (1 + PLAZA_CONNECTION_BONUS * (plazaConnected?.get(key) ?? 0));
+      (1 + PLAZA_CONNECTION_BONUS * (plazaConnected?.get(key) ?? 0)) *
+      displayBoost(displayCounts?.get(key) ?? 0);
     const progress = founder.workProgress + pace;
     if (progress < commission.durationMonths) {
       advancing.set(key, progress);
@@ -247,6 +250,7 @@ export function progressArtworks(
       artistId: founder.id,
       artistType: founder.type,
       completedTick: currentTick,
+      prestige: commission.prestige, // captured for display quality; the commission is gone next tick
     });
     finishedCommissionIds.push(commission.id);
     prestige += commission.prestige;

@@ -7,9 +7,11 @@ import type { BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { planPlacement } from "~/game/placementRules";
 import { canAssignCommission } from "~/game/commissions";
+import { canDisplayWork } from "~/game/display";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
 import { getSupply } from "~/game/materials";
+import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
 import { razeBuilding } from "~/game/raze";
 import { migrateSave, SAVE_VERSION } from "~/game/saveMigration";
@@ -54,6 +56,12 @@ export type GameState = {
   // commission); null = no prompt. Transient — never persisted.
   razeTarget: string | null;
   setRazeTarget: (key: string | null) => void;
+  // Building whose masterwork-display panel is open (idle click on a slotted
+  // host); slot set when a filled plinth cell was clicked directly. Transient.
+  inspectTarget: { key: string; slot?: number } | null;
+  setInspectTarget: (target: { key: string; slot?: number } | null) => void;
+  displayArtwork: (artworkId: string, hostKey: string, slot: number) => void;
+  recallArtwork: (artworkId: string) => void;
   tick: () => void;
   map: MapState;
   time: TimeState;
@@ -99,6 +107,7 @@ const createInitialState = () => {
     commissions: [] as Commission[],
     hoveredTileKey: null as string | null,
     razeTarget: null as string | null,
+    inspectTarget: null as { key: string; slot?: number } | null,
     map: { tiles: {}, selectedBuilding: null } as MapState,
     time: { tickCount: 0 },
     paused: false,
@@ -114,6 +123,27 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setPopulation: (value: number) => set(() => ({ population: value })),
   setHoveredTile: (key) => set(() => ({ hoveredTileKey: key })),
   setRazeTarget: (key) => set(() => ({ razeTarget: key })),
+  setInspectTarget: (target) => set(() => ({ inspectTarget: target })),
+
+  displayArtwork: (artworkId, hostKey, slot) =>
+    set((s) => {
+      const artwork = s.artworks.find((w) => w.id === artworkId);
+      if (!canDisplayWork(artwork, hostKey, slot, s.map.tiles, s.artworks)) return s;
+      return {
+        artworks: s.artworks.map((w) =>
+          w === artwork ? { ...w, displayedAt: { key: hostKey, slot } } : w
+        ),
+      };
+    }),
+
+  recallArtwork: (artworkId) =>
+    set((s) => {
+      const artwork = s.artworks.find((w) => w.id === artworkId && w.displayedAt);
+      if (!artwork) return s;
+      return {
+        artworks: s.artworks.map((w) => (w === artwork ? { ...w, displayedAt: undefined } : w)),
+      };
+    }),
 
   tick: () =>
     set((s) => {
@@ -163,7 +193,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     })),
 
   setSelectedBuilding: (id) =>
-    set((s) => ({ map: { ...s.map, selectedBuilding: id }, razeTarget: null })),
+    set((s) => ({ map: { ...s.map, selectedBuilding: id }, razeTarget: null, inspectTarget: null })),
 
   placeTile: (position, buildingId, rotation) => get().placeTiles([position], buildingId, rotation),
 
@@ -236,6 +266,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       return {
         florins: next.florins,
         artists: next.artists,
+        artworks: next.artworks,
         commissions: next.commissions,
         map: { ...s.map, tiles: next.tiles },
       };
@@ -247,7 +278,9 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   },
 
   getHousing: () => {
-    return computeCityMetrics(get().map.tiles).housing;
+    const tiles = get().map.tiles;
+    const counts = computeDisplaySummary(tiles, get().artworks).counts;
+    return computeCityMetrics(tiles, undefined, counts).housing;
   },
 
   getCalendarLabel: () => formatMonth(get().time.tickCount),

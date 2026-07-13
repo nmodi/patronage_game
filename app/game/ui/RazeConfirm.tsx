@@ -15,10 +15,11 @@ export function RazeConfirm() {
   const removeTile = useGameStore((s) => s.removeTile);
   const tile = useGameStore((s) => (s.razeTarget ? s.map.tiles[s.razeTarget] : undefined));
   const artists = useGameStore((s) => s.artists);
+  const artworks = useGameStore((s) => s.artworks);
   const commissions = useGameStore((s) => s.commissions);
-  const { artistCount, commission } = useMemo(
-    () => getRazeImpact(artists, commissions, razeTarget),
-    [artists, commissions, razeTarget]
+  const { artistCount, commission, displayedWorkCount } = useMemo(
+    () => getRazeImpact(artists, commissions, artworks, razeTarget),
+    [artists, commissions, artworks, razeTarget]
   );
 
   if (!razeTarget || !tile) return null;
@@ -38,6 +39,14 @@ export function RazeConfirm() {
             </div>
           )}
           {commission && <div>“{commission.title}” will be set aside.</div>}
+          {displayedWorkCount > 0 && (
+            <div>
+              {displayedWorkCount === 1
+                ? "Its displayed work returns"
+                : `Its ${displayedWorkCount} displayed works return`}{" "}
+              to storage.
+            </div>
+          )}
         </div>
         <div className="mt-3 flex justify-end gap-2">
           <button

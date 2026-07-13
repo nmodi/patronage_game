@@ -9,17 +9,26 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
+import { rotateSlotCell } from "~/game/display";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
-import type { BuildingMetadata, BuildingType } from "~/game/types";
+import type { Artwork, BuildingMetadata, BuildingType } from "~/game/types";
 import {
   createBuildingBatcher,
   hasModel,
   type PlacedBuilding,
 } from "./assetLibrary";
 import {
+  createDisplayArt,
+  MAX_FACADE_CANVASES,
+  PLINTH_HEIGHT,
+  type DisplayArtHandle,
+} from "./displayArt";
+import {
   doorLocalSide,
   effectiveRotation,
   getBlendGroup,
+  getFrontDirection,
+  getModelFit,
   hasExtensions,
   isSegment,
   localSideForGrid,
@@ -65,12 +74,25 @@ type TileMeshEntry = {
   apron: Mesh | null;
   marker: Mesh | null;
   smoke: SmokePlume | null;
+  /** Displayed-masterwork meshes (plinths, statues, facade canvases). */
+  art: DisplayArtHandle[];
   buildingId: BuildingId;
   isActive: boolean;
   /** Neighbor signature — colonnade extension ends or row-house blend sides
    * ("" when the building ignores neighbors); change → rebuild. */
   extendKey: string;
+  /** Displayed-works signature (slot→artworkId); change → rebuild the art. */
+  displayKey: string;
 };
+
+/** Stable per-origin signature of which works sit in which slots. */
+function displaySignature(bySlot: Map<number, Artwork> | undefined): string {
+  if (!bySlot || bySlot.size === 0) return "";
+  return [...bySlot.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([slot, w]) => `${slot}:${w.id}`)
+    .join("|");
+}
 
 // Tile types that count as a wall to visually connect to (not roads/decor).
 const SOLID_TYPES = new Set<BuildingType>(["city", "residential", "artist", "service", "materials"]);
@@ -190,6 +212,9 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
   const roadRenderer = createRoadRenderer(scene);
   const dirtOverlay = createDirtPathOverlay(scene);
+  const displayArt = createDisplayArt(scene);
+  // Origin key → (slot index → the work displayed there). Fed by syncDisplay.
+  let displayedByOrigin = new Map<string, Map<number, Artwork>>();
 
   // Buildings share thin-instance batches per kit mesh; the batch hosts are the
   // only shadow casters, so the caster list stays constant as the city grows.
@@ -251,6 +276,83 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     return apron;
   }
 
+  // Plinths (pedestal always, marble statue when filled) and facade painting
+  // canvases (first MAX_FACADE_CANVASES filled slots). Built as individual
+  // meshes, not thin instances — counts are tiny and each is unique per work.
+  // ponytail: citizens may clip a plinth cell — the fountain keep-out
+  // (citizens.ts) isn't extended to plinths; cosmetic, revisit if it reads badly.
+  function buildDisplayArt(tile: Tile, metadata: BuildingMetadata): DisplayArtHandle[] {
+    const slots = metadata.displaySlots;
+    if (!slots) return [];
+    const originKey = `${tile.position.x},${tile.position.y}`;
+    const bySlot = displayedByOrigin.get(originKey);
+    const r = effectiveRotation(tile.buildingId, tile.position, tile.rotation);
+    const center = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
+    const art: DisplayArtHandle[] = [];
+
+    for (let i = 0; i < slots.length; i += 1) {
+      const slot = slots[i]!;
+      if (slot.kind !== "plinth" || !slot.cell) continue;
+      const { x: dx, y: dy } = rotateSlotCell(slot.cell, metadata.footprint, r);
+      const { x, z } = gridToWorld(tile.position.x + dx, tile.position.y + dy);
+      const pedestal = displayArt.createPlinth();
+      pedestal.position.set(x, 0.02, z);
+      shadowGenerator.addShadowCaster(pedestal);
+      art.push({ mesh: pedestal });
+      const work = bySlot?.get(i);
+      if (work) {
+        const statue = displayArt.createStatue(work.id);
+        statue.position.set(x, 0.02 + PLINTH_HEIGHT, z);
+        statue.rotation.y = Math.atan2(center.x - x, center.z - z); // face the footprint center
+        shadowGenerator.addShadowCaster(statue);
+        art.push({ mesh: statue });
+      }
+    }
+
+    // Facade canvases: first MAX_FACADE_CANVASES filled painting slots, hung on
+    // the model's front wall.
+    const front = getFrontDirection(tile.buildingId);
+    const filled: Artwork[] = [];
+    if (front && bySlot) {
+      for (let i = 0; i < slots.length && filled.length < MAX_FACADE_CANVASES; i += 1) {
+        if (slots[i]!.kind !== "painting") continue;
+        const work = bySlot.get(i);
+        if (work) filled.push(work);
+      }
+    }
+    if (front && filled.length > 0) {
+      const theta = (Math.PI / 2) * r;
+      const dirX = front[0] * Math.cos(theta) + front[1] * Math.sin(theta);
+      const dirZ = -front[0] * Math.sin(theta) + front[1] * Math.cos(theta);
+      const fp = rotatedFootprint(metadata, tile.rotation);
+      const half = ((Math.abs(dirX) > 0.5 ? fp.width : fp.depth) * CELL_SIZE) / 2;
+      // The painting stands free in the open just in front of the facade, so it
+      // never hides in the busy kit relief; the stand carries its own height.
+      const standDist = half * getModelFit(tile.buildingId) + 0.3;
+      const yaw = Math.atan2(dirX, dirZ) + Math.PI; // canvas (+Z) faces outward, toward viewers
+      // Flank the (centered) entrance instead of covering it: lay easels out from
+      // a central door gap that scales with facade width, alternating sides and
+      // walking outward, each tilted inward so it reads as presented, not flat-on.
+      const spacing = 0.7;
+      const doorGap = Math.max(spacing, half * 0.5);
+      const TILT = 0.35; // ~20° inward
+      filled.forEach((work, idx) => {
+        const side = idx % 2 === 0 ? 1 : -1;
+        const rank = Math.floor(idx / 2);
+        const off = side * (doorGap + rank * spacing);
+        const easel = displayArt.createPainting(work);
+        easel.mesh.position.set(
+          center.x + dirX * standDist + dirZ * off,
+          0.02,
+          center.z + dirZ * standDist - dirX * off
+        );
+        easel.mesh.rotation.y = yaw - side * TILT;
+        art.push(easel);
+      });
+    }
+    return art;
+  }
+
   function createEntry(
     tile: Tile,
     metadata: BuildingMetadata,
@@ -272,8 +374,9 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       tile.isActive,
       segment
     );
+    let box: Mesh | null = null;
+    let smoke: SmokePlume | null = null;
     if (placed) {
-      let smoke: SmokePlume | null = null;
       // Smoke is exclusive to production buildings — a chimney on a civic
       // prefab (palazzo) is just architecture.
       if (placed.chimneyTop && (metadata.type === "artist" || tile.buildingId === "bakery")) {
@@ -281,17 +384,21 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         smoke = createSmokePlume(scene, new Vector3(top.x - 0.08, top.y, top.z - 0.08));
         smoke.setActive(tile.isActive);
       }
-      return { box: null, placed, apron, marker: null, smoke, buildingId: tile.buildingId, isActive: tile.isActive, extendKey: "" };
+    } else {
+      box = createBoxMesh(tile, metadata);
     }
+    const art = buildDisplayArt(tile, metadata);
     return {
-      box: createBoxMesh(tile, metadata),
-      placed: null,
+      box,
+      placed,
       apron,
       marker: null,
-      smoke: null,
+      smoke,
+      art,
       buildingId: tile.buildingId,
       isActive: tile.isActive,
       extendKey: "",
+      displayKey: "",
     };
   }
 
@@ -301,6 +408,11 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     entry.smoke?.dispose();
     entry.apron?.dispose();
     entry.placed?.dispose();
+    for (const handle of entry.art) {
+      shadowGenerator.removeShadowCaster(handle.mesh);
+      if (handle.dispose) handle.dispose();
+      else handle.mesh.dispose();
+    }
   }
 
   function markerHeight(entry: TileMeshEntry, metadata: BuildingMetadata) {
@@ -351,12 +463,20 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         : segment
           ? `s${segment.px ? 1 : 0}${segment.nx ? 1 : 0}${segment.pz ? 1 : 0}${segment.nz ? 1 : 0}`
           : "";
+    const displayKey = displaySignature(displayedByOrigin.get(key));
     let nextEntry = entry;
     const staleBox = nextEntry?.box && hasModel(tile.buildingId);
-    if (!nextEntry || nextEntry.buildingId !== tile.buildingId || staleBox || nextEntry.extendKey !== extendKey) {
+    if (
+      !nextEntry ||
+      nextEntry.buildingId !== tile.buildingId ||
+      staleBox ||
+      nextEntry.extendKey !== extendKey ||
+      nextEntry.displayKey !== displayKey
+    ) {
       if (nextEntry) disposeEntry(nextEntry);
       nextEntry = createEntry(tile, metadata, extend ?? undefined, blend ?? undefined, segment ?? undefined);
       nextEntry.extendKey = extendKey;
+      nextEntry.displayKey = displayKey;
       active.set(key, nextEntry);
       refreshShadows();
     } else if (nextEntry.isActive !== tile.isActive) {
@@ -382,6 +502,27 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       nextEntry.marker.dispose();
       nextEntry.marker = null;
     }
+  }
+
+  /**
+   * Rebuild the origin→slot→work index from the artworks list and queue any
+   * origin whose displayed-works signature changed. Artwork changes don't touch
+   * the tiles object, so this is the renderer's only channel for display edits.
+   */
+  function syncDisplay(artworks: Artwork[]) {
+    const next = new Map<string, Map<number, Artwork>>();
+    for (const w of artworks) {
+      if (!w.displayedAt) continue;
+      let bySlot = next.get(w.displayedAt.key);
+      if (!bySlot) next.set(w.displayedAt.key, (bySlot = new Map()));
+      bySlot.set(w.displayedAt.slot, w);
+    }
+    for (const key of new Set([...displayedByOrigin.keys(), ...next.keys()])) {
+      if (displaySignature(displayedByOrigin.get(key)) !== displaySignature(next.get(key))) {
+        pendingOrigins.add(key);
+      }
+    }
+    displayedByOrigin = next;
   }
 
   /**
@@ -472,8 +613,9 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     roadRenderer.dispose();
     batcher.dispose();
     dirtOverlay.dispose();
+    displayArt.dispose();
     gridLines.dispose();
   }
 
-  return { queueSync, processSync, upgradeModels, dispose, setGridVisible };
+  return { queueSync, syncDisplay, processSync, upgradeModels, dispose, setGridVisible };
 }

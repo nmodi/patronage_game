@@ -1,5 +1,6 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
+import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
 import { getSupply } from "./materials.ts";
 import { computeCityMetrics } from "./metrics.ts";
@@ -90,7 +91,10 @@ export function advanceTick(
   const plazaBoost = (key: string) =>
     1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0);
 
-  const { housing, amenities } = computeCityMetrics(updatedTiles, connected);
+  // Displayed masterworks: a per-tick trickle plus a per-host effectiveness boost.
+  const display = computeDisplaySummary(updatedTiles, state.artworks);
+
+  const { housing, amenities } = computeCityMetrics(updatedTiles, connected, display.counts);
   const populationCap = Math.min(housing, amenities);
   const population = state.population + Math.sign(populationCap - state.population);
 
@@ -105,10 +109,13 @@ export function advanceTick(
         metadata.workersRequired ?? 0,
         metadata.maxWorkers ?? 0,
         tile.workers
-      ) * plazaBoost(key);
+      ) * plazaBoost(key) * displayBoost(display.counts.get(key) ?? 0);
     florinDelta += (metadata.generates.income ?? 0) * efficiency;
     inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
   }
+  // Displayed-work trickle (non-church hosts). Added before rounding so it feeds
+  // both the same-tick inspiration below and the returned total identically.
+  inspirationDelta += display.inspiration;
 
   const inspiration = state.inspiration + Math.round(inspirationDelta);
   const isWorkshop = (key: string) => {
@@ -163,7 +170,8 @@ export function advanceTick(
     commissions,
     inspiration,
     state.time.tickCount,
-    connected
+    connected,
+    display.counts
   );
   if (work.changed) {
     artists = work.artists;
@@ -178,7 +186,7 @@ export function advanceTick(
   return {
     florins: state.florins + Math.round(florinDelta) + work.florins,
     inspiration: state.inspiration + Math.round(inspirationDelta),
-    prestige: state.prestige + work.prestige,
+    prestige: state.prestige + work.prestige + display.prestige,
     population,
     artists: artistsChanged ? artists : state.artists,
     artworks: work.completed.length ? [...state.artworks, ...work.completed] : state.artworks,

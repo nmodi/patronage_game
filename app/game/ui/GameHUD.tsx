@@ -4,6 +4,7 @@ import { ArtistsPanel } from "./ArtistsPanel";
 import { BuildingPalette } from "./BuildingPalette";
 import { BuildingTooltip } from "./BuildingTooltip";
 import { CommissionsPanel } from "./CommissionsPanel";
+import { DisplayPanel } from "./DisplayPanel";
 import { GalleryPanel } from "./GalleryPanel";
 import { RazeConfirm } from "./RazeConfirm";
 import { TopBar } from "./TopBar";
@@ -25,6 +26,7 @@ export function GameHUD() {
       <BuildingPalette hasOpenPanel={openPanel != null} onClosePanel={() => setOpenPanel(null)} />
       <BuildingTooltip />
       <RazeConfirm />
+      <DisplayPanel />
     </>
   );
 }

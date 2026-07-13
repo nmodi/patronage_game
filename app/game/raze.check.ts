@@ -5,7 +5,7 @@ import type { TileMap } from "./grid.ts";
 import { stamp } from "./checkHelpers.ts";
 import { OFFER_EXPIRY_MONTHS } from "./commissions.ts";
 import { getRazeImpact, getRazeSalvage, razeBuilding } from "./raze.ts";
-import type { Artist, Commission } from "./types.ts";
+import type { Artist, Artwork, Commission } from "./types.ts";
 
 const artist = (id: string, homeTileKey: string): Artist => ({
   id,
@@ -13,6 +13,15 @@ const artist = (id: string, homeTileKey: string): Artist => ({
   type: "painter",
   rank: "apprentice",
   homeTileKey,
+});
+
+const displayed = (id: string, key: string): Artwork => ({
+  id,
+  name: id,
+  artistId: "a",
+  artistType: "sculptor",
+  completedTick: 0,
+  displayedAt: { key, slot: 0 },
 });
 
 const commission = (
@@ -39,6 +48,7 @@ const commission = (
   const state = {
     florins: 10,
     artists,
+    artworks: [] as Artwork[],
     commissions,
     map: { tiles },
     time: { tickCount: 30 },
@@ -73,6 +83,7 @@ const commission = (
     {
       florins: 10,
       artists,
+      artworks: [],
       commissions,
       map: { tiles },
       time: { tickCount: 30 },
@@ -102,7 +113,7 @@ const commission = (
   assert.equal(result.commissions[2], remoteAssigned);
   assert.equal(result.commissions[3], staleOpen); // expiry remains tick housekeeping's job
 
-  const impact = getRazeImpact(artists, commissions, originKey);
+  const impact = getRazeImpact(artists, commissions, [], originKey);
   assert.equal(impact.artistCount, 2);
   assert.equal(impact.commission, assignedA);
   assert.equal(impact.needsConfirmation, true);
@@ -117,6 +128,7 @@ const commission = (
     {
       florins: 10,
       artists,
+      artworks: [],
       commissions,
       map: { tiles },
       time: { tickCount: 30 },
@@ -128,11 +140,55 @@ const commission = (
   assert.equal(result.florins, 22);
   assert.equal(result.artists, artists);
   assert.equal(result.commissions, commissions);
-  assert.deepEqual(getRazeImpact(artists, commissions, null), {
+  assert.deepEqual(getRazeImpact(artists, commissions, [], null), {
     artistCount: 0,
     commission: undefined,
+    displayedWorkCount: 0,
     needsConfirmation: false,
   });
+}
+
+// Razing a display host recalls its works to storage; works elsewhere and the
+// array identity (when nothing was displayed there) are untouched.
+{
+  const tiles = stamp("small_plaza", { x: 0, y: 0 }); // origin "0,0"
+  const here = displayed("here", "0,0");
+  const elsewhere = displayed("elsewhere", "9,9");
+  const artworks = [here, elsewhere];
+  const result = razeBuilding(
+    {
+      florins: 0,
+      artists: [],
+      artworks,
+      commissions: [],
+      map: { tiles },
+      time: { tickCount: 5 },
+    },
+    { x: 0, y: 0 }
+  );
+  assert.ok(result);
+  assert.equal(result.artworks.find((w) => w.id === "here")!.displayedAt, undefined);
+  assert.equal(result.artworks.find((w) => w.id === "elsewhere"), elsewhere); // identity kept
+
+  // Impact counts the work and forces confirmation even for an otherwise-clean host.
+  const impact = getRazeImpact([], [], artworks, "0,0");
+  assert.equal(impact.displayedWorkCount, 1);
+  assert.equal(impact.needsConfirmation, true);
+
+  // Nothing displayed there → artworks array identity preserved.
+  const clean = razeBuilding(
+    {
+      florins: 0,
+      artists: [],
+      artworks: [elsewhere],
+      commissions: [],
+      map: { tiles: stamp("small_plaza", { x: 0, y: 0 }) },
+      time: { tickCount: 5 },
+    },
+    { x: 0, y: 0 }
+  );
+  assert.ok(clean);
+  assert.equal(clean.artworks[0], elsewhere);
 }
 
 console.log("raze.check: all assertions passed");

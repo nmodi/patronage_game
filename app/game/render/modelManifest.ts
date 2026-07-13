@@ -329,10 +329,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-block.glb", position: [0.5, 1, 0], scale: [1, 0.55, 1], tint: "facade" },
       { file: TOWN + "roof-gable.glb", position: [0.5, 1.55, 0], rotationY: Math.PI / 2, scale: [1, 0.5, 1], tint: "roof" },
       { file: TOWN + "chimney.glb", position: [0.5, 1.3, 0] },
-      // Stone yard: plinth with a rough block on it (statue in progress),
+      // Stone yard: the Phase-9 display plinth stands here, front-right of this
+      // bay (footprint cell (4,3)) — so the yard is just its supporting cast:
       // uncarved boulder, scattered/stacked cut blocks, a column drum stub.
-      { file: TOWN + "wall-block.glb", position: [0.42, 0, 0.68], scale: [0.3, 0.16, 0.3] },
-      { file: TOWN + "rock-small.glb", position: [0.42, 0.16, 0.68], scale: 0.26, rotationY: 0.7 },
       { file: TOWN + "rock-large.glb", position: [0.85, 0, 0.62], scale: 0.22, rotationY: 2.3 },
       { file: TOWN + "pillar-stone.glb", position: [0.08, 0, 0.7], scale: [1.8, 0.35, 1.8] },
       { file: TOWN + "wall-block.glb", position: [-0.22, 0, 0.6], scale: 0.17 },
@@ -636,6 +635,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     padStyle: "plaza",
     fit: 1,
   },
+  // Pad-only entry (like small_plaza): suppresses the color-box fallback so the
+  // decoration reads as ground + the displayArt pedestal, not a floating block.
+  sculpture_display: {
+    pad: 3,
+    fit: 1,
+  },
   // Freestanding campanile (the cathedral's old bell tower): four stacked
   // stories under a spire, belfry windows on all four faces.
   bell_tower: {
@@ -775,6 +780,11 @@ export function hashPosition(x: number, y: number) {
 /** Local direction the building's entrance faces at rotation 0 (placement arrow). */
 export function getFrontDirection(buildingId: BuildingId): [number, number] | null {
   return MODEL_MANIFEST[buildingId]?.front ?? null;
+}
+
+/** Footprint-fill fraction the model was scaled to (default matches assetLibrary). */
+export function getModelFit(buildingId: BuildingId): number {
+  return MODEL_MANIFEST[buildingId]?.fit ?? 0.9;
 }
 
 /** Buildings that orient in quarter steps: placement stores the ghost's shown
