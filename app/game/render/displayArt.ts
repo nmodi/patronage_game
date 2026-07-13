@@ -47,8 +47,8 @@ export function createDisplayArt(scene: Scene) {
   function bronzeMat(): Material {
     if (!bronze) {
       bronze = new StandardMaterial("statue-bronze", scene);
-      bronze.diffuseColor = Color3.FromHexString("#6e5426"); // dark patinated bronze
-      bronze.specularColor = new Color3(0.55, 0.47, 0.3); // warm metal highlight
+      bronze.diffuseColor = Color3.FromHexString("#472819"); // dark reddish-brown patinated bronze (Donatello's David)
+      bronze.specularColor = new Color3(0.5, 0.33, 0.22); // warm reddish metal highlight
       bronze.specularPower = 48; // tight, glossy — reads as cast metal vs matte marble
     }
     return bronze;
