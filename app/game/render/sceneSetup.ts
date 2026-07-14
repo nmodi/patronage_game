@@ -61,10 +61,13 @@ export function createRenderScene(canvas: HTMLCanvasElement) {
   }
 
   const hemisphericLight = new HemisphericLight("hemi", new Vector3(0, 1, 0), scene);
-  hemisphericLight.intensity = 0.7;
+  hemisphericLight.intensity = 0.85;
+  // Warm ground bounce so walls facing away from the sun stay readable instead of
+  // silhouetting to black (groundColor defaults to black).
+  hemisphericLight.groundColor = Color3.FromHexString("#9c8468");
   const directionalLight = new DirectionalLight("dir", new Vector3(-1, -1, -1), scene);
   directionalLight.position = new Vector3(5, 5, 5);
-  directionalLight.intensity = 1.5;
+  directionalLight.intensity = 1.1;
 
   const shadowGenerator = new ShadowGenerator(2048, directionalLight);
   shadowGenerator.useBlurExponentialShadowMap = true;
