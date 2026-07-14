@@ -23,10 +23,10 @@ const PLENTY = 100_000; // walkable cells that never bind
 {
   const at100 = crowdSize(100, PLENTY);
   assert.ok(at100 > CROWD_TUNING.exactMatchMax, "keeps growing past the exact range");
-  assert.ok(at100 < 100 / 2, "well under half the population by 100");
-  // Spot value pins the curve shape: 20 + round(2.5·√80) = 42.
-  assert.equal(at100, 42);
-  assert.equal(crowdSize(1000, PLENTY), 98);
+  assert.ok(crowdSize(1000, PLENTY) < 1000 / 2, "well under half the population by 1000");
+  // Spot values pin the curve shape: 20 + round(6·√80) = 74.
+  assert.equal(at100, 74);
+  assert.equal(crowdSize(1000, PLENTY), 208);
 }
 
 // Monotonic non-decreasing across the whole range (no seam at the regime switch).

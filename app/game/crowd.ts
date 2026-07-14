@@ -11,9 +11,9 @@ export const CROWD_TUNING = {
   /** Population up to which the crowd matches it 1:1. */
   exactMatchMax: 20,
   /** Sublinear growth factor beyond the exact-match range (× √excess). */
-  damping: 2.5,
+  damping: 6,
   /** Hard ceiling on figures, whatever the population. */
-  cap: 120,
+  cap: 240,
   /**
    * Walkable-network density clamp: at most one figure per this many walkable
    * cells, so a big population on a two-lane hamlet never reads as a mob.
