@@ -1,21 +1,30 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { MultiMaterial } from "@babylonjs/core/Materials/multiMaterial";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import "@babylonjs/core/Meshes/thinInstanceMesh";
 import type { Scene } from "@babylonjs/core/scene";
+
+import { prepareThinInstanceHost } from "./thinInstanceHost";
 
 // Decorative citizen figures. This module owns everything about what a citizen
 // *looks like* — geometry, colors, and how a locomotion state becomes a pose.
 // citizens.ts owns the walk graph and feeds each figure a FigureLocomotion.
 //
+// Two factories share the same variant builders and pose math:
+// - createThinInstanceFigureFactory (the live one) batches the whole crowd
+//   into thin-instance hosts — draw calls stay flat as the crowd grows.
+// - createPrimitiveFigureFactory (one clone per figure) remains as the simple
+//   reference implementation.
 // The FigureFactory / CitizenFigure seam is deliberate: a later pass can add a
 // createKenneyFigureFactory (loading rigged GLB characters + AnimationGroups)
-// beside createPrimitiveFigureFactory without touching citizens.ts. A rigged
-// figure would map `moving`/`speed` onto AnimationGroup play state instead of
-// the procedural bob/sway below — which is why the pose math lives *inside* the
-// figure, not in the walk loop.
+// beside these without touching citizens.ts. A rigged figure would map
+// `moving`/`speed` onto AnimationGroup play state instead of the procedural
+// bob/sway below — which is why the pose math lives *inside* the figure, not
+// in the walk loop.
 
 export type FigureLocomotion = {
   x: number;
@@ -34,6 +43,12 @@ export interface CitizenFigure {
 
 export interface FigureFactory {
   create(): CitizenFigure;
+  /**
+   * Optional once-per-frame hook, called by the walk loop after every figure
+   * updated: batched factories upload their dirty GPU buffers here instead of
+   * per figure. No-op when nothing changed.
+   */
+  flush?(): void;
   dispose(): void;
 }
 
@@ -323,4 +338,218 @@ export function createPrimitiveFigureFactory(scene: Scene): FigureFactory {
   }
 
   return { create, dispose };
+}
+
+// --- Thin-instance factory ---------------------------------------------------
+// One draw call per (variant × material slot) — 5 × 3 = 15 total for any crowd
+// size — vs ~3 per figure for the clone factory. Each variant's parts merge
+// into three single-material hosts (robe / accent / skin); a figure is a row
+// in the hosts' shared thin-instance matrix buffer. The two-tone palette is a
+// per-instance "color" buffer on the robe and accent hosts (host material is
+// white, instance color multiplies it); skin stays a uniform material.
+
+const INITIAL_CAPACITY = 32;
+
+// Precomputed palette (the hex tables above) for per-instance color writes.
+const ROBE_C3 = ROBE_COLORS.map((hex) => Color3.FromHexString(hex));
+const ACCENT_C3 = ACCENT_COLORS.map((hex) => Color3.FromHexString(hex));
+
+type ThinBatch = {
+  hosts: Mesh[]; // [robe, accent, skin]
+  matrices: Float32Array; // capacity × 16, one buffer shared by all three hosts
+  colors: [Float32Array, Float32Array]; // robe, accent — capacity × 4
+  figures: { index: number }[]; // index-aligned with instance rows
+  count: number;
+  capacity: number;
+  matricesDirty: boolean;
+  colorsDirty: boolean;
+  countDirty: boolean;
+};
+
+const scratchScale = new Vector3();
+const scratchQuat = new Quaternion();
+const scratchPos = new Vector3();
+const scratchMatrix = new Matrix();
+
+export function createThinInstanceFigureFactory(scene: Scene): FigureFactory {
+  // Instance colors multiply the host diffuse — white so they pass through.
+  const whiteMat = makeMat(scene, "crowd-white", "#ffffff");
+  const skinMat = makeMat(scene, "crowd-skin", SKIN_COLOR);
+
+  // Placeholder slot materials used purely as tags to group parts (same trick
+  // as the clone factory), discarded after the merge.
+  const slotTags: Slots = {
+    robe: makeMat(scene, "crowd-slot-robe", "#ffffff"),
+    accent: makeMat(scene, "crowd-slot-accent", "#ffffff"),
+    skin: makeMat(scene, "crowd-slot-skin", "#ffffff"),
+  };
+
+  // setBuffer resets the host's instance count to the buffer capacity, so it
+  // always flags countDirty for the next flush.
+  function bindBuffers(batch: ThinBatch) {
+    for (const host of batch.hosts) host.thinInstanceSetBuffer("matrix", batch.matrices, 16, false);
+    batch.hosts[0].thinInstanceSetBuffer("color", batch.colors[0], 4, false);
+    batch.hosts[1].thinInstanceSetBuffer("color", batch.colors[1], 4, false);
+    batch.countDirty = true;
+  }
+
+  const batches: ThinBatch[] = VARIANTS.map((build, vi) => {
+    const parts = build(scene, slotTags);
+    const hosts = [slotTags.robe, slotTags.accent, slotTags.skin].map((tag, si) => {
+      const group = parts.filter((p) => p.material === tag);
+      const merged = Mesh.MergeMeshes(group, true, true, undefined, false, false)!;
+      merged.name = `crowd-${vi}-${si === 0 ? "robe" : si === 1 ? "accent" : "skin"}`;
+      prepareThinInstanceHost(merged);
+      // The crowd spans the whole city — skip per-frame bounding sync and
+      // frustum tests instead of refreshing a city-sized box every frame.
+      merged.alwaysSelectAsActiveMesh = true;
+      merged.doNotSyncBoundingInfo = true;
+      merged.material = si === 2 ? skinMat : whiteMat;
+      merged.setEnabled(false);
+      return merged;
+    });
+    const batch: ThinBatch = {
+      hosts,
+      matrices: new Float32Array(INITIAL_CAPACITY * 16),
+      colors: [new Float32Array(INITIAL_CAPACITY * 4), new Float32Array(INITIAL_CAPACITY * 4)],
+      figures: [],
+      count: 0,
+      capacity: INITIAL_CAPACITY,
+      matricesDirty: false,
+      colorsDirty: false,
+      countDirty: false,
+    };
+    bindBuffers(batch);
+    return batch;
+  });
+
+  function ensureCapacity(batch: ThinBatch) {
+    if (batch.count < batch.capacity) return;
+    batch.capacity *= 2;
+    const matrices = new Float32Array(batch.capacity * 16);
+    matrices.set(batch.matrices);
+    batch.matrices = matrices;
+    batch.colors = batch.colors.map((old) => {
+      const next = new Float32Array(batch.capacity * 4);
+      next.set(old);
+      return next;
+    }) as [Float32Array, Float32Array];
+    bindBuffers(batch);
+  }
+
+  function removeFigure(batch: ThinBatch, slot: { index: number }) {
+    // Swap-with-last keeps rows dense; the moved figure learns its new index
+    // through the shared slot object.
+    const last = batch.count - 1;
+    const moved = batch.figures[last];
+    if (slot.index !== last) {
+      batch.matrices.copyWithin(slot.index * 16, last * 16, last * 16 + 16);
+      for (const colors of batch.colors) colors.copyWithin(slot.index * 4, last * 4, last * 4 + 4);
+      batch.figures[slot.index] = moved;
+      moved.index = slot.index;
+      batch.matricesDirty = true;
+      batch.colorsDirty = true;
+    }
+    batch.figures.pop();
+    batch.count = last;
+    batch.countDirty = true;
+  }
+
+  function pick<T>(arr: T[]): T {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function writeColor(target: Float32Array, index: number, color: Color3) {
+    target[index * 4] = color.r;
+    target[index * 4 + 1] = color.g;
+    target[index * 4 + 2] = color.b;
+    target[index * 4 + 3] = 1;
+  }
+
+  function create(): CitizenFigure {
+    const batch = pick(batches);
+    ensureCapacity(batch);
+    const slot = { index: batch.count };
+    batch.count += 1;
+    batch.figures.push(slot);
+    batch.countDirty = true;
+
+    // Two-tone: a robe color and an accent that differs from it.
+    const robeColor = pick(ROBE_C3);
+    let accentColor = pick(ACCENT_C3);
+    let guard = 0;
+    while (accentColor.equals(robeColor) && guard++ < 8) accentColor = pick(ACCENT_C3);
+    writeColor(batch.colors[0], slot.index, robeColor);
+    writeColor(batch.colors[1], slot.index, accentColor);
+    batch.colorsDirty = true;
+
+    const scale = CITIZEN_SCALE * (0.9 + Math.random() * 0.2);
+    let gaitWeight = 0;
+    let disposed = false;
+
+    return {
+      update(loco: FigureLocomotion, dt: number) {
+        if (disposed) return;
+        const target = loco.moving ? 1 : 0;
+        gaitWeight += (target - gaitWeight) * Math.min(1, dt * GAIT_EASE);
+        const w = gaitWeight;
+        const bob = BOB_AMP * Math.sin(2 * loco.stridePhase) * w;
+        scratchScale.setAll(scale);
+        // Same yaw→pitch→roll order the clone factory gets from root.rotation.
+        Quaternion.RotationYawPitchRollToRef(
+          loco.yaw,
+          LEAN * w,
+          SWAY_AMP * Math.sin(loco.stridePhase) * w,
+          scratchQuat
+        );
+        scratchPos.set(loco.x, loco.y + bob, loco.z);
+        Matrix.ComposeToRef(scratchScale, scratchQuat, scratchPos, scratchMatrix);
+        scratchMatrix.copyToArray(batch.matrices, slot.index * 16);
+        batch.matricesDirty = true;
+      },
+      dispose() {
+        if (disposed) return;
+        disposed = true;
+        removeFigure(batch, slot);
+      },
+    };
+  }
+
+  // ≤ 15 buffer uploads per frame, however many figures moved.
+  function flush() {
+    for (const batch of batches) {
+      if (batch.countDirty) {
+        for (const host of batch.hosts) {
+          host.thinInstanceCount = batch.count;
+          host.setEnabled(batch.count > 0);
+        }
+        batch.countDirty = false;
+      }
+      if (batch.count === 0) {
+        batch.matricesDirty = false;
+        batch.colorsDirty = false;
+        continue;
+      }
+      if (batch.matricesDirty) {
+        for (const host of batch.hosts) host.thinInstanceBufferUpdated("matrix");
+        batch.matricesDirty = false;
+      }
+      if (batch.colorsDirty) {
+        batch.hosts[0].thinInstanceBufferUpdated("color");
+        batch.hosts[1].thinInstanceBufferUpdated("color");
+        batch.colorsDirty = false;
+      }
+    }
+  }
+
+  function dispose() {
+    for (const batch of batches) for (const host of batch.hosts) host.dispose();
+    whiteMat.dispose();
+    skinMat.dispose();
+    slotTags.robe.dispose();
+    slotTags.accent.dispose();
+    slotTags.skin.dispose();
+  }
+
+  return { create, flush, dispose };
 }

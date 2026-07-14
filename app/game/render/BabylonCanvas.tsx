@@ -183,6 +183,7 @@ export function BabylonCanvas() {
     queueMap(initialTiles);
     tileRenderer.syncDisplay(useGameStore.getState().artworks);
     citizens.sync(initialTiles);
+    citizens.setPopulation(useGameStore.getState().population);
 
     // The environment is intentionally non-blocking: it loads after the city
     // had a chance to paint. Emission is thin-instance batches — cheap enough
@@ -212,6 +213,9 @@ export function BabylonCanvas() {
       if (state.map.tiles !== prevState.map.tiles) {
         queueMap(state.map.tiles);
         citizens.sync(state.map.tiles);
+      }
+      if (state.population !== prevState.population) {
+        citizens.setPopulation(state.population);
       }
       if (state.artworks !== prevState.artworks) {
         tileRenderer.syncDisplay(state.artworks);
