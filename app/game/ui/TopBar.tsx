@@ -7,7 +7,8 @@ import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
 import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
 
-const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
+// Also the main menu's map-picker options (MainMenu.tsx).
+export const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
   dry: "Dry plain",
   inland: "Inland river",
   coastal: "Coastal",
@@ -152,6 +153,16 @@ export function TopBar() {
       {settingsOpen && (
         <div className="absolute right-4 top-full mt-2">
           <Panel header="Settings" className="flex w-48 flex-col gap-2 text-sm">
+            <button
+              className="flex items-center gap-2 rounded-lg bg-parchment-deep px-3 py-2 font-semibold text-ink transition hover:bg-wood/40"
+              // ponytail: full reload = the one clean path back to the menu — drops
+              // transient UI state and exits ?demo mode uniformly; the save is
+              // already persisted (every set writes through).
+              onClick={() => window.location.assign("/")}
+            >
+              <Home className="h-4 w-4" />
+              Main Menu
+            </button>
             <button
               className="flex items-center gap-2 rounded-lg bg-sienna px-3 py-2 font-semibold text-parchment transition hover:bg-sienna/85"
               onClick={() => {

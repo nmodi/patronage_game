@@ -4,6 +4,7 @@
 // starting city name deterministically. Keep the wiring surface in this file.
 
 import { seededRng } from "./random.ts";
+import { generateWater, type WaterArchetype } from "./water.ts";
 
 // ponytail: fixed pool, fictional Renaissance-Italian names.
 const CITY_NAMES = [
@@ -33,4 +34,14 @@ export function generateSeed(): string {
 /** The starting city name for a run, derived deterministically from its seed. */
 export function pickCityName(seed: string): string {
   return CITY_NAMES[Math.floor(seededRng(seed)() * CITY_NAMES.length)]!;
+}
+
+/** A fresh seed whose map rolls the requested archetype (main menu map picker). */
+export function seedForArchetype(archetype: WaterArchetype): string {
+  // ponytail: rejection sampling — rarest archetype is 10%, so a handful of tries.
+  // Keeps the seed the only map truth: a picked archetype is still just a seed.
+  for (;;) {
+    const seed = generateSeed();
+    if (generateWater(seed).archetype === archetype) return seed;
+  }
 }

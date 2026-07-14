@@ -2,8 +2,9 @@
 // Run: node --experimental-strip-types app/game/seed.check.ts
 import assert from "node:assert";
 
-import { generateSeed, pickCityName } from "./seed.ts";
+import { generateSeed, pickCityName, seedForArchetype } from "./seed.ts";
 import { positionToneIndex, seededRng } from "./random.ts";
+import { generateWater, type WaterArchetype } from "./water.ts";
 
 // Deterministic: the same seed always yields the same name and RNG stream.
 assert.equal(pickCityName("abc"), pickCityName("abc"));
@@ -32,6 +33,15 @@ for (const n of names) assert.ok(n && n.length > 0);
 // generateSeed: short, lowercase alphanumeric, shareable.
 for (let i = 0; i < 100; i += 1) {
   assert.match(generateSeed(), /^[a-z0-9]+$/);
+}
+
+// seedForArchetype: the returned seed's map really rolls the requested archetype,
+// and the seed itself is an ordinary shareable seed.
+const archetypes: WaterArchetype[] = ["dry", "inland", "coastal", "scenic-river", "scenic-coast"];
+for (const archetype of archetypes) {
+  const seed = seedForArchetype(archetype);
+  assert.match(seed, /^[a-z0-9]+$/);
+  assert.equal(generateWater(seed).archetype, archetype);
 }
 
 console.log("seed.check: all assertions passed");

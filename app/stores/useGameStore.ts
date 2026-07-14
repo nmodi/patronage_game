@@ -78,7 +78,7 @@ export type GameState = {
   getTileAt: (position: GridPos) => Tile | undefined;
   getHousing: () => number;
   getCalendarLabel: () => string;
-  resetGame: () => void;
+  resetGame: (seed?: string) => void;
 };
 
 // ?map=<seed> (dev): force the map's water layer for course/visual iteration —
@@ -90,10 +90,10 @@ const devMapSeed = () => {
   return new URLSearchParams(window.location.search).get("map")?.toLowerCase() ?? null;
 };
 
-const createInitialState = () => {
+const createInitialState = (runSeed?: string) => {
   // Demo mode is for stable screenshots — fix the seed so the city name (and any
   // future seed-driven visuals) don't change on every refresh.
-  const seed = isDemo() ? "demo" : generateSeed();
+  const seed = isDemo() ? "demo" : runSeed ?? generateSeed();
   return {
     seed,
     // Demo runs on DEMO_MAP_SEED — an inland river down the east, clear of the
@@ -163,7 +163,8 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       };
     }),
 
-  resetGame: () => set(createInitialState()),
+  // seed: player-supplied (or archetype-picked) run seed; omitted = random.
+  resetGame: (seed) => set(createInitialState(seed)),
 
   assignCommission: (commissionId, workshopKey) =>
     set((s) => {
