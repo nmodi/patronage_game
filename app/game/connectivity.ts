@@ -1,9 +1,10 @@
 // Plaza connectivity (design doc, Phase 10). The effect radiates from the
-// Main Plaza (Town Center Plaza) through roads, fading with network distance;
-// secondary plazas on the network refresh it to full, making them mini-hubs.
-// Buildings touching the network get a graded output/progress bonus. A nudge,
-// never a gate: disconnected buildings work at full base rate (Key Design
-// Principle 6).
+// Main Plaza (Town Center Plaza) through roads — including diagonal streets,
+// whose staircase cells conduct through cell corners — fading with network
+// distance; secondary plazas on the network refresh it to full, making them
+// mini-hubs. Buildings touching the network get a graded output/progress
+// bonus. A nudge, never a gate: disconnected buildings work at full base rate
+// (Key Design Principle 6).
 
 // Only imports from dependency-free sim modules: connectivity.check.ts runs
 // this file under plain Node.
@@ -26,6 +27,18 @@ const NEIGHBORS = [
   [-1, 0],
   [0, 1],
   [0, -1],
+] as const;
+
+// Diagonal roads are thin 8-connected staircases, so the network conducts
+// through cell corners too. A diagonal step costs 1 like a cardinal one —
+// slightly generous vs √2, fine for a soft bonus (principle 6). Buildings
+// (the strength scan below) stay 4-neighbor: corner contact isn't adjacency.
+const NETWORK_NEIGHBORS = [
+  ...NEIGHBORS,
+  [1, 1],
+  [1, -1],
+  [-1, 1],
+  [-1, -1],
 ] as const;
 
 /**
@@ -65,7 +78,7 @@ function computeUncached(tiles: Record<string, ConnectivityTile>): Map<string, n
     const key = deque.shift()!;
     const d = dist.get(key)!;
     const [x, y] = key.split(",").map(Number);
-    for (const [dx, dy] of NEIGHBORS) {
+    for (const [dx, dy] of NETWORK_NEIGHBORS) {
       const nkey = `${x! + dx},${y! + dy}`;
       const tile = tiles[nkey];
       if (!tile) continue;

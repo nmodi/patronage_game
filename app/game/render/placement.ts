@@ -8,12 +8,19 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
-import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
+import {
+  BUILDING_METADATA_BY_ID,
+  footprintMask,
+  rotatedFootprint,
+  type BuildingId,
+} from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
 import { plinthSlotAt } from "~/game/display";
-import { gridToWorld, worldToGrid, type GridPos } from "~/game/grid";
+import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game/grid";
 import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
 import { getRazeImpact } from "~/game/raze";
+import { findRoadSnap } from "~/game/roadSnap";
+import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/roadStretch";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
   instantiateBuilding,
@@ -28,14 +35,19 @@ import {
 
 const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
 
-export function pickGridCell(scene: Scene): GridPos | null {
+function pickGroundPoint(scene: Scene): { x: number; z: number } | null {
   if (!scene.activeCamera) return null;
   const ray = scene.createPickingRay(scene.pointerX, scene.pointerY, null, scene.activeCamera);
   const distance = ray.intersectsPlane(GROUND_PLANE);
   if (distance === null) return null;
 
   const hit = ray.origin.add(ray.direction.scale(distance));
-  return worldToGrid(hit.x, hit.z);
+  return { x: hit.x, z: hit.z };
+}
+
+export function pickGridCell(scene: Scene): GridPos | null {
+  const point = pickGroundPoint(scene);
+  return point ? worldToGrid(point.x, point.z) : null;
 }
 
 export function createPlacementController(scene: Scene) {
@@ -55,6 +67,7 @@ export function createPlacementController(scene: Scene) {
   let roadAnchor: GridPos | null = null;
   let roadPreviewMeshes: Mesh[] = [];
   let lastSelectedBuilding: BuildingId | typeof RAZE_TOOL | null = null;
+  let shiftHeld = false; // Shift = snap the building ghost to a nearby road
 
   const validMat = new StandardMaterial("ghost-valid", scene);
   validMat.diffuseColor = Color3.White();
@@ -101,15 +114,26 @@ export function createPlacementController(scene: Scene) {
     if (Math.hypot(event.clientX - downX, event.clientY - downY) < 5) inspectClick = true;
   }
   function handleKeyDown(event: KeyboardEvent) {
+    if (event.key === "Shift") shiftHeld = true;
     if (event.key.toLowerCase() === "r" && ghostModel) {
-      // Recreated next frame by ensureGhost: rectangular footprints swap on odd
-      // turns, so the model needs a refit, not just a spin.
-      ghostRotation = ((ghostRotation ?? 0) + 1) % 4;
+      // 8-step cycle, +45° per press: 0→4→1→5→2→6→3→7→0 (4-7 = quarter + 45°).
+      // Recreated next frame by ensureGhost: footprints change with rotation,
+      // so the model needs a refit, not just a spin.
+      const r = ghostRotation ?? 0;
+      ghostRotation = r < 4 ? r + 4 : (r - 3) % 4;
     }
+  }
+  function handleKeyUp(event: KeyboardEvent) {
+    if (event.key === "Shift") shiftHeld = false;
+  }
+  function handleBlur() {
+    shiftHeld = false; // alt-tab with Shift down must not leave snap stuck on
   }
   window.addEventListener("mousedown", handleMouseDown);
   window.addEventListener("mouseup", handleMouseUp);
   window.addEventListener("keydown", handleKeyDown);
+  window.addEventListener("keyup", handleKeyUp);
+  window.addEventListener("blur", handleBlur);
 
   function ensureGhost(buildingId: BuildingId, rotation: number | null) {
     if (ghostBuildingId === buildingId && ghostBuiltRotation === rotation && (ghostBox || ghostModel)) {
@@ -176,39 +200,6 @@ export function createPlacementController(scene: Scene) {
     if (state.hoveredTileKey !== key) state.setHoveredTile(key);
   }
 
-  function buildRoadStretch(anchor: GridPos, hover: GridPos, width: number) {
-    const dx = hover.x - anchor.x;
-    const dy = hover.y - anchor.y;
-    const positions: GridPos[] = [];
-
-    // No drag direction yet — a width×width block under the cursor, so the
-    // ghost shows the road's true size before the axis is known.
-    if (dx === 0 && dy === 0) {
-      for (let wx = 0; wx < width; wx += 1) {
-        for (let wy = 0; wy < width; wy += 1) {
-          positions.push({ x: anchor.x + wx, y: anchor.y + wy });
-        }
-      }
-      return positions;
-    }
-
-    // Extra width stamps on the positive side of the drag line, matching
-    // footprint-origin semantics.
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      const step = dx >= 0 ? 1 : -1;
-      for (let x = anchor.x; x !== hover.x + step; x += step) {
-        for (let w = 0; w < width; w += 1) positions.push({ x, y: anchor.y + w });
-      }
-    } else {
-      const step = dy >= 0 ? 1 : -1;
-      for (let y = anchor.y; y !== hover.y + step; y += step) {
-        for (let w = 0; w < width; w += 1) positions.push({ x: anchor.x + w, y });
-      }
-    }
-
-    return positions;
-  }
-
   function ensureRoadPreviewCount(count: number) {
     while (roadPreviewMeshes.length > count) {
       roadPreviewMeshes.pop()?.dispose();
@@ -224,7 +215,7 @@ export function createPlacementController(scene: Scene) {
     }
   }
 
-  function updateRoadPreview(positions: GridPos[], canPlace: boolean) {
+  function updateRoadPreview(positions: GridPos[], canPlace: boolean, rotation?: RoadRotation) {
     ensureRoadPreviewCount(positions.length);
     for (let i = 0; i < roadPreviewMeshes.length; i += 1) {
       const mesh = roadPreviewMeshes[i];
@@ -235,6 +226,15 @@ export function createPlacementController(scene: Scene) {
       }
       const world = gridToWorld(position.x, position.y);
       mesh.position.set(world.x, 0.004, world.z);
+      // Diagonal stretches preview with the final ribbon transform; reset is
+      // required because these pooled quads also serve the raze highlight.
+      if (rotation) {
+        mesh.rotation.y = rotation === ROAD_DIAG_NE ? -Math.PI / 4 : Math.PI / 4;
+        mesh.scaling.set(Math.SQRT2, 1, 1);
+      } else {
+        mesh.rotation.y = 0;
+        mesh.scaling.setAll(1);
+      }
       mesh.material = canPlace ? validMat : invalidMat;
       mesh.setEnabled(true);
     }
@@ -242,10 +242,19 @@ export function createPlacementController(scene: Scene) {
 
   function updateRoadPlacement(state: GameState, buildingId: BuildingId, currentPosition: GridPos) {
     const width = BUILDING_METADATA_BY_ID[buildingId]?.roadWidth ?? 1;
-    const positions = buildRoadStretch(roadAnchor ?? currentPosition, currentPosition, width);
+    // Diagonals are paved-roads-only: dirt_path autotiling and bridge parapets
+    // are cardinal, and this function also serves linear decorations
+    // (fence/stone_wall/colonnade) whose segment renderer is cardinal.
+    const allowDiagonal = buildingId === "path" || buildingId === "road" || buildingId === "avenue";
+    const { positions, rotation } = buildRoadStretch(
+      roadAnchor ?? currentPosition,
+      currentPosition,
+      width,
+      allowDiagonal
+    );
     // Cells still needing placing (and paying for); null = blocked or unaffordable.
     const newCells = planLinearPlacement(state, positions, buildingId)?.positions ?? null;
-    updateRoadPreview(positions, newCells !== null);
+    updateRoadPreview(positions, newCells !== null, rotation);
 
     if (!pendingClick) return;
     pendingClick = false;
@@ -257,7 +266,7 @@ export function createPlacementController(scene: Scene) {
     }
 
     if (!newCells) return;
-    if (newCells.length === 0 || state.placeTiles(newCells, buildingId)) {
+    if (newCells.length === 0 || state.placeTiles(newCells, buildingId, rotation)) {
       roadAnchor = null;
       clearRoadPreview();
     }
@@ -319,13 +328,11 @@ export function createPlacementController(scene: Scene) {
       const cells: GridPos[] = [];
       if (tile) {
         const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-        const { width, depth } = metadata
-          ? rotatedFootprint(metadata, tile.rotation)
-          : { width: 1, depth: 1 };
-        for (let dx = 0; dx < width; dx += 1) {
-          for (let dy = 0; dy < depth; dy += 1) {
-            cells.push({ x: tile.origin.x + dx, y: tile.origin.y + dy });
-          }
+        const offsets = metadata
+          ? footprintMask(metadata, tile.rotation).cells
+          : [{ x: 0, y: 0 }];
+        for (const offset of offsets) {
+          cells.push({ x: tile.origin.x + offset.x, y: tile.origin.y + offset.y });
         }
       }
       updateRoadPreview(cells, false);
@@ -363,24 +370,50 @@ export function createPlacementController(scene: Scene) {
       return;
     }
 
-    clearRoadPreview();
     roadAnchor = null;
     // Quarter-rotating buildings face a fixed default until the player presses
     // R; the shown rotation is stored on placement so the building matches.
-    const effectiveRotation = ghostRotation ?? (usesQuarterRotation(selectedBuilding) ? 0 : null);
+    let effectiveRotation = ghostRotation ?? (usesQuarterRotation(selectedBuilding) ? 0 : null);
+    // Shift: snap flush against a nearby road, auto-facing it (45° against
+    // diagonal ribbons). Purely an assist — no candidate falls through to the
+    // free cursor placement, and releasing Shift restores it exactly.
+    let placeOrigin = currentPosition;
+    let snapped = false;
+    if (shiftHeld) {
+      const point = pickGroundPoint(scene);
+      const snap = point
+        ? findRoadSnap(state, worldToGridFloat(point.x, point.z), selectedBuilding, effectiveRotation)
+        : null;
+      if (snap) {
+        placeOrigin = snap.origin;
+        if (snap.rotation != null) effectiveRotation = snap.rotation;
+        snapped = true;
+      }
+    }
     if (!ensureGhost(selectedBuilding, effectiveRotation)) return;
 
-    const footprint = rotatedFootprint(metadata, effectiveRotation ?? undefined);
     const canPlaceHere = canPlaceAt(
       state,
-      currentPosition,
+      placeOrigin,
       selectedBuilding,
       effectiveRotation ?? undefined
     );
 
+    // While snapped, mark the claimed cells (diamond masks read poorly from
+    // the model alone) with the pooled preview quads.
+    if (snapped) {
+      const cells = footprintMask(metadata, effectiveRotation ?? undefined).cells.map((c) => ({
+        x: placeOrigin.x + c.x,
+        y: placeOrigin.y + c.y,
+      }));
+      updateRoadPreview(cells, canPlaceHere);
+    } else {
+      clearRoadPreview();
+    }
+
     const { x: xPos, z: zPos } = gridToWorld(
-      currentPosition.x,
-      currentPosition.y,
+      placeOrigin.x,
+      placeOrigin.y,
       metadata,
       effectiveRotation ?? undefined
     );
@@ -398,7 +431,10 @@ export function createPlacementController(scene: Scene) {
         const theta = ghostModel.root.rotation.y;
         const dirX = front[0] * Math.cos(theta) + front[1] * Math.sin(theta);
         const dirZ = -front[0] * Math.sin(theta) + front[1] * Math.cos(theta);
-        const half = ((Math.abs(dirX) > 0.5 ? footprint.width : footprint.depth) * CELL_SIZE) / 2;
+        // front is local, so the facade half-extent is the local axis it
+        // points along — exact at every rotation, 45° included.
+        const half =
+          ((front[0] !== 0 ? metadata.footprint.width : metadata.footprint.depth) * CELL_SIZE) / 2;
         arrow.position.set(xPos + dirX * (half + 0.3), 0.05, zPos + dirZ * (half + 0.3));
         arrow.rotation.y = Math.atan2(-dirZ, dirX);
         arrow.setEnabled(true);
@@ -412,7 +448,7 @@ export function createPlacementController(scene: Scene) {
     }
 
     if (pendingClick && canPlaceHere) {
-      state.placeTile(currentPosition, selectedBuilding, effectiveRotation ?? undefined);
+      state.placeTile(placeOrigin, selectedBuilding, effectiveRotation ?? undefined);
     }
     pendingClick = false;
   });
@@ -421,6 +457,8 @@ export function createPlacementController(scene: Scene) {
     window.removeEventListener("mousedown", handleMouseDown);
     window.removeEventListener("mouseup", handleMouseUp);
     window.removeEventListener("keydown", handleKeyDown);
+    window.removeEventListener("keyup", handleKeyUp);
+    window.removeEventListener("blur", handleBlur);
     scene.onBeforeRenderObservable.remove(observer);
     clearGhost();
     clearRoadPreview();

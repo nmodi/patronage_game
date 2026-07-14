@@ -1,6 +1,6 @@
 // Shared fixtures for the *.check.ts self-checks (not a check itself — the
 // npm test glob only picks up *.check.ts).
-import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "./buildings.ts";
+import { BUILDING_METADATA_BY_ID, footprintMask, type BuildingId } from "./buildings.ts";
 import type { GridPos, Tile, TileMap } from "./grid.ts";
 
 /** Single test tile: an active origin cell unless overridden. */
@@ -23,21 +23,18 @@ export function tile(
   };
 }
 
-/** Stamp a building's full rotated footprint into a fresh TileMap. */
+/** Stamp a building's full footprint (rect or diagonal mask) into a fresh TileMap. */
 export function stamp(buildingId: BuildingId, origin: GridPos, rotation?: number): TileMap {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
-  const { width, depth } = rotatedFootprint(metadata, rotation);
   const tiles: TileMap = {};
-  for (let dx = 0; dx < width; dx += 1) {
-    for (let dy = 0; dy < depth; dy += 1) {
-      const x = origin.x + dx;
-      const y = origin.y + dy;
-      tiles[`${x},${y}`] = tile(buildingId, x, y, {
-        origin: { ...origin },
-        isOrigin: dx === 0 && dy === 0,
-        rotation,
-      });
-    }
+  for (const offset of footprintMask(metadata, rotation).cells) {
+    const x = origin.x + offset.x;
+    const y = origin.y + offset.y;
+    tiles[`${x},${y}`] = tile(buildingId, x, y, {
+      origin: { ...origin },
+      isOrigin: offset.x === 0 && offset.y === 0,
+      rotation,
+    });
   }
   return tiles;
 }

@@ -464,12 +464,124 @@ export const BUILDING_TYPES = [
 
 export type BuildingId = (typeof BUILDING_TYPES)[number]["id"];
 
-/** Footprint in grid space; odd quarter turns swap width/depth for rectangular buildings. */
+// Building rotation encoding (Tile.rotation): 0-3 = cardinal quarter turns
+// (pre-diagonal saves unchanged), 4-7 = quarter (r-4) plus a 45° offset.
+// Paved road tiles keep their separate undefined|1|3 ribbon semantics.
+
+/** Cardinal quarter component of a building rotation (0-3). */
+export function quarterOf(rotation?: number) {
+  return (((rotation ?? 0) % 4) + 4) % 4;
+}
+
+/** Whether a building rotation carries the extra 45° offset (values 4-7). */
+export function isDiagonalRotation(rotation?: number): boolean {
+  return rotation != null && rotation >= 4;
+}
+
+/** World yaw: quarter turns plus 45° for diagonal rotations. Local (lx,lz)
+ * maps to grid (lx·cosθ + lz·sinθ, −lx·sinθ + lz·cosθ) — local +X faces grid
+ * +x, −y, −x, +y at quarters 0-3 (the modelManifest ring convention). */
+export function yawOfRotation(rotation?: number) {
+  return (
+    (Math.PI / 2) * quarterOf(rotation) + (isDiagonalRotation(rotation) ? Math.PI / 4 : 0)
+  );
+}
+
+/** Footprint in grid space (quarter-frame bounding dims — for diagonal
+ * rotations these are the dims of the rect *before* the 45° turn; the claimed
+ * cells come from footprintMask). Odd quarter turns swap width/depth. */
 export function rotatedFootprint(metadata: BuildingMetadata, rotation?: number) {
   const footprint = metadata.footprint ?? { width: 1, depth: 1 };
   return (rotation ?? 0) % 2 === 1
     ? { width: footprint.depth, depth: footprint.width }
     : footprint;
+}
+
+/** A building's claimed cells and center, in grid units relative to the
+ * anchor cell (the Tile.origin). Cardinal rotations claim the axis-aligned
+ * rect (anchor = min corner, offsets all ≥ 0). Diagonal rotations claim the
+ * cells whose centers fall inside the 45°-rotated rect; the anchor is the
+ * first claimed cell in row-major order (min y, then min x), so x offsets may
+ * be negative — never y. (0,0) is always claimed and always first. */
+export interface FootprintMask {
+  cells: ReadonlyArray<{ x: number; y: number }>;
+  /** Building center offset from the anchor cell center, in cells (grid x/y). */
+  center: { x: number; y: number };
+}
+
+const MASK_EPSILON = 1e-6;
+const maskCache = new Map<string, FootprintMask>();
+
+export function footprintMask(metadata: BuildingMetadata, rotation?: number): FootprintMask {
+  return footprintMaskFor(metadata.footprint ?? { width: 1, depth: 1 }, rotation);
+}
+
+/** footprintMask from bare dims — for callers holding only a footprint
+ * (display slot math). Cached per dims × rotation. */
+export function footprintMaskFor(
+  footprint: { width: number; depth: number },
+  rotation?: number
+): FootprintMask {
+  const diagonal = isDiagonalRotation(rotation);
+  const quarter = quarterOf(rotation);
+  const key = `${footprint.width}x${footprint.depth}:${quarter}${diagonal ? "d" : ""}`;
+  const cached = maskCache.get(key);
+  if (cached) return cached;
+
+  let mask: FootprintMask;
+  if (diagonal) {
+    mask = rasterizeDiagonalMask(footprint, rotation!);
+  } else {
+    const swap = quarter % 2 === 1;
+    const width = swap ? footprint.depth : footprint.width;
+    const depth = swap ? footprint.width : footprint.depth;
+    const cells: { x: number; y: number }[] = [];
+    for (let dy = 0; dy < depth; dy += 1) {
+      for (let dx = 0; dx < width; dx += 1) cells.push({ x: dx, y: dy });
+    }
+    mask = { cells, center: { x: (width - 1) / 2, y: (depth - 1) / 2 } };
+  }
+  maskCache.set(key, mask);
+  return mask;
+}
+
+/** Cells whose centers lie inside the yaw-rotated W×D rect (ε-shrunk so
+ * boundary-grazing centers never claim), scanned over the rect's bounding
+ * window and re-anchored to the first claimed cell. */
+function rasterizeDiagonalMask(
+  { width, depth }: { width: number; depth: number },
+  rotation: number
+): FootprintMask {
+  const theta = yawOfRotation(rotation);
+  const cos = Math.cos(theta);
+  const sin = Math.sin(theta);
+  const size = Math.ceil((width + depth) / Math.SQRT2 - MASK_EPSILON);
+  const cells: { x: number; y: number }[] = [];
+  for (let j = 0; j < size; j += 1) {
+    for (let i = 0; i < size; i += 1) {
+      const dx = i + 0.5 - size / 2;
+      const dy = j + 0.5 - size / 2;
+      // Inverse of the yaw map: grid offset → the rect's local frame.
+      const lx = dx * cos - dy * sin;
+      const lz = dx * sin + dy * cos;
+      if (
+        Math.abs(lx) < width / 2 - MASK_EPSILON &&
+        Math.abs(lz) < depth / 2 - MASK_EPSILON
+      ) {
+        cells.push({ x: i, y: j });
+      }
+    }
+  }
+  if (cells.length === 0) {
+    // 1×1 footprints have no interior cell centers at 45° — the building
+    // claims its own cell, model rotated within it.
+    return { cells: [{ x: 0, y: 0 }], center: { x: 0, y: 0 } };
+  }
+  const anchor = cells[0]!;
+  return {
+    cells: cells.map((c) => ({ x: c.x - anchor.x, y: c.y - anchor.y })),
+    center: { x: size / 2 - anchor.x - 0.5, y: size / 2 - anchor.y - 0.5 },
+  };
 }
 
 export const BUILDING_METADATA_BY_ID = BUILDING_TYPES.reduce(

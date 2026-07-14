@@ -208,9 +208,8 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     set((s) => {
       const plan = planPlacement(s, positions, buildingId, rotation);
       if (!plan) return s;
-      const { metadata, footprint, freeCells, totalCost } = plan;
+      const { metadata, cells, freeCells, totalCost } = plan;
       const type = metadata.type;
-      const { width, depth } = footprint;
       const workersRequired = metadata.workersRequired ?? 0;
 
       const newTiles = { ...s.map.tiles };
@@ -231,24 +230,22 @@ const initializer: StateCreator<GameState> = (set, get) => ({
           }
         }
 
-        for (let dx = 0; dx < width; dx += 1) {
-          for (let dy = 0; dy < depth; dy += 1) {
-            const cellX = originX + dx;
-            const cellY = originY + dy;
-            const key = `${cellX},${cellY}`;
-            if (!freeCells.has(key)) continue; // overlapped cell keeps its owner
-            newTiles[key] = {
-              buildingId,
-              type,
-              position: { x: cellX, y: cellY },
-              origin: { ...originVector },
-              isOrigin: dx === 0 && dy === 0,
-              isActive: workersRequired === 0,
-              rotation,
-              workers: 0,
-              builtTick: s.time.tickCount,
-            };
-          }
+        for (const offset of cells) {
+          const cellX = originX + offset.x;
+          const cellY = originY + offset.y;
+          const key = `${cellX},${cellY}`;
+          if (!freeCells.has(key)) continue; // overlapped cell keeps its owner
+          newTiles[key] = {
+            buildingId,
+            type,
+            position: { x: cellX, y: cellY },
+            origin: { ...originVector },
+            isOrigin: offset.x === 0 && offset.y === 0,
+            isActive: workersRequired === 0,
+            rotation,
+            workers: 0,
+            builtTick: s.time.tickCount,
+          };
         }
       }
 

@@ -1,6 +1,6 @@
 import assert from "node:assert";
 
-import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
+import { BUILDING_METADATA_BY_ID, footprintMask } from "./buildings.ts";
 import { CELL_SIZE, GRID_SIZE } from "./constants.ts";
 import { gridToWorld, worldToGrid } from "./grid.ts";
 
@@ -29,5 +29,13 @@ assert.equal(rotated.z - cell.z, ((workshop.footprint.width - 1) * CELL_SIZE) / 
 
 assert.equal(gridToWorld(0, 0, BUILDING_METADATA_BY_ID.path).y, 0.001);
 assert.equal(normal.y, workshop.size.height / 2);
+
+// Diagonal rotations: the world center is the anchor cell center plus the
+// mask's continuous center offset.
+const diagonal = gridToWorld(10, 10, workshop, 4);
+const anchor = gridToWorld(10, 10);
+const mask = footprintMask(workshop, 4);
+assert.equal(diagonal.x - anchor.x, mask.center.x * CELL_SIZE);
+assert.equal(diagonal.z - anchor.z, mask.center.y * CELL_SIZE);
 
 console.log("grid.check: all assertions passed");

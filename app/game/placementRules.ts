@@ -1,5 +1,6 @@
 import {
   BUILDING_METADATA_BY_ID,
+  footprintMask,
   rotatedFootprint,
   type BuildingId,
 } from "./buildings.ts";
@@ -17,6 +18,8 @@ export interface PlacementSnapshot {
 export interface PlacementPlan {
   metadata: BuildingMetadata;
   footprint: { width: number; depth: number };
+  /** Claimed cell offsets from each origin (footprintMask; (0,0) first). */
+  cells: ReadonlyArray<{ x: number; y: number }>;
   positions: GridPos[];
   freeCells: ReadonlySet<string>;
   totalCost: number;
@@ -50,44 +53,39 @@ export function planPlacement(
   if (!metadata || positions.length === 0) return null;
 
   const footprint = rotatedFootprint(metadata, rotation);
+  const { cells } = footprintMask(metadata, rotation);
   const freeCells = new Set<string>();
   const water = getWaterCells(state.mapSeed);
   const canOverlap = metadata.type === "decoration";
   const isBridge = buildingId === "bridge";
 
   for (const position of positions) {
-    if (
-      position.x < 0 ||
-      position.y < 0 ||
-      position.x + footprint.width > GRID_SIZE ||
-      position.y + footprint.depth > GRID_SIZE
-    ) {
-      return null;
-    }
-
-    for (let dx = 0; dx < footprint.width; dx += 1) {
-      for (let dy = 0; dy < footprint.depth; dy += 1) {
-        const key = `${position.x + dx},${position.y + dy}`;
-        const cell = checkCell(
-          state.map.tiles,
-          water,
-          key,
-          dx === 0 && dy === 0,
-          canOverlap,
-          isBridge
-        );
-        if (cell === "blocked") return null;
-        if (cell === "free") {
-          if (freeCells.has(key)) return null; // batch positions may not overlap
-          freeCells.add(key);
-        }
+    for (const offset of cells) {
+      const x = position.x + offset.x;
+      const y = position.y + offset.y;
+      // Per-cell bounds: diagonal masks have negative x offsets, so an
+      // origin-corner test can't stand in for the whole footprint.
+      if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return null;
+      const key = `${x},${y}`;
+      const cell = checkCell(
+        state.map.tiles,
+        water,
+        key,
+        offset.x === 0 && offset.y === 0,
+        canOverlap,
+        isBridge
+      );
+      if (cell === "blocked") return null;
+      if (cell === "free") {
+        if (freeCells.has(key)) return null; // batch positions may not overlap
+        freeCells.add(key);
       }
     }
   }
 
   const totalCost = metadata.baseCost * positions.length;
   if (state.florins < totalCost) return null;
-  return { metadata, footprint, positions, freeCells, totalCost };
+  return { metadata, footprint, cells, positions, freeCells, totalCost };
 }
 
 /** planPlacement for a single origin as a boolean, allocation-free — safe to
@@ -101,25 +99,24 @@ export function canPlaceAt(
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
   if (!metadata || state.florins < metadata.baseCost) return false;
 
-  const footprint = rotatedFootprint(metadata, rotation);
-  if (
-    position.x < 0 ||
-    position.y < 0 ||
-    position.x + footprint.width > GRID_SIZE ||
-    position.y + footprint.depth > GRID_SIZE
-  ) {
-    return false;
-  }
-
+  const { cells } = footprintMask(metadata, rotation);
   const water = getWaterCells(state.mapSeed);
   const canOverlap = metadata.type === "decoration";
   const isBridge = buildingId === "bridge";
-  for (let dx = 0; dx < footprint.width; dx += 1) {
-    for (let dy = 0; dy < footprint.depth; dy += 1) {
-      const key = `${position.x + dx},${position.y + dy}`;
-      const cell = checkCell(state.map.tiles, water, key, dx === 0 && dy === 0, canOverlap, isBridge);
-      if (cell === "blocked") return false;
-    }
+  for (const offset of cells) {
+    const x = position.x + offset.x;
+    const y = position.y + offset.y;
+    if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return false;
+    const key = `${x},${y}`;
+    const cell = checkCell(
+      state.map.tiles,
+      water,
+      key,
+      offset.x === 0 && offset.y === 0,
+      canOverlap,
+      isBridge
+    );
+    if (cell === "blocked") return false;
   }
   return true;
 }
@@ -163,5 +160,12 @@ export function planLinearPlacement(
 
   const totalCost = metadata.baseCost * newCells.length;
   if (state.florins < totalCost) return null;
-  return { metadata, footprint: metadata.footprint, positions: newCells, freeCells, totalCost };
+  return {
+    metadata,
+    footprint: metadata.footprint,
+    cells: [{ x: 0, y: 0 }], // roads/linear are all 1×1 segments
+    positions: newCells,
+    freeCells,
+    totalCost,
+  };
 }

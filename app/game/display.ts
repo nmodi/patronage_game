@@ -5,7 +5,12 @@
 // capped +25%), a second graded scalar alongside plaza connectivity.
 
 // No React/Zustand/Babylon imports: display.check.ts runs this under plain Node.
-import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
+import {
+  BUILDING_METADATA_BY_ID,
+  footprintMaskFor,
+  isDiagonalRotation,
+  yawOfRotation,
+} from "./buildings.ts";
 import {
   DEFAULT_ARTWORK_PRESTIGE,
   DISPLAY_HOST_BONUS,
@@ -52,8 +57,11 @@ export function displayBoost(count: number): number {
 
 /**
  * A plinth's footprint cell (unrotated metadata frame) → its offset in the
- * stamped grid under a quarter rotation r. Matches the render ring: local +X
- * faces grid +x, −y, −x, +y for r = 0..3 (modelManifest LOCAL/GRID_SIDE_RING).
+ * stamped grid under rotation r. Quarter turns (0-3) use the exact integer
+ * ring — local +X faces grid +x, −y, −x, +y (modelManifest LOCAL/GRID_SIDE_RING).
+ * Diagonal rotations (4-7) rotate the cell about the footprint center in
+ * continuous space and land on the nearest claimed mask cell (which is the
+ * containing cell whenever that cell is claimed).
  */
 export function rotateSlotCell(
   cell: { x: number; y: number },
@@ -62,6 +70,24 @@ export function rotateSlotCell(
 ): { x: number; y: number } {
   const u = cell.x - (footprint.width - 1) / 2;
   const v = cell.y - (footprint.depth - 1) / 2;
+  if (isDiagonalRotation(r)) {
+    const theta = yawOfRotation(r);
+    const gx = u * Math.cos(theta) + v * Math.sin(theta);
+    const gy = -u * Math.sin(theta) + v * Math.cos(theta);
+    const { cells, center } = footprintMaskFor(footprint, r);
+    const tx = center.x + gx;
+    const ty = center.y + gy;
+    let best = cells[0]!;
+    let bestD = Infinity;
+    for (const c of cells) {
+      const d = (c.x - tx) ** 2 + (c.y - ty) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = c;
+      }
+    }
+    return { x: best.x, y: best.y };
+  }
   const k = ((r % 4) + 4) % 4;
   const ring: [number, number][] = [
     [u, v],

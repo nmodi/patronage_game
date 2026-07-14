@@ -1,6 +1,6 @@
 import assert from "node:assert";
 
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "./buildings.ts";
+import { BUILDING_METADATA_BY_ID, footprintMask, type BuildingId } from "./buildings.ts";
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
 import {
@@ -84,9 +84,51 @@ assert.equal(
   agrees(snapshot({}, 10_000, waterSeed), { x, y }, "path");
   agrees(snapshot({}, 10_000, waterSeed), { x, y }, "bridge");
 
+  // Diagonal rotations agree too — including the map edge, where the mask's
+  // negative x offsets must reject the anchor even though it's in bounds.
+  agrees(snapshot(), { x: 40, y: 40 }, "workshop", 4);
+  agrees(snapshot(), { x: 40, y: 40 }, "workshop", 5);
+  agrees(snapshot(), { x: 0, y: 0 }, "workshop", 4);
+  agrees(snapshot({}, 10_000, waterSeed), { x, y }, "workshop", 4);
+  assert.ok(canPlaceAt(snapshot(), { x: 40, y: 40 }, "workshop", 4));
+  assert.equal(canPlaceAt(snapshot(), { x: 0, y: 0 }, "workshop", 4), false);
+
   // Linear runs hit the same water gate: blocked for roads, exempt for bridges.
   assert.equal(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "road"), null);
   assert.ok(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "bridge"));
+}
+
+// Diagonal placement claims the mask, not its bounding box: a bystander in a
+// bounding-box gap neither blocks the plan nor gets claimed, while a tile on
+// a real mask cell blocks.
+{
+  const origin = { x: 40, y: 40 };
+  const mask = footprintMask(BUILDING_METADATA_BY_ID.workshop, 4);
+  const inMask = new Set(mask.cells.map((c) => `${origin.x + c.x},${origin.y + c.y}`));
+  const xs = mask.cells.map((c) => c.x);
+  const ys = mask.cells.map((c) => c.y);
+  let gapKey = "";
+  for (let gy = Math.min(...ys); gy <= Math.max(...ys) && !gapKey; gy += 1) {
+    for (let gx = Math.min(...xs); gx <= Math.max(...xs); gx += 1) {
+      const key = `${origin.x + gx},${origin.y + gy}`;
+      if (!inMask.has(key)) {
+        gapKey = key;
+        break;
+      }
+    }
+  }
+  assert.ok(gapKey);
+  const [bx, by] = gapKey.split(",").map(Number) as [number, number];
+  const bystander = { [gapKey]: tile("cottage", bx, by) };
+  const plan = planPlacement(snapshot(bystander), [origin], "workshop", 4);
+  assert.ok(plan);
+  assert.equal(plan.freeCells.size, mask.cells.length);
+  assert.ok(!plan.freeCells.has(gapKey));
+
+  const blockCell = mask.cells[1]!;
+  const blockKey = `${origin.x + blockCell.x},${origin.y + blockCell.y}`;
+  const blocked = { [blockKey]: tile("cottage", origin.x + blockCell.x, origin.y + blockCell.y) };
+  assert.equal(planPlacement(snapshot(blocked), [origin], "workshop", 4), null);
 }
 
 // Linear placement charges only new cells and rejects duplicates/short funds.

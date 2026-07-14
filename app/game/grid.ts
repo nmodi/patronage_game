@@ -1,4 +1,4 @@
-import { rotatedFootprint, type BuildingId } from "./buildings.ts";
+import { footprintMask, type BuildingId } from "./buildings.ts";
 import { CELL_SIZE, GRID_SIZE } from "./constants.ts";
 import type { BuildingMetadata, BuildingType } from "./types.ts";
 
@@ -15,6 +15,9 @@ export interface Tile {
   isOrigin: boolean;
   isActive: boolean;
   variant?: number;
+  // Buildings: 0-3 quarter turns, 4-7 = quarter (r-4) + 45° (diagonal mask
+  // footprint — see buildings.ts footprintMask). Paved roads: undefined |
+  // 1 (NE) | 3 (NW) ribbon orientation — see roadStretch.ts.
   rotation?: number;
   workers: number;
   builtTick: number;
@@ -29,15 +32,22 @@ export function gridToWorld(
   metadata?: BuildingMetadata,
   rotation?: number
 ) {
-  const footprint = metadata ? rotatedFootprint(metadata, rotation) : { width: 1, depth: 1 };
+  // footprintMask.center is ((w-1)/2, (d-1)/2) for cardinal rotations — the
+  // pre-mask offsets exactly — and the rotated-rect center for diagonal ones.
+  const center = metadata ? footprintMask(metadata, rotation).center : { x: 0, y: 0 };
   const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
-  const xOffset = ((footprint.width - 1) * CELL_SIZE) / 2;
-  const zOffset = ((footprint.depth - 1) * CELL_SIZE) / 2;
-  const x = gridX * CELL_SIZE - halfGrid + CELL_SIZE / 2 + xOffset;
-  const z = gridY * CELL_SIZE - halfGrid + CELL_SIZE / 2 + zOffset;
+  const x = gridX * CELL_SIZE - halfGrid + CELL_SIZE / 2 + center.x * CELL_SIZE;
+  const z = gridY * CELL_SIZE - halfGrid + CELL_SIZE / 2 + center.y * CELL_SIZE;
   const height = metadata?.size.height ?? 0.2;
   const y = metadata?.type === "road" ? 0.001 : height / 2;
   return { x, y, z };
+}
+
+/** Fractional grid coordinates of a world-space point (no flooring/bounds) —
+ * the road-snap cursor. */
+export function worldToGridFloat(x: number, z: number) {
+  const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
+  return { x: (x + halfGrid) / CELL_SIZE, y: (z + halfGrid) / CELL_SIZE };
 }
 
 /** Grid cell containing a world-space point, or null outside the build area. */

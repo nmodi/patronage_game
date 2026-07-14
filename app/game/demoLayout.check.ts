@@ -28,23 +28,21 @@ for (const [x, y, buildingId, rotation] of LAYOUT) {
     failures.push(`${buildingId} @ ${x},${y}${rotation != null ? ` r${rotation}` : ""}`);
     continue;
   }
-  const { metadata, footprint } = plan;
-  for (let dx = 0; dx < footprint.width; dx += 1) {
-    for (let dy = 0; dy < footprint.depth; dy += 1) {
-      const key = `${x + dx},${y + dy}`;
-      if (!plan.freeCells.has(key)) continue; // decoration overlapping an existing tile keeps its owner
-      tiles[key] = {
-        buildingId,
-        type: metadata.type,
-        position: { x: x + dx, y: y + dy },
-        origin: { x, y },
-        isOrigin: dx === 0 && dy === 0,
-        isActive: true,
-        rotation,
-        workers: 0,
-        builtTick: 0,
-      } as Tile;
-    }
+  const { metadata, cells } = plan;
+  for (const { x: dx, y: dy } of cells) {
+    const key = `${x + dx},${y + dy}`;
+    if (!plan.freeCells.has(key)) continue; // decoration overlapping an existing tile keeps its owner
+    tiles[key] = {
+      buildingId,
+      type: metadata.type,
+      position: { x: x + dx, y: y + dy },
+      origin: { x, y },
+      isOrigin: dx === 0 && dy === 0,
+      isActive: true,
+      rotation,
+      workers: 0,
+      builtTick: 0,
+    } as Tile;
   }
 }
 assert.equal(

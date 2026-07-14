@@ -16,7 +16,7 @@ import { registerBuiltInLoaders } from "@babylonjs/loaders/dynamic";
 import { CreateGround } from "@babylonjs/core/Meshes/Builders/groundBuilder";
 
 import { CELL_SIZE } from "~/game/constants";
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { BUILDING_METADATA_BY_ID, isDiagonalRotation, type BuildingId } from "~/game/buildings";
 import {
   FACADE_PALETTES,
   MATERIAL_TINTS,
@@ -322,6 +322,17 @@ function stretchPartToTargets(
   }
 }
 
+/** Recenter offset for a measured world-frame center vector (vx, vz): −v,
+ * swung by the late 45° for diagonal rotations. All fit/stretch math runs in
+ * the quarter frame; the extra π/4 is applied to the root afterwards, which
+ * rotates the geometry's center about the root origin — so the offset that
+ * cancels it must rotate the same way (x' = x·cosθ + z·sinθ, z' = −x·sinθ +
+ * z·cosθ with θ = π/4). */
+function recenterOffset(vx: number, vz: number, diagonal: boolean) {
+  if (!diagonal) return { offsetX: -vx, offsetZ: -vz };
+  return { offsetX: -(vx + vz) * Math.SQRT1_2, offsetZ: (vx - vz) * Math.SQRT1_2 };
+}
+
 /**
  * Build the model for a building, scaled to its footprint with the base at y=0.
  * Returns null when the building has no manifest entry (caller falls back to a box).
@@ -459,13 +470,14 @@ export function instantiateBuilding(
     const odd = Math.round(root.rotation.y / (Math.PI / 2)) % 2 !== 0;
     root.scaling.set(odd ? scaleZ : scaleX, scaleY, odd ? scaleX : scaleZ);
     root.position.y = -min.y * scaleY;
+    const diagonal = isDiagonalRotation(rotation);
+    if (diagonal) root.rotation.y += Math.PI / 4;
     return {
       root,
       meshes,
       meshKeys,
       height: (max.y - min.y) * scaleY,
-      offsetX: -centerX * scaleX,
-      offsetZ: -centerZ * scaleZ,
+      ...recenterOffset(centerX * scaleX, centerZ * scaleZ, diagonal),
     };
   }
 
@@ -526,13 +538,14 @@ export function instantiateBuilding(
   // 0.015 world so the paving actually shows.
   if (padMesh) padMesh.position.y = (0.015 - root.position.y) / (scale * sy);
 
+  const diagonal = isDiagonalRotation(rotation);
+  if (diagonal) root.rotation.y += Math.PI / 4;
   return {
     root,
     meshes,
     meshKeys,
     height: height - sink,
-    offsetX: -centerX * scale,
-    offsetZ: -centerZ * scale,
+    ...recenterOffset(centerX * scale, centerZ * scale, diagonal),
   };
 }
 

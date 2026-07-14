@@ -1,6 +1,6 @@
 import assert from "node:assert";
 
-import { BUILDING_METADATA_BY_ID, rotatedFootprint } from "./buildings.ts";
+import { BUILDING_METADATA_BY_ID, footprintMask, rotatedFootprint } from "./buildings.ts";
 import type { TileMap } from "./grid.ts";
 import { stamp } from "./checkHelpers.ts";
 import { OFFER_EXPIRY_MONTHS } from "./commissions.ts";
@@ -189,6 +189,50 @@ const commission = (
   );
   assert.ok(clean);
   assert.equal(clean.artworks[0], elsewhere);
+}
+
+// A diagonal building (rotation 4-7) razes exactly its mask cells: a click on
+// any non-anchor mask cell clears the whole mask, and a bystander parked in a
+// bounding-box gap the mask never claimed survives untouched.
+{
+  const origin = { x: 20, y: 20 };
+  const rotation = 4;
+  const mask = footprintMask(BUILDING_METADATA_BY_ID.workshop, rotation);
+  const inMask = new Set(mask.cells.map((c) => `${origin.x + c.x},${origin.y + c.y}`));
+  const xs = mask.cells.map((c) => c.x);
+  const ys = mask.cells.map((c) => c.y);
+  let gapKey = "";
+  for (let y = Math.min(...ys); y <= Math.max(...ys) && !gapKey; y += 1) {
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += 1) {
+      const key = `${origin.x + x},${origin.y + y}`;
+      if (!inMask.has(key)) {
+        gapKey = key;
+        break;
+      }
+    }
+  }
+  assert.ok(gapKey); // a diagonal mask always leaves bounding-box gaps
+
+  const tiles = stamp("workshop", origin, rotation);
+  const [gx, gy] = gapKey.split(",").map(Number) as [number, number];
+  const foreign = stamp("path", { x: gx, y: gy })[gapKey]!;
+  tiles[gapKey] = foreign;
+
+  const clickCell = mask.cells[1]!; // any non-anchor mask cell
+  const result = razeBuilding(
+    {
+      florins: 0,
+      artists: [],
+      artworks: [],
+      commissions: [],
+      map: { tiles },
+      time: { tickCount: 0 },
+    },
+    { x: origin.x + clickCell.x, y: origin.y + clickCell.y }
+  );
+  assert.ok(result);
+  for (const key of inMask) assert.equal(result.tiles[key], undefined);
+  assert.equal(result.tiles[gapKey], foreign);
 }
 
 console.log("raze.check: all assertions passed");

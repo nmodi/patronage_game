@@ -7,7 +7,13 @@ import type { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
-import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "~/game/buildings";
+import {
+  BUILDING_METADATA_BY_ID,
+  isDiagonalRotation,
+  rotatedFootprint,
+  yawOfRotation,
+  type BuildingId,
+} from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { rotateSlotCell } from "~/game/display";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
@@ -26,6 +32,7 @@ import {
 } from "./displayArt";
 import {
   doorLocalSide,
+  effectiveFullRotation,
   effectiveRotation,
   getBlendGroup,
   getFrontDirection,
@@ -103,6 +110,8 @@ const SOLID_TYPES = new Set<BuildingType>(["city", "residential", "artist", "ser
  * building. Local +X faces grid [+x, −y, −x, +y] for quarter rotations 0-3.
  */
 function computeExtend(tile: Tile, metadata: BuildingMetadata, tiles: Record<string, Tile>) {
+  // Diagonal buildings never extend: the side machinery is cardinal (v1 scope).
+  if (isDiagonalRotation(tile.rotation)) return { negX: false, posX: false };
   const { width, depth } = rotatedFootprint(metadata, tile.rotation);
   const { x, y } = tile.position;
   const solidAt = (cx: number, cy: number) => {
@@ -153,6 +162,8 @@ function computeBlend(
   metadata: BuildingMetadata,
   tiles: Record<string, Tile>
 ): BlendSides {
+  // Diagonal row-houses render isolated — no shared walls at 45° (v1 scope).
+  if (isDiagonalRotation(tile.rotation)) return {};
   const group = getBlendGroup(tile.buildingId);
   const r = effectiveRotation(tile.buildingId, tile.position, tile.rotation);
   const door = doorLocalSide(tile.buildingId);
@@ -181,7 +192,7 @@ function computeBlend(
       const neighbor = tiles[`${cell.x},${cell.y}`];
       if (!neighbor || getBlendGroup(neighbor.buildingId) !== group) continue;
       const origin = tiles[`${neighbor.origin.x},${neighbor.origin.y}`];
-      if (!origin) continue;
+      if (!origin || isDiagonalRotation(origin.rotation)) continue; // no blending toward 45° houses
       const rn = effectiveRotation(origin.buildingId, origin.position, origin.rotation);
       if (localSideForGrid(facing, rn) === doorLocalSide(origin.buildingId)) continue;
       blend[local] = true;
@@ -256,6 +267,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     shadowGenerator.addShadowCaster(mesh);
     const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
     mesh.position.set(x, y, z);
+    mesh.rotation.y = yawOfRotation(tile.rotation);
     return mesh;
   }
 
@@ -274,6 +286,11 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     apron.isPickable = false;
     const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
     apron.position.set(x, 0.005, z);
+    // Diagonal buildings: the quarter-frame dims above already carry the odd
+    // swap, so a fixed 45° lands the apron parallel to the building at every
+    // diagonal quarter. Corners spill onto unclaimed mask-gap cells; roads
+    // (y 0.01) and buildings draw over them.
+    if (isDiagonalRotation(tile.rotation)) apron.rotation.y = Math.PI / 4;
     return apron;
   }
 
@@ -287,7 +304,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     if (!slots) return [];
     const originKey = `${tile.position.x},${tile.position.y}`;
     const bySlot = displayedByOrigin.get(originKey);
-    const r = effectiveRotation(tile.buildingId, tile.position, tile.rotation);
+    const r = effectiveFullRotation(tile.buildingId, tile.position, tile.rotation);
     const center = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
     const art: DisplayArtHandle[] = [];
 
@@ -322,11 +339,13 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       }
     }
     if (front && filled.length > 0) {
-      const theta = (Math.PI / 2) * r;
+      const theta = yawOfRotation(r);
       const dirX = front[0] * Math.cos(theta) + front[1] * Math.sin(theta);
       const dirZ = -front[0] * Math.sin(theta) + front[1] * Math.cos(theta);
-      const fp = rotatedFootprint(metadata, tile.rotation);
-      const half = ((Math.abs(dirX) > 0.5 ? fp.width : fp.depth) * CELL_SIZE) / 2;
+      // front is a local direction, so the facade half-extent is the local
+      // axis it points along — exact at every rotation, 45° included.
+      const half =
+        ((front[0] !== 0 ? metadata.footprint.width : metadata.footprint.depth) * CELL_SIZE) / 2;
       // The painting stands free in the open just in front of the facade, so it
       // never hides in the busy kit relief; the stand carries its own height.
       const standDist = half * getModelFit(tile.buildingId) + 0.3;
@@ -466,13 +485,18 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     const extend = hasExtensions(tile.buildingId) ? computeExtend(tile, metadata, renderedTiles) : null;
     const blend = getBlendGroup(tile.buildingId) != null ? computeBlend(tile, metadata, renderedTiles) : null;
     const segment = isSegment(tile.buildingId) ? computeSegment(tile, renderedTiles) : null;
-    const extendKey = extend
-      ? `${extend.negX ? "n" : ""}${extend.posX ? "p" : ""}`
-      : blend
-        ? `b${blend.posX ? 1 : 0}${blend.negX ? 1 : 0}${blend.posZ ? 1 : 0}${blend.negZ ? 1 : 0}`
-        : segment
-          ? `s${segment.px ? 1 : 0}${segment.nx ? 1 : 0}${segment.pz ? 1 : 0}${segment.nz ? 1 : 0}`
-          : "";
+    // Rotation joins the key so a raze+rebuild race can never leave a stale
+    // orientation (placed tiles never mutate rotation in place otherwise).
+    const rotationKey = tile.rotation != null ? `r${tile.rotation}|` : "";
+    const extendKey =
+      rotationKey +
+      (extend
+        ? `${extend.negX ? "n" : ""}${extend.posX ? "p" : ""}`
+        : blend
+          ? `b${blend.posX ? 1 : 0}${blend.negX ? 1 : 0}${blend.posZ ? 1 : 0}${blend.negZ ? 1 : 0}`
+          : segment
+            ? `s${segment.px ? 1 : 0}${segment.nx ? 1 : 0}${segment.pz ? 1 : 0}${segment.nz ? 1 : 0}`
+            : "");
     const displayKey = displaySignature(displayedByOrigin.get(key));
     let nextEntry = entry;
     const staleBox = nextEntry?.box && hasModel(tile.buildingId);

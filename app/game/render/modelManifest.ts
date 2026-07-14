@@ -830,6 +830,19 @@ export function effectiveRotation(
   return def?.randomRotate === "quarter" ? hashPosition(gridPos.x, gridPos.y) % 4 : 0;
 }
 
+/** effectiveRotation keeping the diagonal component (0-7): a stored rotation
+ * passes through whole; seeded rotations are always cardinal quarters. Use
+ * where the 45° offset matters (display art, yaw) — the quarter side-ring
+ * machinery (blend/extend) stays on effectiveRotation. */
+export function effectiveFullRotation(
+  buildingId: BuildingId,
+  gridPos: { x: number; y: number },
+  rotation?: number
+) {
+  if (rotation != null) return ((rotation % 8) + 8) % 8;
+  return effectiveRotation(buildingId, gridPos, rotation);
+}
+
 // Rotation r turns local +X to face grid +x, −y, −x, +y (r = 0-3) — the same
 // table computeExtend uses. Both rings are in facing order, so rotating by r
 // just advances the grid index: local side i faces grid side (i + r) % 4.

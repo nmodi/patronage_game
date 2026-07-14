@@ -1,4 +1,4 @@
-import { BUILDING_METADATA_BY_ID, rotatedFootprint, type BuildingId } from "./buildings.ts";
+import { BUILDING_METADATA_BY_ID, footprintMask, type BuildingId } from "./buildings.ts";
 import { reopenCommission } from "./commissions.ts";
 import { RAZE_SALVAGE_FRACTION } from "./constants.ts";
 import type { GridPos, TileMap } from "./grid.ts";
@@ -69,20 +69,16 @@ export function razeBuilding(
   if (!tile) return null;
 
   const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-  const { width, depth } = metadata
-    ? rotatedFootprint(metadata, tile.rotation)
-    : { width: 1, depth: 1 };
+  const cells = metadata ? footprintMask(metadata, tile.rotation).cells : [{ x: 0, y: 0 }];
   const { x: originX, y: originY } = tile.origin;
   const originKey = `${originX},${originY}`;
   const tiles = { ...state.map.tiles };
 
-  for (let dx = 0; dx < width; dx += 1) {
-    for (let dy = 0; dy < depth; dy += 1) {
-      const key = `${originX + dx},${originY + dy}`;
-      const cell = tiles[key];
-      // Overlapping decorations and structures retain cells owned by another origin.
-      if (cell?.origin.x === originX && cell.origin.y === originY) delete tiles[key];
-    }
+  for (const offset of cells) {
+    const key = `${originX + offset.x},${originY + offset.y}`;
+    const cell = tiles[key];
+    // Overlapping decorations and structures retain cells owned by another origin.
+    if (cell?.origin.x === originX && cell.origin.y === originY) delete tiles[key];
   }
 
   const evicting = state.artists.some((artist) => artist.homeTileKey === originKey);
