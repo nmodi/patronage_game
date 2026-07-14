@@ -61,6 +61,14 @@ export function createCitizens(scene: Scene) {
       { x: x - 1, y },
       { x, y: y + 1 },
       { x, y: y - 1 },
+      // Diagonal roads are corner-touching staircases; the rotated ribbon
+      // visually covers the center-to-center diagonal, so plain 8-adjacency
+      // reads fine (no corner-cut rule — a 1-wide diagonal has grass flanks
+      // and a corner-cut requirement would forbid walking it at all).
+      { x: x + 1, y: y + 1 },
+      { x: x + 1, y: y - 1 },
+      { x: x - 1, y: y + 1 },
+      { x: x - 1, y: y - 1 },
     ].filter((n) => walkable.has(key(n)));
     const ahead = options.filter((n) => n.x !== cameFrom.x || n.y !== cameFrom.y);
     const pool = ahead.length > 0 ? ahead : options;
@@ -108,7 +116,11 @@ export function createCitizens(scene: Scene) {
     // Walk speed tracks sim speed (tickInterval = BASE / multiplier).
     const dt = (scene.getEngine().getDeltaTime() / 1000) * (BASE_TICK_INTERVAL / tickInterval);
     for (const citizen of citizens) {
-      citizen.t += (citizen.speed * dt) / CELL_SIZE;
+      // A diagonal hop spans √2 cells — scale progress so walk speed stays
+      // constant in world units.
+      const stepLen =
+        citizen.from.x !== citizen.to.x && citizen.from.y !== citizen.to.y ? Math.SQRT2 : 1;
+      citizen.t += (citizen.speed * dt) / (CELL_SIZE * stepLen);
       if (citizen.t >= 1) {
         const cameFrom = citizen.from;
         citizen.from = citizen.to;

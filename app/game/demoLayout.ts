@@ -18,6 +18,26 @@ export function road(x0: number, y0: number, x1: number, y1: number, id: Buildin
   return cells;
 }
 
+// Diagonal run: one cell per ±(1,±1) step, wider roads offset +1 along x per
+// row; the 4th tuple element is Tile.rotation (1 = NE, 3 = NW — roadStretch.ts).
+export function diagRoad(
+  x0: number,
+  y0: number,
+  steps: number,
+  sx: 1 | -1,
+  sy: 1 | -1,
+  id: BuildingId = "road",
+  width = 1
+) {
+  const cells: Array<[number, number, BuildingId, number]> = [];
+  for (let i = 0; i <= steps; i += 1) {
+    for (let w = 0; w < width; w += 1) {
+      cells.push([x0 + i * sx + w, y0 + i * sy, id, sx === sy ? 1 : 3]);
+    }
+  }
+  return cells;
+}
+
 // ponytail: dev-only visual test scene (load /?demo). Not reachable in normal play.
 // A Renaissance town on the west bank of a river (map seed "toscana"): the Main
 // Plaza at the center with the cathedral (west) and palazzo (south) fronting
@@ -206,4 +226,13 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   [78, 14, "tree"], [98, 18, "tree"], [108, 24, "cypress"], [112, 12, "tree"],
   [100, 66, "tree"], [110, 72, "cypress"], [78, 92, "tree"], [104, 92, "tree"],
   [12, 108, "tree"], [40, 110, "cypress"], [74, 108, "tree"], [100, 106, "tree"],
+
+  // — Diagonal streets (Florence-style cuts across the grid; both ribbon
+  //   orientations exercised for the renderer) —
+  // NE width-2 road: cuts the SW field from the Oltrarno back street (gy66-67)
+  // down to the south cross-road (gy80) — the shortcut a real city would wear.
+  ...diagRoad(34, 68, 11, 1, 1, "road", 2),
+  // NW path: a lane threading Region A from cross street gy68 up between the
+  // terraces and the workshop block.
+  ...diagRoad(49, 68, 6, 1, -1, "path"),
 ];

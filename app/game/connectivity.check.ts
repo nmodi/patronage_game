@@ -71,7 +71,31 @@ function road(tiles: Record<string, ConnectivityTile>, x0: number, x1: number, y
   put(tiles, "materials", "market", 13, 2, 2, 2); // touches road (12,2), d=2
   const out = computePlazaConnectivity(tiles);
   assert.equal(out.get("12,0"), 1); // refreshed to full at the mini-hub
-  assert.equal(out.get("13,2"), 1 - 2 / PLAZA_REACH);
+  // road (12,2) reaches plaza cell (11,1) diagonally now → d=1, not 2
+  assert.equal(out.get("13,2"), 1 - 1 / PLAZA_REACH);
+}
+
+// A thin diagonal staircase conducts the bonus, one step per cell.
+{
+  const tiles: Record<string, ConnectivityTile> = {};
+  put(tiles, "city", "town_center_plaza", 0, 0, 2, 2);
+  put(tiles, "road", "road", 2, 2); // diagonal from plaza corner (1,1): d=1
+  put(tiles, "road", "road", 3, 3); // d=2
+  put(tiles, "road", "road", 4, 4); // d=3
+  put(tiles, "materials", "market", 2, 4, 2, 2); // cell (3,4) orthogonal to road (3,3)
+  const out = computePlazaConnectivity(tiles);
+  assert.equal(out.get("2,4"), 1 - 2 / PLAZA_REACH);
+}
+
+// Past PLAZA_REACH a diagonal chain fades out like a straight one.
+{
+  const tiles: Record<string, ConnectivityTile> = {};
+  put(tiles, "city", "town_center_plaza", 0, 0, 2, 2);
+  for (let i = 2; i <= 2 + PLAZA_REACH; i += 1) put(tiles, "road", "road", i, i); // d=1..PLAZA_REACH+1
+  const end = 2 + PLAZA_REACH;
+  put(tiles, "residential", "cottage", end, end + 1); // orthogonal to the last stair cell
+  const out = computePlazaConnectivity(tiles);
+  assert.ok(!out.has(`${end},${end + 1}`));
 }
 
 // An isolated secondary plaza radiates nothing — only the main plaza seeds.

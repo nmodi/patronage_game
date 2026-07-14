@@ -82,9 +82,11 @@ Facade language for tiers 3–5 (when built): graduated **rustication** (rough-c
 
 ## Roads
 
-Roads are **player-placed** by dragging stretches, like any building. Grid-aligned. They are light structure/decoration — buildings do not require road connection to function.
+Roads are **player-placed** by dragging stretches, like any building. Grid-aligned (paved variants also drag at 45° — see Diagonal streets). They are light structure/decoration — buildings do not require road connection to function.
 
 **Widths** *(built)*: the grid is subdivided 2× relative to building scale (cells are 0.5 world units; buildings span 4+ cells), so roads come in three widths as build-menu variants — **Path** (1 cell), **Road** (2 cells), **Avenue** (3 cells) — plus a **Dirt Path** (1 cell, packed-earth texture, 10ƒ) for country lanes. Cost is per cell (25ƒ for paved), so wider roads cost more per length. Purely aesthetic + cost choice; all variants carry plaza connectivity identically.
+
+**Diagonal streets** *(built — July 2026)*: paved road drags (Path/Road/Avenue) snap to 8 octants — the 4 cardinals plus 45° diagonals (Florence's medieval cuts across its Roman grid; boundaries at 22.5°). A diagonal run is a thin staircase of ordinary road cells, one per ±(1,±1) step (wider roads stamp rows offset one cell along x, keeping the set orthogonally contiguous), with the ribbon orientation stored in the tile's `rotation` field (`1` NE / `3` NW via `app/game/roadStretch.ts`; cardinal roads stay `undefined`, so old saves are untouched — no save migration). The renderer draws those cells as ±45°-rotated, √2-stretched decals forming a continuous ribbon; plaza connectivity and citizen walks traverse diagonal adjacency (step cost 1 — slightly generous vs √2, fine per principle 6). Where a diagonal crosses a cardinal road the shared cell keeps the first placer's orientation — overlapping decals read as a junction plate (autotiling is a follow-up). Dirt Path and Stone Bridge remain cardinal-only for now (dirt's autotiling overlay and bridge parapet rails are deferred). By construction a diagonal street is slightly narrower and cheaper per world-length than its cardinal twin — accepted at this cozy scale.
 
 **Stone Bridge** *(built — July 2026)*: a fourth road variant (2 cells wide, 80ƒ/cell) and the only structure placeable on water cells; on land it reads as a stone causeway. Raised limestone deck with parapet rails; carries plaza connectivity and citizens across the river like any road. See the water pass under the Graphics track.
 

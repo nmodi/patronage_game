@@ -15,7 +15,7 @@ export interface Tile {
   isOrigin: boolean;
   isActive: boolean;
   variant?: number;
-  rotation?: number;
+  rotation?: number; // buildings: 0-3 quarter-turns; paved roads: undefined | 1 (NE) | 3 (NW) — see roadStretch.ts
   workers: number;
   builtTick: number;
 }

@@ -1,5 +1,5 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
-import { Matrix } from "@babylonjs/core/Maths/math.vector";
+import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import "@babylonjs/core/Meshes/thinInstanceMesh";
 import type { Mesh } from "@babylonjs/core/Meshes/mesh";
@@ -8,6 +8,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE } from "~/game/constants";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
+import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/roadStretch";
 import { getRoadMaterial } from "./paths";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 
@@ -61,10 +62,25 @@ export function createRoadRenderer(scene: Scene) {
     }
     const matrices = new Float32Array(batch.tiles.size * 16);
     const matrix = Matrix.Identity();
+    // Diagonal ribbon pieces: consecutive staircase centers are √2·CELL_SIZE
+    // apart, so a √2-long quad abuts exactly; y 0.0115 (vs cardinal 0.01)
+    // keeps junction/cross-row overlaps from coplanar shimmer.
+    const diagScale = new Vector3(Math.SQRT2, 1, 1);
+    const diagQuat = new Quaternion();
+    const diagPos = new Vector3();
     let offset = 0;
     for (const tile of batch.tiles.values()) {
       const { x, z } = gridToWorld(tile.position.x, tile.position.y);
-      Matrix.TranslationToRef(x, 0.01, z, matrix);
+      if (tile.rotation === ROAD_DIAG_NE || tile.rotation === ROAD_DIAG_NW) {
+        // NE = grid dir (1,1) → world (+x,+z): θ = −π/4 under the codebase yaw
+        // convention (+X → (cos θ, 0, −sin θ)); NW mirrors to +π/4.
+        const theta = tile.rotation === ROAD_DIAG_NE ? -Math.PI / 4 : Math.PI / 4;
+        Quaternion.RotationYawPitchRollToRef(theta, 0, 0, diagQuat);
+        diagPos.set(x, 0.0115, z);
+        Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
+      } else {
+        Matrix.TranslationToRef(x, 0.01, z, matrix);
+      }
       matrix.copyToArray(matrices, offset);
       offset += 16;
     }

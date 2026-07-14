@@ -14,6 +14,7 @@ import { plinthSlotAt } from "~/game/display";
 import { gridToWorld, worldToGrid, type GridPos } from "~/game/grid";
 import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
 import { getRazeImpact } from "~/game/raze";
+import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/roadStretch";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
   instantiateBuilding,
@@ -176,39 +177,6 @@ export function createPlacementController(scene: Scene) {
     if (state.hoveredTileKey !== key) state.setHoveredTile(key);
   }
 
-  function buildRoadStretch(anchor: GridPos, hover: GridPos, width: number) {
-    const dx = hover.x - anchor.x;
-    const dy = hover.y - anchor.y;
-    const positions: GridPos[] = [];
-
-    // No drag direction yet — a width×width block under the cursor, so the
-    // ghost shows the road's true size before the axis is known.
-    if (dx === 0 && dy === 0) {
-      for (let wx = 0; wx < width; wx += 1) {
-        for (let wy = 0; wy < width; wy += 1) {
-          positions.push({ x: anchor.x + wx, y: anchor.y + wy });
-        }
-      }
-      return positions;
-    }
-
-    // Extra width stamps on the positive side of the drag line, matching
-    // footprint-origin semantics.
-    if (Math.abs(dx) >= Math.abs(dy)) {
-      const step = dx >= 0 ? 1 : -1;
-      for (let x = anchor.x; x !== hover.x + step; x += step) {
-        for (let w = 0; w < width; w += 1) positions.push({ x, y: anchor.y + w });
-      }
-    } else {
-      const step = dy >= 0 ? 1 : -1;
-      for (let y = anchor.y; y !== hover.y + step; y += step) {
-        for (let w = 0; w < width; w += 1) positions.push({ x: anchor.x + w, y });
-      }
-    }
-
-    return positions;
-  }
-
   function ensureRoadPreviewCount(count: number) {
     while (roadPreviewMeshes.length > count) {
       roadPreviewMeshes.pop()?.dispose();
@@ -224,7 +192,7 @@ export function createPlacementController(scene: Scene) {
     }
   }
 
-  function updateRoadPreview(positions: GridPos[], canPlace: boolean) {
+  function updateRoadPreview(positions: GridPos[], canPlace: boolean, rotation?: RoadRotation) {
     ensureRoadPreviewCount(positions.length);
     for (let i = 0; i < roadPreviewMeshes.length; i += 1) {
       const mesh = roadPreviewMeshes[i];
@@ -235,6 +203,15 @@ export function createPlacementController(scene: Scene) {
       }
       const world = gridToWorld(position.x, position.y);
       mesh.position.set(world.x, 0.004, world.z);
+      // Diagonal stretches preview with the final ribbon transform; reset is
+      // required because these pooled quads also serve the raze highlight.
+      if (rotation) {
+        mesh.rotation.y = rotation === ROAD_DIAG_NE ? -Math.PI / 4 : Math.PI / 4;
+        mesh.scaling.set(Math.SQRT2, 1, 1);
+      } else {
+        mesh.rotation.y = 0;
+        mesh.scaling.setAll(1);
+      }
       mesh.material = canPlace ? validMat : invalidMat;
       mesh.setEnabled(true);
     }
@@ -242,10 +219,19 @@ export function createPlacementController(scene: Scene) {
 
   function updateRoadPlacement(state: GameState, buildingId: BuildingId, currentPosition: GridPos) {
     const width = BUILDING_METADATA_BY_ID[buildingId]?.roadWidth ?? 1;
-    const positions = buildRoadStretch(roadAnchor ?? currentPosition, currentPosition, width);
+    // Diagonals are paved-roads-only: dirt_path autotiling and bridge parapets
+    // are cardinal, and this function also serves linear decorations
+    // (fence/stone_wall/colonnade) whose segment renderer is cardinal.
+    const allowDiagonal = buildingId === "path" || buildingId === "road" || buildingId === "avenue";
+    const { positions, rotation } = buildRoadStretch(
+      roadAnchor ?? currentPosition,
+      currentPosition,
+      width,
+      allowDiagonal
+    );
     // Cells still needing placing (and paying for); null = blocked or unaffordable.
     const newCells = planLinearPlacement(state, positions, buildingId)?.positions ?? null;
-    updateRoadPreview(positions, newCells !== null);
+    updateRoadPreview(positions, newCells !== null, rotation);
 
     if (!pendingClick) return;
     pendingClick = false;
@@ -257,7 +243,7 @@ export function createPlacementController(scene: Scene) {
     }
 
     if (!newCells) return;
-    if (newCells.length === 0 || state.placeTiles(newCells, buildingId)) {
+    if (newCells.length === 0 || state.placeTiles(newCells, buildingId, rotation)) {
       roadAnchor = null;
       clearRoadPreview();
     }
