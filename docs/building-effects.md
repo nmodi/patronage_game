@@ -26,13 +26,13 @@ Every effect below plugs into one of these existing anchor points — which is w
 
 ### 1. Unlock a commission lane
 
-The most important slot — landmarks widen the *input* to the core loop rather than adding parallel systems. The effect is felt entirely through the Phase 8 offer stream: new requesters, bigger rewards, new artwork types. Concretely, gating is either a new `REQUESTERS` entry (Cathedral, Palazzo — the only two requester sources, see [factions.md](factions.md)) or a new commission *lane* the existing requesters draw from (everything else below).
+The most important slot — landmarks widen the *input* to the core loop rather than adding parallel systems. The effect is felt entirely through the Phase 8 offer stream: new requesters, bigger rewards, new artwork types. The pool is never empty — the Church plus 1–2 seed-dealt starting noble houses offer from day one (see [factions.md](factions.md)) — so an unlock always widens grandeur or breadth, never switches the offer stream on. Concretely, gating is either requester-pool shaping (Palazzo installs the next noble house; Cathedral elevates the always-present Church) or a new commission *lane* the existing requesters draw from (everything else below).
 
 | Building | Unlocks |
 |---|---|
-| Cathedral | Religious commissions — "The Church" enters the requester pool only once a cathedral stands |
-| Palazzo | That noble family's commissions (see below) |
-| Baptistery | Higher-*tier* Church commissions |
+| Cathedral | Grander Church commissions — the Church offers modest works from day one; a standing cathedral opens its upper favor rungs and signature chain |
+| Palazzo | The next noble family's commissions (see below) |
+| Baptistery | The Church's alternate capstone arc — the bronze doors (the Cathedral gates the ladder rungs; the Baptistery adds this alternate top-rung arc) |
 | Banking House | Larger noble commissions |
 | Wool Merchant | Tapestry commissions |
 | Glassblower | Stained-glass commissions |
@@ -83,7 +83,7 @@ School speeds apprentice XP; Anatomical Theatre gives a technique bump. Both plu
 
 The slots above say *what* each building does; these are the cheap levers that express them — each one line in an existing function. New buildings should pick from this list before inventing anything:
 
-1. **Requester-pool gating** — building existence adds/removes `REQUESTERS` entries; exactly two sources (Cathedral→Church, Palazzo→named family — see [factions.md](factions.md)).
+1. **Requester-pool shaping** — building existence shapes a pool that is never empty (the Church + the seed-dealt starting houses offer from day one). Exactly two sources: Palazzo → the next noble house from the seed list (roster growth), and Cathedral → the Church's upper rungs (elevation of an always-present requester — see [factions.md](factions.md)).
 2. **Offer-stream shaping** — derive `COMMISSION_OFFER_CHANCE` / `MAX_OPEN_OFFERS` / `OFFER_EXPIRY_MONTHS` from buildings (Banking House: longer offer expiry — "the bank underwrites patience").
 3. **Payout skewing** — flat % on commission completion (Banking House +15% florins; Baptistery +15% prestige on Church works).
 4. **Arrival shaping** — terms in `maybeArriveArtist` (a Loggia or "Osteria degli Artisti" raises artist arrival chance).
@@ -109,7 +109,7 @@ A touch of downside makes a build a decision instead of a reflex. The rules: a n
 **B — Worker draw on landmarks.** Reuses the existing staffing system wholesale — the negative is pulling scarce workers from the pool, and the inactive/desaturate feedback is already built:
 
 - Bell Tower: `workersRequired: 1` (the bell-ringer) — its hub refresh and inspiration trickle run only while staffed
-- Cathedral: a small clergy staff (~2) keeps the Church commission lane open
+- Cathedral: a small clergy staff (~2) keeps its elevation live — understaffed, the Church's offers drop back to their day-one modest tier (never below it)
 
 **D — Forgone plaza bonus.** Noisy buildings — Marble Supplier, Timber Yard, Market — don't *receive* the plaza connectivity bonus (one exclusion check where `plazaBoost` is applied in `app/game/tick.ts`). Never below base rate, no neighbor damage — but prime plaza frontage is wasted on a marble yard, so placement gets its beat of thought.
 
@@ -119,7 +119,7 @@ A touch of downside makes a build a decision instead of a reflex. The rules: a n
 
 ## Palazzo: resolving the dual listing
 
-The main doc lists Palazzo as both a Civic landmark and Housing tier 4. **This doc collapses them:** a Palazzo is housing that also installs a named noble family as a commission requester — the first palazzo built is the Medici, the second the Strozzi, and so on down a fixed family list. One building, two effect slots (housing + commission unlock), and it makes the "named family palazzos" stretch item nearly free. Family offers skew prestige-heavy (the existing `mix: "prestige"` path). *Stretch: each palazzo also raises the open-offer cap by 1 — nobles keep the docket full.*
+The main doc lists Palazzo as both a Civic landmark and Housing tier 4. **This doc collapses them:** a Palazzo is housing that also installs the next noble family from the seed-shuffled list as a commission requester — picking up after the 1–2 starting houses every run is dealt at game start (see [factions.md](factions.md)). One building, two effect slots (housing + commission unlock), and it makes the "named family palazzos" stretch item nearly free. Family offers skew prestige-heavy (the existing `mix: "prestige"` path). *Stretch: each palazzo also raises the open-offer cap by 1 — nobles keep the docket full.*
 
 ---
 

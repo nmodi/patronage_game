@@ -120,7 +120,7 @@ Commissions arrive from flavorful requesters: **the Church** and **named noble f
 
 **No relationship meters, no neglect consequences, no rivalry systems.** Requesters are narrative texture on commissions, not a management layer. (If the game needs more tension later, meters can return — but they must earn their UI panel.)
 
-A fuller faction system — taste profiles, one-way favor ladders, signature commission chains, a seed-rolled roster — is designed in [factions.md](factions.md). Still flavor-first: no meter ever goes down, no neglect consequences, no faction panel.
+A fuller faction system — taste profiles, one-way favor ladders, signature commission chains, a seed-rolled roster — is designed in [factions.md](factions.md). Still flavor-first: no meter ever goes down, no neglect consequences, no faction panel — and the requester pool is never empty, so commissions flow from day one (landmarks gate grandeur and roster growth, never the offer stream).
 
 ---
 
@@ -152,7 +152,7 @@ Suppliers have **limited capacity** — the primary scarcity mechanic:
 | Marble Supplier | Sculptors (marble commissions) |
 | Bronze Foundry | Sculptors (bronze commissions) |
 | Goldsmith | Luxury commissions |
-| Timber Yard | Construction, woodworkers |
+| Timber Yard | Construction, woodworkers, architects (building commissions, when they land) |
 | Paper Mill | Scholars, printed works |
 
 Materials are not consumed — a working artist holds a supplier slot until the work completes. When demand exceeds capacity, additional artists of that type cannot work (oldest workshops keep their slots). Players build more suppliers to expand capacity. This forces the core prioritization: which artists get materials? Sculpture commissions come in **marble or bronze** (bronze the rarer, pricier medium), and the two draw from separate suppliers — so a bronze commission needs a Bronze Foundry, not just any sculptor with a marble slot.
@@ -167,7 +167,7 @@ Materials are not consumed — a working artist holds a supplier slot until the 
 
 Each commission has:
 - A **requester** (Church / noble family) — flavor and reward mix
-- A **required artist type** (painter, sculptor, …)
+- A **required artist type** (painter, sculptor, …) — *stretch:* plus an optional **minimum rank** of that type (see Later / stretch → Architects & building commissions)
 - A **required material** (implies supplier capacity must be available) — *(built)* sculpture commissions roll marble or bronze
 - A **duration** in months
 - A **reward** (florins and/or prestige)
@@ -198,10 +198,10 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 
 ### Civic / Landmark
 - **Plaza** / **Small Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Works. The Town Center Plaza is the **Main Plaza** — the connectivity hub; Plazas and Small Plazas (a 5-cell piazzetta, chapel-width) are secondary hubs that refresh its reach
-- **Cathedral** *(model built — placeable landmark; effect designed in [building-effects.md](building-effects.md), not yet wired)* — unlocks religious commissions
+- **Cathedral** *(model built — placeable landmark; effect designed in [building-effects.md](building-effects.md), not yet wired)* — unlocks the Church's grander commissions (the Church itself offers from day one — see [factions.md](factions.md))
 - **Market** *(built)* — generates Florins for now. **Planned repurpose:** once a richer economy system takes over money-making, the Market becomes an overflow supply source — spend florins there for extra material capacity when your suppliers are at their limits.
 - **Town Hall (Palazzo Comunale)** — the seat of the player's government: a crenellated civic fortress with a tall off-center tower (Palazzo Vecchio / Bargello type). Effect open — candidates: unlocks civic commissions, or a flat prestige boost. Like the Cathedral, it may break the skyline; civic owns that privilege
-- **Palazzo** *(model built — placeable landmark; effect designed in [building-effects.md](building-effects.md), not yet wired)* — unlocks noble-family commissions (housing + requester unlock — the dual listing is collapsed there)
+- **Palazzo** *(model built — placeable landmark; effect designed in [building-effects.md](building-effects.md), not yet wired)* — installs the next noble family as a requester (housing + requester unlock — the dual listing is collapsed there)
 - **Banking House** — enables larger noble commissions, boosts florins
 
 ### Production / Artistic
@@ -210,6 +210,7 @@ Workshops are per-discipline: each hosts and spawns only its own artist type.
 
 - **Painter's Workshop** *(built)* — painters; requires workers and material access
 - **Sculptor's Workshop** *(built)* — sculptors; same stats, reuses the workshop model for now
+- **Architect's Studio** — architects, the third discipline; grows into the building-commission pipeline (see Later / stretch → Architects & building commissions). Timber Yard is their supplier
 
 ### Suppliers (capacity-limited)
 - Pigment Trader *(built)*, Marble Supplier *(built)*, Bronze Foundry *(built — bronze sculpture commissions)*, Goldsmith, Timber Yard, Paper Mill, Glassblower (unlocks stained-glass commissions)
@@ -324,6 +325,11 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
   - Implementation notes: needs per-tile style state (the unused `Tile.variant` field fits), a first click-to-select interaction (`pickGridCell` → `tiles["x,y"]` → origin, same lookup the hover tooltip uses), and a style-picker popover. The renderer diffs tiles by object identity, but `renderOrigin`'s rebuild guard only checks `buildingId`/`extendKey` — the style must join that condition, and the pad batch keys (`pad:<size>:<style>`) already support per-style batches.
 - Neighborhood zoning (zones auto-fill with tier-appropriate housing)
 - Housing tiers 3–5; named family palazzos
+- **Architects & building commissions** — the third discipline grows into a construction pipeline, in three pieces that can land separately:
+  - **Architect's Studio** — the third per-discipline workshop; hosts and spawns architects, Timber Yard as their supplier. Early on architects contribute little — by design; their value compounds via the next two pieces.
+  - **The city teaches architects**: every structure the player places grants architects in an active studio a small XP lump **scaled by build cost** (a cathedral teaches much, a fence almost nothing — cost-scaling also stops decoration spam from farming XP). A fourth XP source alongside Phase 11's practice / teaching / completion, living in `XP_RATES` like the others. A mature city thus has a seasoned architect ready when the grand asks arrive.
+  - **Rank-gated commissions**: a commission may require not just an artist type but a **minimum rank** of it ("requires a Virtuoso architect"). The ordinary offer stream stays actionable — it only rolls requirements at or below the city's current best of that type; asks *above* your best appear solely on the favor ladder's upper rungs and signature chains ([factions.md](factions.md)), as aspirational carrots that wait patiently (an unmet rank gate never expires a chain or punishes — principle 7).
+  - **Building commissions**: factions eventually ask for *structures*, not just artworks — a family loggia, a chapel, the Dome itself as the Church chain's capstone. Leading model: the commission is the **design** — an architect works it like any commission (progress, supplier slot, duration), and completion unlocks the structure with the requester funding construction; the player still chooses where it stands, since placement staying in player hands is core. Alternatives (auto-placement, part-subsidized cost) stay open until built.
 - Expanded building roster (religious, trade, social categories; River & Waterfront set — gated on the water-adjacency design noted in that section)
 - **Lungarno row** — a taller riverfront housing variant that blends into a continuous wall along the water (the Florence lungarno look), reusing the existing row-house blending machinery (`computeBlend`)
 - Diminishing returns on duplicate buildings
