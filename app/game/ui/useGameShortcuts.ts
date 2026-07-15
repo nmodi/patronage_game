@@ -39,4 +39,22 @@ export function useGameShortcuts() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    // Trackpad pinch arrives as ctrl+wheel; unhandled over the DOM HUD it
+    // browser-zooms the page and slides the fixed bars off-screen (the canvas
+    // already consumes wheel for camera zoom). Cmd +/- keyboard zoom still works.
+    function handleWheel(event: WheelEvent) {
+      if (event.ctrlKey) event.preventDefault();
+    }
+    const handleGesture = (event: Event) => event.preventDefault(); // Safari's gesture events
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    window.addEventListener("gesturestart", handleGesture);
+    window.addEventListener("gesturechange", handleGesture);
+    return () => {
+      window.removeEventListener("wheel", handleWheel);
+      window.removeEventListener("gesturestart", handleGesture);
+      window.removeEventListener("gesturechange", handleGesture);
+    };
+  }, []);
 }
