@@ -37,6 +37,7 @@ import {
   SCATTER_FILES,
   scatterEnvironment as buildEnvironmentScatter,
 } from "./environmentScatter";
+import { PROC_PREFIX, buildProceduralContainer } from "./proceduralPieces";
 import { disposePathMaterials, getPadMaterial, getPlazaMaterial } from "./paths";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 
@@ -150,7 +151,13 @@ function convertMaterials(container: AssetContainer, file: string, scene: Scene)
 async function getContainer(file: string, scene: Scene) {
   let load = containerLoads.get(file);
   if (!load) {
-    load = LoadAssetContainerAsync(file, scene).then((container) => {
+    // Generated pieces enter here rather than through a parallel path, so the
+    // whole pipeline below — material conversion, tinting, desaturation,
+    // caching, batching, blend stretch — treats them like any kit file.
+    const source = file.startsWith(PROC_PREFIX)
+      ? Promise.resolve(buildProceduralContainer(file, scene))
+      : LoadAssetContainerAsync(file, scene);
+    load = source.then((container) => {
       if (scene.isDisposed) {
         container.dispose();
         return null;

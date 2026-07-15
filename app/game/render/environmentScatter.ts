@@ -4,7 +4,7 @@ import { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
-import { CYPRESS_STRETCH, CYPRESS_VARIANTS, NATURE, TOWN } from "./modelManifest";
+import { CYPRESS_STRETCH, CYPRESS_VARIANTS, NATURE } from "./modelManifest";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 
 const SCATTER_OLIVE = [NATURE + "tree_default.glb", NATURE + "tree_fat.glb", NATURE + "tree_oak.glb"];
@@ -19,7 +19,7 @@ export const SCATTER_FILES = [
   ...CYPRESS_VARIANTS.map((variant) => variant.file),
   NATURE + "tree_simple.glb",
   NATURE + "crops_dirtRow.glb",
-  TOWN + "wall-block.glb",
+  "proc:block",
 ];
 const ENV_CLEARANCE = 4;
 const ENV_DEPTH = 60;
@@ -159,8 +159,8 @@ export function scatterEnvironment(
       const x = p.x + Math.cos(theta) * i * scale;
       const z = p.z + Math.sin(theta) * i * scale;
       if (stone) {
-        // Same slab kitbash as the stone_wall decoration (wall-block cube).
-        place(TOWN + "wall-block.glb", x, z, {
+        // Same slab kitbash as the stone_wall decoration (a squashed cube).
+        place("proc:block", x, z, {
           scale,
           stretch: [1, 0.28, 0.14],
           rotY: -theta,
