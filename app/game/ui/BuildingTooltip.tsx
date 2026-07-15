@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import {
   computePlazaConnectivity,
-  PLAZA_CONNECTION_BONUS,
+  connectionBonusOf,
   PLAZA_IDS,
 } from "~/game/connectivity";
 import { displayBoost } from "~/game/display";
@@ -24,8 +24,6 @@ function formatAmount(value: number) {
   return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
-const PLAZA_BONUS_MAX_PCT = `+${Math.round(PLAZA_CONNECTION_BONUS * 100)}%`;
-
 function getActiveEffects(
   metadata: BuildingMetadata,
   workers: number,
@@ -34,7 +32,7 @@ function getActiveEffects(
 ) {
   const effects: string[] = [];
   const displayMult = displayBoost(displayedCount);
-  const hostBoost = (1 + PLAZA_CONNECTION_BONUS * plazaStrength) * displayMult;
+  const hostBoost = (1 + connectionBonusOf(metadata) * plazaStrength) * displayMult;
   const multiplier =
     staffingEfficiency(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0, workers) * hostBoost;
 
@@ -51,7 +49,9 @@ function getActiveEffects(
     effects.push(`+${Math.round(metadata.housing * hostBoost)} housing`);
   }
   if (plazaStrength > 0) {
-    effects.push(`Plaza connection: +${Math.round(PLAZA_CONNECTION_BONUS * plazaStrength * 100)}%`);
+    effects.push(
+      `Plaza connection: +${Math.round(connectionBonusOf(metadata) * plazaStrength * 100)}%`
+    );
   }
   if (displayedCount > 0) {
     effects.push(`Works on display: ${displayedCount} (+${Math.round((displayMult - 1) * 100)}%)`);
@@ -173,7 +173,7 @@ export function BuildingTooltip() {
         )}
         {bonusEligible && plazaStrength === 0 && (
           <div className="mt-1 text-sm italic text-ink-faint">
-            Link to a plaza with roads: up to {PLAZA_BONUS_MAX_PCT}
+            Link to a plaza with roads: up to +{Math.round(connectionBonusOf(metadata) * 100)}%
           </div>
         )}
         {isRazing && (

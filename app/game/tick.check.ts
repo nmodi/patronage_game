@@ -86,6 +86,17 @@ const noRandomEvent = () => 1;
   assert.equal(out.florins, 128);
 }
 
+// Per-building connectionBonus: the market stall's foot-traffic coupling
+// doubles its income beside a hub (2f -> 4f), not the global +25% (-> 2.5f).
+{
+  const tiles = {
+    "3,3": tile("town_center_plaza", 3, 3),
+    "4,3": tile("market_stall", 4, 3), // 4-adjacent to the plaza: strength 1
+  };
+  const out = advanceTick(snapshot(tiles), noRandomEvent);
+  assert.equal(out.florins, 104); // 2 * (1 + 1.0*1) = 4; global bonus would give round(2.5)=103
+}
+
 // A working painter without pigment capacity remains stalled after staffing.
 {
   const founder: Artist = {

@@ -16,7 +16,14 @@ import {
 // exact when it's low and countable, damped toward a cap beyond (crowdSize in
 // app/game/crowd.ts) — but that's the only coupling to the sim.
 // Any type:"road" tile is also walkable (path/road/avenue variants).
-const WALKABLE_BUILDINGS = new Set(["plaza", "small_plaza", "town_center_plaza", "market"]);
+const WALKABLE_BUILDINGS = new Set([
+  "plaza",
+  "small_plaza",
+  "town_center_plaza",
+  "market",
+  // stall cells sit in the street — keep walkers flowing past (and milling around) them
+  "market_stall",
+]);
 // ponytail: one foot height for all surfaces — road quads sit at 0.01, plaza/market
 // pads at ~0.02, and the couple-centimeter hover is invisible at this scale.
 const FOOT_Y = 0.03;

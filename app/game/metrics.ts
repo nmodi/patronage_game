@@ -1,6 +1,6 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 import { BASE_POPULATION_CAP } from "./constants.ts";
-import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
+import { computePlazaConnectivity, connectionBonusOf } from "./connectivity.ts";
 import { displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
 
@@ -23,7 +23,7 @@ export function computeCityMetrics(
     const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
     if (!metadata) continue;
     const boost =
-      (1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0)) *
+      (1 + connectionBonusOf(metadata) * (connected.get(key) ?? 0)) *
       displayBoost(displayCounts?.get(key) ?? 0);
     housing += Math.round((metadata.housing ?? 0) * boost);
     if (tile.isActive) amenities += Math.round((metadata.amenities ?? 0) * boost);

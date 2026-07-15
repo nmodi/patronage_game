@@ -11,13 +11,26 @@
 
 import { BUILDING_TYPES } from "./buildings.ts";
 import { PLAZA_CONNECTION_BONUS, PLAZA_REACH } from "./constants.ts";
+import type { BuildingMetadata } from "./types.ts";
 export { PLAZA_CONNECTION_BONUS, PLAZA_REACH };
+
+/** A building's plaza-connection bonus at full strength — per-building override
+ * (market stall's foot-traffic coupling) falling back to the global constant. */
+export const connectionBonusOf = (metadata?: BuildingMetadata): number =>
+  metadata?.connectionBonus ?? PLAZA_CONNECTION_BONUS;
 
 export const MAIN_PLAZA_ID = "town_center_plaza";
 // Hubs refresh the Main Plaza's reach to full: the plazas plus any building
 // tagged isHub (bell tower). Derived so the metadata flag stays honest.
 export const PLAZA_IDS = new Set<string>(
   BUILDING_TYPES.filter((b) => "isHub" in b && b.isHub).map((b) => b.id)
+);
+// Buildings that overwrite road cells (market stall) conduct the network at
+// road cost, so placing one on a 1-wide path never severs the plaza reach.
+// Derived from the same placesOnRoads flag that grants the placement, so
+// permission and conduction can't desync.
+export const ROAD_OVERLAY_IDS = new Set<string>(
+  BUILDING_TYPES.filter((b) => "placesOnRoads" in b && b.placesOnRoads).map((b) => b.id)
 );
 
 /** Minimal structural slice of the store's Tile; one entry per occupied cell. */
@@ -89,7 +102,7 @@ function computeUncached(tiles: Record<string, ConnectivityTile>): Map<string, n
       if (!tile) continue;
       let nd: number;
       if (PLAZA_IDS.has(tile.buildingId)) nd = 0;
-      else if (tile.type === "road") nd = d + 1;
+      else if (tile.type === "road" || ROAD_OVERLAY_IDS.has(tile.buildingId)) nd = d + 1;
       else continue;
       if ((dist.get(nkey) ?? Infinity) <= nd) continue;
       dist.set(nkey, nd);

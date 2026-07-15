@@ -1,7 +1,7 @@
 import assert from "node:assert";
 
 import { BUILDING_METADATA_BY_ID, footprintMask, type BuildingId } from "./buildings.ts";
-import { tile } from "./checkHelpers.ts";
+import { stamp, tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
 import {
   canPlaceAt,
@@ -96,6 +96,41 @@ assert.equal(
   // Linear runs hit the same water gate: blocked for roads, exempt for bridges.
   assert.equal(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "road"), null);
   assert.ok(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "bridge"));
+
+  // placesOnRoads (market stall): overwrites a plain road cell — the road key
+  // joins freeCells so placeTiles writes over it — but never a bridge deck
+  // (water or land causeway), a diagonal ribbon cell, a plaza cell, or another
+  // building. Grass placement still works (the rule only adds permission).
+  {
+    const road = { "5,5": tile("path", 5, 5) };
+    const stallPlan = planPlacement(snapshot(road), [{ x: 5, y: 5 }], "market_stall");
+    assert.ok(stallPlan);
+    assert.ok(stallPlan.freeCells.has("5,5"));
+
+    const diagonal = { "5,5": tile("path", 5, 5, { rotation: 1 }) };
+    assert.equal(planPlacement(snapshot(diagonal), [{ x: 5, y: 5 }], "market_stall"), null);
+
+    const bridgeOnWater = { [waterCell]: tile("bridge", x, y) };
+    assert.equal(
+      planPlacement(snapshot(bridgeOnWater, 10_000, waterSeed), [{ x, y }], "market_stall"),
+      null
+    );
+    const causeway = { "6,6": tile("bridge", 6, 6) };
+    assert.equal(planPlacement(snapshot(causeway), [{ x: 6, y: 6 }], "market_stall"), null);
+
+    const plaza = stamp("town_center_plaza", { x: 30, y: 30 });
+    assert.equal(planPlacement(snapshot(plaza), [{ x: 30, y: 30 }], "market_stall"), null);
+    const house = { "5,5": tile("cottage", 5, 5) };
+    assert.equal(planPlacement(snapshot(house), [{ x: 5, y: 5 }], "market_stall"), null);
+    assert.ok(planPlacement(snapshot(), [{ x: 5, y: 5 }], "market_stall"));
+
+    agrees(snapshot(road), { x: 5, y: 5 }, "market_stall");
+    agrees(snapshot(diagonal), { x: 5, y: 5 }, "market_stall");
+    agrees(snapshot(bridgeOnWater, 10_000, waterSeed), { x, y }, "market_stall");
+    agrees(snapshot(causeway), { x: 6, y: 6 }, "market_stall");
+    agrees(snapshot(plaza), { x: 30, y: 30 }, "market_stall");
+    agrees(snapshot(), { x: 5, y: 5 }, "market_stall");
+  }
 }
 
 // Cost-escalating buildings (workshops/suppliers/services): each duplicate of

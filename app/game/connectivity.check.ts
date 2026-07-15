@@ -110,6 +110,31 @@ function road(tiles: Record<string, ConnectivityTile>, x0: number, x1: number, y
   assert.ok(!out.has(`${end},${end + 1}`));
 }
 
+// A market stall replacing a mid-run road cell conducts the network at road
+// cost (placesOnRoads-derived), so a 1-wide path is never severed — and the
+// stall itself, being a non-road service, still receives strength.
+{
+  const tiles: Record<string, ConnectivityTile> = {};
+  put(tiles, "city", "town_center_plaza", 0, 0, 2, 2);
+  road(tiles, 2, 3, 0); // d=1,2
+  put(tiles, "service", "market_stall", 4, 0); // conducts at d=3
+  road(tiles, 5, 6, 0); // d=4,5
+  put(tiles, "materials", "market", 7, 0, 2, 2); // touches road d=5
+  const out = computePlazaConnectivity(tiles);
+  assert.equal(out.get("7,0"), 1 - 5 / PLAZA_REACH); // downstream unharmed
+  assert.equal(out.get("4,0"), 1 - 2 / PLAZA_REACH); // stall receives via road (3,0)
+}
+
+// A stall on a dead-end road still receives strength.
+{
+  const tiles: Record<string, ConnectivityTile> = {};
+  put(tiles, "city", "town_center_plaza", 0, 0, 2, 2);
+  put(tiles, "road", "road", 2, 0); // d=1
+  put(tiles, "service", "market_stall", 3, 0); // road ends here
+  const out = computePlazaConnectivity(tiles);
+  assert.equal(out.get("3,0"), 1 - 1 / PLAZA_REACH);
+}
+
 // An isolated secondary plaza radiates nothing — only the main plaza seeds.
 {
   const tiles: Record<string, ConnectivityTile> = {};

@@ -273,6 +273,26 @@ export const BUILDING_TYPES = [
     maxWorkers: 2,
     displaySlots: [{ kind: "painting" }],
   },
+  {
+    // Street furniture: workerless, placeable onto road cells (placesOnRoads),
+    // where it conducts plaza connectivity so it never severs a 1-wide path.
+    // Foot traffic is the whole point — connectionBonus 1.0 doubles its output
+    // beside a hub (vs the global +25%), still base rate anywhere (principle 6).
+    type: "service",
+    id: "market_stall",
+    name: "Market Stall",
+    baseCost: 50,
+    size: { width: 0.45, height: 0.55, depth: 0.45 },
+    color: "#a9432f",
+    footprint: { width: 1, depth: 1 },
+    paved: true,
+    generates: { income: 2 },
+    amenities: 5,
+    workersRequired: 0,
+    maxWorkers: 0,
+    placesOnRoads: true,
+    connectionBonus: 1.0,
+  },
   // Road variants share type "road" (sim/render key off the type); they differ
   // only in how many cells the drag tool stamps perpendicular to the stretch.
   // Cost is charged per cell, so wider roads cost more per length.

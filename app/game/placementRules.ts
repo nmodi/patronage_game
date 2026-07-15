@@ -28,17 +28,33 @@ export interface PlacementPlan {
 }
 
 /** One footprint cell, shared by the batch planner and the preview check:
- * occupied cells block unless a decoration overlaps a non-origin cell, and
- * free cells block on water for everything but bridges. */
+ * occupied cells block unless a decoration overlaps a non-origin cell or a
+ * placesOnRoads building overwrites a plain road cell, and free cells block
+ * on water for everything but bridges. */
 function checkCell(
   tiles: TileMap,
   water: ReadonlySet<string>,
   key: string,
   isOriginCell: boolean,
   canOverlap: boolean,
-  isBridge: boolean
+  isBridge: boolean,
+  onRoad: boolean
 ): "blocked" | "occupied" | "free" {
-  if (tiles[key]) {
+  const tile = tiles[key];
+  if (tile) {
+    // Overwrite a plain road cell (market stall). Excluded: bridge decks and
+    // water (the water check below is skipped for occupied cells), diagonal
+    // ribbon cells (rotation 1|3 — a stall would notch the 45° staircase),
+    // and everything non-road (a plaza's shared footprint must stay whole).
+    if (
+      onRoad &&
+      tile.type === "road" &&
+      tile.buildingId !== "bridge" &&
+      tile.rotation == null &&
+      !water.has(key)
+    ) {
+      return "free";
+    }
     return !canOverlap || isOriginCell ? "blocked" : "occupied";
   }
   return !isBridge && water.has(key) ? "blocked" : "free";
@@ -60,6 +76,7 @@ export function planPlacement(
   const water = getWaterCells(state.mapSeed);
   const canOverlap = metadata.type === "decoration";
   const isBridge = buildingId === "bridge";
+  const onRoad = metadata.placesOnRoads === true;
 
   for (const position of positions) {
     for (const offset of cells) {
@@ -75,7 +92,8 @@ export function planPlacement(
         key,
         offset.x === 0 && offset.y === 0,
         canOverlap,
-        isBridge
+        isBridge,
+        onRoad
       );
       if (cell === "blocked") return null;
       if (cell === "free") {
@@ -109,6 +127,7 @@ export function canPlaceAt(
   const water = getWaterCells(state.mapSeed);
   const canOverlap = metadata.type === "decoration";
   const isBridge = buildingId === "bridge";
+  const onRoad = metadata.placesOnRoads === true;
   for (const offset of cells) {
     const x = position.x + offset.x;
     const y = position.y + offset.y;
@@ -120,7 +139,8 @@ export function canPlaceAt(
       key,
       offset.x === 0 && offset.y === 0,
       canOverlap,
-      isBridge
+      isBridge,
+      onRoad
     );
     if (cell === "blocked") return false;
   }

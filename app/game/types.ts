@@ -90,6 +90,8 @@ export interface BuildingMetadata {
   amenities?: number; // raises the population growth ceiling while staffed
   prestigeOnBuild?: number; // one-time prestige lump when placed (cathedral consecration)
   isHub?: boolean;
+  connectionBonus?: number; // plaza-connection bonus at full strength; default PLAZA_CONNECTION_BONUS
+  placesOnRoads?: boolean; // may be placed onto plain road cells (overwriting them); conducts the plaza network
   workersRequired?: number;
   maxWorkers?: number;
   artistCapacity?: number; // how many artists this workshop can host

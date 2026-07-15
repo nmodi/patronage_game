@@ -1,5 +1,5 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
-import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
+import { computePlazaConnectivity, connectionBonusOf } from "./connectivity.ts";
 import { INCOME_DIMINISHING_RETURNS, POPULATION_DRIFT_PER_MONTH } from "./constants.ts";
 import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
@@ -92,8 +92,8 @@ export function advanceTick(
   }
 
   const connected = computePlazaConnectivity(updatedTiles);
-  const plazaBoost = (key: string) =>
-    1 + PLAZA_CONNECTION_BONUS * (connected.get(key) ?? 0);
+  const plazaBoost = (key: string, bonus: number) =>
+    1 + bonus * (connected.get(key) ?? 0);
 
   // Displayed works: a per-tick trickle plus a per-host effectiveness boost.
   const display = computeDisplaySummary(updatedTiles, state.artworks);
@@ -136,7 +136,7 @@ export function advanceTick(
         metadata.workersRequired ?? 0,
         metadata.maxWorkers ?? 0,
         tile.workers
-      ) * plazaBoost(key) * displayBoost(display.counts.get(key) ?? 0);
+      ) * plazaBoost(key, connectionBonusOf(metadata)) * displayBoost(display.counts.get(key) ?? 0);
     const incomeScale = metadata.housing ? occupancy : (drByKey.get(key) ?? 1);
     florinDelta += (metadata.generates.income ?? 0) * efficiency * incomeScale;
     inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;

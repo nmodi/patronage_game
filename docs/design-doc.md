@@ -219,7 +219,7 @@ Workshops are per-discipline: each hosts and spawns only its own artist type.
 - Cottage *(built)*, Townhouse *(built)*, Villa, Palazzo, Grand Palazzo
 
 ### Service (raise population thresholds — built once, then passive)
-- Bakery *(built)*, Tavern *(built)*, Market Stall, Bathhouse, Apothecary, Public Well
+- Bakery *(built)*, Tavern *(built)*, Market Stall *(built — July 2026: workerless 1×1 street stall, the first `placesOnRoads` building — placeable onto plain cardinal road cells, overwriting them; it conducts plaza connectivity at road cost so a 1-wide path is never severed. Small florin + amenity trickle scaled hard by foot traffic: `connectionBonus: 1.0` gives up to +100% beside a hub vs the global +25% — still base rate anywhere, principle 6. Blocked on bridges, diagonal ribbon cells, and plaza cells; razing one leaves a re-draggable road hole)*, Bathhouse, Apothecary, Public Well
 
 ### Social & Cultural Life
 - **Library / Studiolo** — boosts inspiration for nearby workshops
