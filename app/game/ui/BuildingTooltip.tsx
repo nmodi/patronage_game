@@ -178,7 +178,7 @@ export function BuildingTooltip() {
         )}
         {isRazing && (
           <div className="mt-1 text-sm font-semibold text-sienna">
-            Click to raze — salvage {getRazeSalvage(tile.buildingId)}ƒ
+            Click to raze — salvage {getRazeSalvage(tiles, tile.buildingId, originKey)}ƒ
           </div>
         )}
       </div>

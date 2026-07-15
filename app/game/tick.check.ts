@@ -40,17 +40,50 @@ const noRandomEvent = () => 1;
   assert.equal(out.tickCount, 11);
 }
 
-// A staffed market produces florins (plus the townhouse's rent) and
-// population still moves by only one.
+// A staffed market produces florins (plus the townhouse's occupancy-scaled
+// rent) and population still moves by only one.
 {
   const tiles = {
     "0,0": tile("townhouse", 0, 0),
     "5,5": inactive("market", 5, 5),
   };
   const out = advanceTick(snapshot(tiles, { population: 3 }), noRandomEvent);
-  assert.equal(out.florins, 115);
+  // population drifts 3->4, housing=8 -> occupancy 0.5; townhouse rent 5*0.5=2.5,
+  // market (lone, no DR) 10 -> round(12.5)=13
+  assert.equal(out.florins, 113);
   assert.equal(out.population, 4);
   assert.equal(out.tiles["5,5"]?.workers, 3);
+}
+
+// House rent scales with occupancy, not raw house count: a freshly-built
+// (near-empty) cottage pays a fraction of a full one's rent.
+{
+  // Population always drifts by 1/month toward the cap, so starting at 0
+  // lands at 1 this tick (never a literal 0) -- occupancy 1/4, well under full.
+  const nearEmpty = advanceTick(
+    snapshot({ "0,0": tile("cottage", 0, 0) }, { population: 0 }),
+    noRandomEvent
+  );
+  assert.equal(nearEmpty.florins, 101); // 2f * (1/4) = 0.5 -> round 1
+
+  const full = advanceTick(
+    snapshot({ "0,0": tile("cottage", 0, 0) }, { population: 4 }),
+    noRandomEvent
+  );
+  assert.equal(full.florins, 102); // population == housing, no drift -> occupancy 1 -> full 2f rent
+}
+
+// Diminishing returns on duplicate florin-generators: the second market of
+// the same kind yields less than the first, geometrically by build order.
+{
+  const tiles = {
+    "0,0": tile("market", 0, 0, { workers: 6, builtTick: 0 }),
+    "10,10": tile("market", 10, 10, { workers: 6, builtTick: 1 }),
+  };
+  const out = advanceTick(snapshot(tiles, { population: 12 }), noRandomEvent);
+  // staffingEfficiency(3,6,6)=1.5 each; DR: first x1, second x0.85
+  // 10*1.5*(1+0.85) = 27.75 -> round 28
+  assert.equal(out.florins, 128);
 }
 
 // A working painter without pigment capacity remains stalled after staffing.

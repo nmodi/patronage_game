@@ -172,6 +172,18 @@ assert.equal(maybeOfferCommission([], [painter()], 10, lose), null);
   const out = maybeOfferCommission([], artists, 10, seq(0, 0, requesterDraw(guildIdx), 0));
   assert.equal(out?.durationMonths, WORK_DURATION_MONTHS.master);
   assert.equal(out?.prestige, ARTWORK_PRESTIGE.master);
+  assert.equal(out?.florins, 56); // FLORIN_RANK_COMPRESSION=0.25 -> round(25 * (1 + 5*0.25)) = round(56.25)
+}
+
+// Commission florins are compressed against rank (prestige is not): a
+// grand-master offer earns far less than the naive 10x florins scaling,
+// while its prestige still runs the full rank curve.
+{
+  const artists = [painter({ rank: "grand_master" })];
+  const out = maybeOfferCommission([], artists, 10, seq(0, 0, requesterDraw(guildIdx), 0));
+  assert.equal(out?.prestige, ARTWORK_PRESTIGE.grand_master); // full curve, unchanged
+  assert.equal(out?.florins, 81); // round(25 * (1 + 9*0.25)) = round(81.25)
+  assert.ok(out!.florins < ARTWORK_PRESTIGE.grand_master * 25); // well under the naive 10x (250)
 }
 
 // Reward mix: Church skews florins, nobles skew prestige, guilds stay at base.

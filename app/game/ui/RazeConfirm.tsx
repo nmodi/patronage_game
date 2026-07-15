@@ -14,6 +14,7 @@ export function RazeConfirm() {
   const setRazeTarget = useGameStore((s) => s.setRazeTarget);
   const removeTile = useGameStore((s) => s.removeTile);
   const tile = useGameStore((s) => (s.razeTarget ? s.map.tiles[s.razeTarget] : undefined));
+  const tiles = useGameStore((s) => s.map.tiles);
   const artists = useGameStore((s) => s.artists);
   const artworks = useGameStore((s) => s.artworks);
   const commissions = useGameStore((s) => s.commissions);
@@ -25,7 +26,7 @@ export function RazeConfirm() {
   if (!razeTarget || !tile) return null;
   const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
   if (!metadata) return null;
-  const salvage = getRazeSalvage(tile.buildingId);
+  const salvage = getRazeSalvage(tiles, tile.buildingId, razeTarget);
 
   return (
     <div className="fixed left-1/2 top-1/3 z-50 -translate-x-1/2">

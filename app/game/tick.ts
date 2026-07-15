@@ -1,6 +1,6 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 import { computePlazaConnectivity, PLAZA_CONNECTION_BONUS } from "./connectivity.ts";
-import { POPULATION_DRIFT_PER_MONTH } from "./constants.ts";
+import { INCOME_DIMINISHING_RETURNS, POPULATION_DRIFT_PER_MONTH } from "./constants.ts";
 import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
 import { assignedMaterials, getSupply, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts";
@@ -103,6 +103,28 @@ export function advanceTick(
   const population =
     state.population + Math.sign(populationCap - state.population) * POPULATION_DRIFT_PER_MONTH;
 
+  // Rent tracks tenants: empty houses pay proportionally less, so total rent is
+  // bounded by population (itself capped by amenities) instead of raw house count.
+  const occupancy = housing > 0 ? Math.min(1, population / housing) : 0;
+
+  // Diminishing returns on duplicate non-housing florin-generators (markets,
+  // future trade buildings). Oldest of each kind keeps full output; the Nth
+  // (by build order) yields DR^N.
+  const drByKey = new Map<string, number>();
+  const genByBuilding = new Map<string, { key: string; builtTick: number }[]>();
+  for (const [key, tile] of Object.entries(updatedTiles)) {
+    if (!tile.isOrigin || !tile.isActive) continue;
+    const m = BUILDING_METADATA_BY_ID[tile.buildingId];
+    if (!m?.generates?.income || m.housing) continue; // housing handled by occupancy
+    const list = genByBuilding.get(tile.buildingId) ?? [];
+    list.push({ key, builtTick: tile.builtTick ?? 0 });
+    genByBuilding.set(tile.buildingId, list);
+  }
+  for (const list of genByBuilding.values()) {
+    list.sort((a, b) => a.builtTick - b.builtTick || a.key.localeCompare(b.key));
+    list.forEach((g, i) => drByKey.set(g.key, INCOME_DIMINISHING_RETURNS ** i));
+  }
+
   let florinDelta = 0;
   let inspirationDelta = 0;
   for (const [key, tile] of Object.entries(updatedTiles)) {
@@ -115,7 +137,8 @@ export function advanceTick(
         metadata.maxWorkers ?? 0,
         tile.workers
       ) * plazaBoost(key) * displayBoost(display.counts.get(key) ?? 0);
-    florinDelta += (metadata.generates.income ?? 0) * efficiency;
+    const incomeScale = metadata.housing ? occupancy : (drByKey.get(key) ?? 1);
+    florinDelta += (metadata.generates.income ?? 0) * efficiency * incomeScale;
     inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
   }
   // Displayed-work trickle (non-church hosts). Added before rounding so it feeds

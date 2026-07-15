@@ -1,3 +1,5 @@
+import { COST_ESCALATION } from "./constants.ts";
+import type { TileMap } from "./grid.ts";
 import type { BuildingType, BuildingMetadata } from "./types";
 
 export const BUILDING_TYPES = [
@@ -610,6 +612,34 @@ export const BUILDING_METADATA_BY_ID = BUILDING_TYPES.reduce(
   },
   {} as Record<BuildingId, BuildingMetadata>
 );
+
+/** Repeatable-capacity buildings whose Nth duplicate costs progressively more:
+ * workshops, suppliers, and services. Landmarks, housing, roads, and
+ * decorations stay flat-priced (design doc, Diversity incentive). */
+export function costEscalates(metadata: BuildingMetadata): boolean {
+  return metadata.type === "artist" || metadata.type === "materials" || metadata.type === "service";
+}
+
+/** Price of the (0-indexed) Nth build of a cost-escalating building; flat baseCost otherwise. */
+export function escalatedCost(metadata: BuildingMetadata, rank: number): number {
+  return costEscalates(metadata)
+    ? Math.round(metadata.baseCost * COST_ESCALATION ** rank)
+    : metadata.baseCost;
+}
+
+/** 0-indexed rank by build order (oldest first, tied-broken by key — the
+ * family already used by allocateWorkers/computeSupply/tick's income DR)
+ * among all currently-placed origins of the same building id. Omit
+ * `originKey` to get the rank a brand-new build would receive (= current
+ * count); pass it to get an existing tile's own rank among its siblings. */
+export function buildOrderRank(tiles: TileMap, buildingId: BuildingId, originKey?: string): number {
+  const siblings = Object.entries(tiles)
+    .filter(([, t]) => t.isOrigin && t.buildingId === buildingId)
+    .map(([key, t]) => ({ key, builtTick: t.builtTick ?? 0 }))
+    .sort((a, b) => a.builtTick - b.builtTick || a.key.localeCompare(b.key));
+  if (originKey == null) return siblings.length;
+  return Math.max(0, siblings.findIndex((s) => s.key === originKey));
+}
 
 export const BUILDING_METADATA_BY_TYPE = BUILDING_TYPES.reduce(
   (acc, metadata) => {

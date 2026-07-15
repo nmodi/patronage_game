@@ -98,6 +98,33 @@ assert.equal(
   assert.ok(planLinearPlacement(snapshot({}, 10_000, waterSeed), [{ x, y }], "bridge"));
 }
 
+// Cost-escalating buildings (workshops/suppliers/services): each duplicate of
+// the same building id costs progressively more, priced by how many already
+// stand; other types (housing here) stay flat regardless of count.
+{
+  const oneWorkshop = { "0,0": tile("workshop", 0, 0) };
+  const secondPlan = planPlacement(snapshot(oneWorkshop), [{ x: 20, y: 0 }], "workshop");
+  assert.equal(secondPlan?.totalCost, 115); // round(100 * 1.15)
+
+  const twoWorkshops = { ...oneWorkshop, "20,0": tile("workshop", 20, 0, { builtTick: 1 }) };
+  const thirdPlan = planPlacement(snapshot(twoWorkshops), [{ x: 40, y: 0 }], "workshop");
+  assert.equal(thirdPlan?.totalCost, 132); // round(100 * 1.15^2) = round(132.25)
+
+  // A batch of 2 new workshops in one call prices progressively too, not 2x flat.
+  const batchPlan = planPlacement(snapshot(), [{ x: 0, y: 0 }, { x: 20, y: 0 }], "workshop");
+  assert.equal(batchPlan?.totalCost, 215); // 100 + 115
+
+  // Non-escalating buildings (residential) stay flat per unit regardless of count.
+  const oneCottage = { "0,0": tile("cottage", 0, 0) };
+  const secondCottage = planPlacement(snapshot(oneCottage), [{ x: 10, y: 0 }], "cottage");
+  assert.equal(secondCottage?.totalCost, BUILDING_METADATA_BY_ID.cottage.baseCost);
+
+  // The ghost's afford check matches the planner's escalated price (115ƒ for
+  // the 2nd workshop, not the flat 100ƒ base).
+  assert.equal(canPlaceAt(snapshot(oneWorkshop, 115), { x: 20, y: 0 }, "workshop"), true);
+  assert.equal(canPlaceAt(snapshot(oneWorkshop, 114), { x: 20, y: 0 }, "workshop"), false);
+}
+
 // Diagonal placement claims the mask, not its bounding box: a bystander in a
 // bounding-box gap neither blocks the plan nor gets claimed, while a tile on
 // a real mask cell blocks.

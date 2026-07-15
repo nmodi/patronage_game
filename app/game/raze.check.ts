@@ -2,7 +2,7 @@ import assert from "node:assert";
 
 import { BUILDING_METADATA_BY_ID, footprintMask, rotatedFootprint } from "./buildings.ts";
 import type { TileMap } from "./grid.ts";
-import { stamp } from "./checkHelpers.ts";
+import { stamp, tile } from "./checkHelpers.ts";
 import { OFFER_EXPIRY_MONTHS } from "./commissions.ts";
 import { getRazeImpact, getRazeSalvage, razeBuilding } from "./raze.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
@@ -103,7 +103,7 @@ const commission = (
   assert.ok(tiles[originKey]); // input map was not mutated
   assert.deepEqual(result.artists, [remote]);
   assert.equal(result.artists[0], remote);
-  assert.equal(result.florins, 10 + getRazeSalvage("workshop"));
+  assert.equal(result.florins, 10 + getRazeSalvage(tiles, "workshop", originKey));
 
   assert.equal(result.commissions.length, commissions.length);
   for (const reopened of result.commissions.slice(0, 2)) {
@@ -136,7 +136,7 @@ const commission = (
     { x: 2, y: 3 }
   );
   assert.ok(result);
-  assert.equal(getRazeSalvage("path"), 12);
+  assert.equal(getRazeSalvage(tiles, "path", "2,3"), 12);
   assert.equal(result.florins, 22);
   assert.equal(result.artists, artists);
   assert.equal(result.commissions, commissions);
@@ -233,6 +233,17 @@ const commission = (
   assert.ok(result);
   for (const key of inMask) assert.equal(result.tiles[key], undefined);
   assert.equal(result.tiles[gapKey], foreign);
+}
+
+// Cost-escalating buildings: salvage tracks the price actually paid for that
+// specific tile — the newer of two duplicates refunds more than the older.
+{
+  const tiles: TileMap = {
+    "0,0": tile("workshop", 0, 0, { builtTick: 0 }),
+    "10,10": tile("workshop", 10, 10, { builtTick: 1 }),
+  };
+  assert.equal(getRazeSalvage(tiles, "workshop", "0,0"), 50); // 1st: floor(100 * 0.5)
+  assert.equal(getRazeSalvage(tiles, "workshop", "10,10"), 57); // 2nd: floor(round(100*1.15) * 0.5) = floor(57.5)
 }
 
 console.log("raze.check: all assertions passed");

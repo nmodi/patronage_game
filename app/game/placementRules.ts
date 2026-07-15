@@ -1,5 +1,7 @@
 import {
   BUILDING_METADATA_BY_ID,
+  buildOrderRank,
+  escalatedCost,
   footprintMask,
   rotatedFootprint,
   type BuildingId,
@@ -83,7 +85,9 @@ export function planPlacement(
     }
   }
 
-  const totalCost = metadata.baseCost * positions.length;
+  const startRank = buildOrderRank(state.map.tiles, buildingId);
+  let totalCost = 0;
+  for (let i = 0; i < positions.length; i += 1) totalCost += escalatedCost(metadata, startRank + i);
   if (state.florins < totalCost) return null;
   return { metadata, footprint, cells, positions, freeCells, totalCost };
 }
@@ -97,7 +101,9 @@ export function canPlaceAt(
   rotation?: number
 ): boolean {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
-  if (!metadata || state.florins < metadata.baseCost) return false;
+  if (!metadata) return false;
+  const cost = escalatedCost(metadata, buildOrderRank(state.map.tiles, buildingId));
+  if (state.florins < cost) return false;
 
   const { cells } = footprintMask(metadata, rotation);
   const water = getWaterCells(state.mapSeed);

@@ -2,6 +2,7 @@ import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 import {
   BRONZE_COMMISSION_CHANCE,
   COMMISSION_OFFER_CHANCE,
+  FLORIN_RANK_COMPRESSION,
   FLORINS_PER_PRESTIGE,
   MAX_OPEN_OFFERS,
   OFFER_EXPIRY_MONTHS,
@@ -105,8 +106,12 @@ export function maybeOfferCommission(
       "apprentice"
     );
   const requester = pick(REQUESTERS, rng);
-  const basePrestige = ARTWORK_PRESTIGE[bestRank];
-  const baseFlorins = FLORINS_PER_PRESTIGE * basePrestige;
+  const basePrestige = ARTWORK_PRESTIGE[bestRank]; // 1..10 — drives prestige, unchanged
+  // Florins are the constraint resource, prestige is the number that goes up:
+  // compress how much of the rank curve florins keep so late-rank artists don't
+  // flood florins ~10x while still earning a real (if shallow) raise.
+  const florinRank = 1 + (basePrestige - 1) * FLORIN_RANK_COMPRESSION;
+  const baseFlorins = Math.round(FLORINS_PER_PRESTIGE * florinRank);
 
   let florins = baseFlorins;
   let prestige = basePrestige;

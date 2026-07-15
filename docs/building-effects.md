@@ -42,12 +42,12 @@ Cathedral extras: completing it pays a **one-time prestige lump** *(built — Ju
 
 ### 2. Passive resource trickle
 
-One number per building, feeding an existing headline resource. Subject to diminishing returns on duplicates so "stamp five markets" is never the answer.
+One number per building, feeding an existing headline resource. Subject to diminishing returns on duplicates so "stamp five markets" is never the answer *(built — July 2026: geometric decay per duplicate non-housing florin generator, by build order — `INCOME_DIMINISHING_RETURNS` in `app/game/tick.ts`)*.
 
 | Building | Boosts |
 |---|---|
 | Market | Florins |
-| Cottage, Townhouse *(built — July 2026)* | Florins — rents (2ƒ / 5ƒ per month; the pre-scaffolded `income` field, finally switched on) |
+| Cottage, Townhouse *(built — July 2026)* | Florins — rents (2ƒ / 5ƒ per month base, the pre-scaffolded `income` field, finally switched on; scaled by occupancy `min(1, population/housing)` so empty houses pay little — a later rebalance pass) |
 | Spice Trader | Florins + prestige |
 | Baptistery | Flat prestige |
 | Decorations (see below) | Inspiration |

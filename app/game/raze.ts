@@ -1,4 +1,10 @@
-import { BUILDING_METADATA_BY_ID, footprintMask, type BuildingId } from "./buildings.ts";
+import {
+  BUILDING_METADATA_BY_ID,
+  buildOrderRank,
+  escalatedCost,
+  footprintMask,
+  type BuildingId,
+} from "./buildings.ts";
 import { reopenCommission } from "./commissions.ts";
 import { RAZE_SALVAGE_FRACTION } from "./constants.ts";
 import type { GridPos, TileMap } from "./grid.ts";
@@ -55,9 +61,14 @@ export function getRazeImpact(
   };
 }
 
-/** RAZE_SALVAGE_FRACTION of the build cost, rounded down once per razed structure. */
-export function getRazeSalvage(buildingId: BuildingId): number {
-  return Math.floor((BUILDING_METADATA_BY_ID[buildingId]?.baseCost ?? 0) * RAZE_SALVAGE_FRACTION);
+/** RAZE_SALVAGE_FRACTION of the price actually paid, rounded down once per
+ * razed structure — for cost-escalating buildings that's this tile's own
+ * rank among its currently-standing siblings, not the flat base cost. */
+export function getRazeSalvage(tiles: TileMap, buildingId: BuildingId, originKey: string): number {
+  const metadata = BUILDING_METADATA_BY_ID[buildingId];
+  if (!metadata) return 0;
+  const rank = buildOrderRank(tiles, buildingId, originKey);
+  return Math.floor(escalatedCost(metadata, rank) * RAZE_SALVAGE_FRACTION);
 }
 
 /** Apply every demolition consequence without depending on the Zustand adapter. */
@@ -86,7 +97,7 @@ export function razeBuilding(
   const recalling = state.artworks.some((work) => work.displayedAt?.key === originKey);
 
   return {
-    florins: state.florins + getRazeSalvage(tile.buildingId),
+    florins: state.florins + getRazeSalvage(state.map.tiles, tile.buildingId, originKey),
     artists: evicting
       ? state.artists.filter((artist) => artist.homeTileKey !== originKey)
       : state.artists,

@@ -84,6 +84,9 @@ export const OFFER_EXPIRY_MONTHS = 12;
 export const BRONZE_COMMISSION_CHANCE = 1 / 3; // share of sculpture offers cast in bronze (the pricier medium)
 export const FLORINS_PER_PRESTIGE = 25; // base commission reward conversion
 export const REQUESTER_REWARD_SKEW = 2; // florins/prestige requesters' 2x/half split
+export const FLORIN_RANK_COMPRESSION = 0.25; // share of the prestige rank curve florins keep (prestige keeps it all — florins are the constraint, prestige is the number that goes up)
+export const INCOME_DIMINISHING_RETURNS = 0.85; // geometric decay per duplicate florin-generator of the same building, oldest first
+export const COST_ESCALATION = 1.15; // per-duplicate build-cost growth for workshops/suppliers/services
 
 // --- Raze (raze.ts) ---
 export const RAZE_SALVAGE_FRACTION = 0.5; // half the build cost, salvaged
