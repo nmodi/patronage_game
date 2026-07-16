@@ -39,53 +39,35 @@ Verified by `proceduralPieces.check.ts` (in `npm test`). Its assertions encode t
 
 ## Open work
 
-### 1. Procedural panels — the last quoins, and the flicker
+### 1. Migrate the remaining panels to loose fittings
 
-**The symptom.** Every panelled corner still shows a salmon bar, and the bars **flicker as the camera moves**. Removing the block's quoins ended the *doubling* but not this: a panel is a full-face slab carrying a quoin at each of *its own* corners, so at a building corner two perpendicular panels each claim the same ~0.1×0.1 wedge and z-fight over it. **Both fighting surfaces are panels** — nothing about the block, the tint, or the texture can reach it.
+**The plan changed under this section** — it used to call for *generating* full-face panels. The residences now do something better (`3829170`): the kit's door and shutter **leaves**, extracted as standalone models (`scripts/make-plain-openings.py` → `door.glb`, `shutters.glb`), sit directly on plain `proc:block` stucco (`windowOn()` in `modelManifest.ts`), with a proud dark plate standing in for the window opening. A fitting carries no wall of its own, so the old panel contract dissolves — no AO-ramp matching, no two-wall-colours risk, no full-face envelope. What's left:
 
-**Scope.** 77 refs across four files:
+- **Commission the real surrounds** (batch 1 in §2) — the openings the dark plate fakes. The `ponytail:` comment in `windowOn()` marks the swap site.
+- **Migrate the remaining full-face panel refs** to the same fitting pattern once the surrounds exist — 68 refs across `wall-window-shutters.glb` (26), `wall-window-round.glb` (24), `wall-door.glb` (12), `wall-arch.glb` (6, taken by batch 1's arch bay), spread over the cathedral, palazzo, chapel, tavern, plazas, bakery and workshops. The extracted leaves (`door.glb`, `shutters.glb`) are a stopgap too — the kit door never quite read as a door, so batch 1 replaces them outright.
+- **Verde trim becomes trivial**: a surround is one part, so a religious building's green is just `Part.tint: "verde"` on the whole surround — `TINT_COLORS.verde` (`#58634c`, currently 0 refs) finally earns its place instead of being deleted. No per-material tint machinery needed.
 
-| file | refs | notes |
+Only after the migration can `make-mint-quoins.py`, `colormap-mint.png`, `colormap-mint-desat.png`, the `mint` entry and the four panel files go — and with them the last corner-quoin z-fight flicker (both fighting surfaces are panels; retiring the panels retires the fight).
+
+### 2. The commission
+
+This is where an artist actually earns the fee: curved, tracery, organic — no amount of box-stretching gets there. **The send-ready request script is [artist-brief.md](artist-brief.md)**; it carries the piece specs and the full technical contract (fitting envelope, named flat materials, the no-textures rule) — keep it the single source of those numbers. Leaf/panel dimensions there are verified by parsing the GLBs (door leaf 0.4×0.75×0.05 at 196 tris, shutter pair 0.30×0.40 at 112, the kit window panel 278).
+
+| batch | pieces | unblocks |
 |---|---|---|
-| `wall-window-shutters.glb` | 33 | ~30% of its area is quoin |
-| `wall-window-round.glb` | 24 | 18 of them are `tint: "mint"` |
-| `wall-door.glb` | 14 | 5 are `tint: "mint"` |
-| `wall-arch.glb` | 6 | all 6 `mint`; **not actually an arch** — see §2 |
+| **1 — test batch** (brief ready) | rectangular window (optional louvered shutter leaf, its own file), arched window (voussoir head), door — frame + wooden leaf as **two files** so they tint independently, tileable arch bay (`wall-arch.glb` is a flat pier strip — x 0.4→0.5, z 0.2→0.5 — not an arch; the kit has none) | the fitting migration in §1; religious verde trim; loggia/colonnade |
+| **2** | bifora window, rose window | housing tiers 3–5 facade language, the cathedral front |
+| **3** | dome + drum + lantern (the kit has no dome; kitbashing.md's tree-canopy recipe is proven but unused — the cathedral has none), vine/ivy set (wall ivy + vine-on-post; vineyard rows currently stretch tree canopies) | the skyline icon; organic decoration |
 
-**The entanglement — read this before starting.** `TEXTURE_TINTS.mint` swaps in a recoloured atlas (`scripts/make-mint-quoins.py`) so the terracotta quoin swatch reads verde di Prato green. Those 29 mint refs are *panels*, and they are now the **only** source of a religious building's green trim. Generate the panels without a replacement and the Duomo, chapel and campanile go plain white. So this pass is really two jobs:
+**Trap** (also stated in the brief): `convertMaterials` force-swaps the shared colormap into *any* textured material. An artist's own texture is silently discarded. Flat named materials only.
 
-- generate the panels (no baked quoins), **and**
-- give religious buildings their green back as **real parts** — `TINT_COLORS.verde` (`#58634c`) is already defined and currently **unused** (0 refs); it's the one line of speculative code left from a cathedral-pilaster plan that got dropped. Either it earns its place here or it should be deleted.
+**The one move that matters: milestone it.** Pay for batch 1 alone — the arched window and arch bay are the curve test, the rectangular pieces test the envelope discipline — verify in-engine, then commission the rest. Ask for full commercial rights / work-for-hire; Fiverr's default licence is often limited. The filter question for a candidate is whether they engage with the envelope numbers at all.
 
-Only once both land can `make-mint-quoins.py`, `colormap-mint.png`, `colormap-mint-desat.png` and the `mint` entry go.
+**Deliberately not commissioned:**
 
-**The contract.** Panels are **+X face slabs**: x 0.4→0.5, full z ±0.5, y 0→1, base-center origin, and the manifest offsets them ~0.02 outward from the block they decorate. A generated panel must match that envelope or every `rotationY`-picked face drifts. It must also **carry the kit's stucco AO ramp** (`sample-kit-colour.py --by-height`), because a panel is a full-face slab — the wall behind it is not visible, so a panel that doesn't match the block gives one house two wall colours.
-
-**Risk.** Low-to-medium. The quoin geometry disappears rather than being replaced, and the panel's remaining content (shutters, door, window reveal) is boxy. The green-trim half is the real design question.
-
-### 2. Commission the curved pieces
-
-This is where an artist actually earns the fee: curved and proportion-critical, no amount of box-stretching gets there.
-
-- `wall-arch.glb` is a **flat pier strip** (x 0.4→0.5, **z 0.2→0.5 only**) — not an arch. The kit has no arch and no dome.
-- The cathedral dome is a **renamed copy of `tree_default.glb`** — a tree canopy as the cupola (see kitbashing.md's dome recipe).
-- Also wanted: `arcade-bay`, `wall-window-bifora` (housing tiers 3–5 want bifora windows; see the design doc's facade language).
-
-**The contract** (verified by parsing the GLBs — hand these numbers to the artist):
-
-| rule | value |
-|---|---|
-| format | binary `.glb`, glTF 2.0, **plus the `.blend` source** |
-| scale | **1 unit = 1 cell.** A full block is exactly 1×1×1 |
-| origin | **base-center**: `min.y = 0` exactly, x/z centered on 0 |
-| up axis | Y-up. **Bake geometry into place** — the loader overwrites root transforms |
-| materials | **2–4 flat-colour materials, named exactly** (`stone`, `trim`, `tile`, `wood`). No texture, no UV unwrap — colours are overridden in code |
-| panels | +X face slab only: x 0.4→0.5, full z ±0.5, y 0→1 |
-| detail | match `wall-block.glb` for chunk and tri budget. No bevels, no PBR maps (discarded at load) |
-
-**Trap:** `convertMaterials` force-swaps the shared colormap into *any* textured material. An artist's own texture is silently discarded. Flat named materials only.
-
-**The one move that matters: milestone it.** Pay for **one test piece first** — the arch exercises every rule. Verify it in-engine, then commission the rest. Ask for full commercial rights / work-for-hire; Fiverr's default licence is often limited. The filter question for a candidate is whether they engage with the envelope numbers at all.
+- **Statues** — deferred for now (Phase 9's `createStatueMesh` placeholder stands); the strongest future candidate when display art gets its pass — figural work is the one category no box or lathe gets near.
+- **Paintings** — never: the canvases are per-artwork procedural content (`displayArt.ts` DynamicTextures); fixed models would be a downgrade.
+- **Boats** (G5 stretch, no gameplay pull yet), **waterwheel** (River & Waterfront set is future scope, and it's borderline procedural anyway — a 16-gon plus paddle boxes), **merlons** (boxy → procedural when the Town Hall lands).
 
 ---
 
