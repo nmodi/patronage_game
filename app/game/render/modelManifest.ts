@@ -1,6 +1,6 @@
 import type { BuildingId } from "~/game/buildings";
 
-import { procRoofFile } from "./proceduralPieces";
+import { SILL_H, WIN_OPENING, procRoofFile } from "./proceduralPieces";
 
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
@@ -241,7 +241,10 @@ const TINT_COLORS: Record<string, string> = {
   // as one roofline.
   roofFaded: "#e9eef0",
   bronze: "#a3773e", // warm cast-metal brown for the foundry's ingot stock (diffuse-only — no metal sheen)
-  reveal: "#6a5c4b", // unlit interior behind a window opening (see shutters.glb)
+  // Unlit interior behind a window opening. Dark enough to survive the ~1.9x
+  // sun on a lit face — at the old #6a5c4b the shutterless arched windows'
+  // reveals blew out to pale tan and read as empty niches.
+  reveal: "#453d33",
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
@@ -304,27 +307,25 @@ const WORKSHOP_HALL_ROOF = gableRoof([0, 1, 0], [1.05 / 0.55, 0.6, 1]);
 // this roof's inner gable end in its wall.
 const WORKSHOP_BAY_ROOF = gableRoof([-0.5, 1, 0]);
 
-// A window = shutters.glb (the slat leaf extracted from the kit's panel — see
-// scripts/make-plain-openings.py) over a dark plate standing in for the opening
-// it left behind. The kit welds its window's hole and surround into the panel's
-// wall island, so the loose slats alone read as a "#" scribble on bare stucco;
-// the reveal gives them something to be shutters *over*. Matches the slat leaf's
-// extents: y 0.30-0.70, 0.30 wide.
+// A window = a generated pietra-serena surround (proc:surround-rect, the
+// batch-1 fitting the brief asked an artist for) around a dark reveal plate,
+// with shutters.glb's louvred leaf (extracted from the kit's panel — see
+// scripts/make-plain-openings.py) recessed inside the frame — the Florence
+// street look: grey stone frames, closed louvres, colored plaster.
 //
-// Nothing here may share a plane with anything behind it. proc:block's wall face
-// is at ±0.5 and the slats span ±(0.438-0.462) before their offset, so the three
-// surfaces are stacked with real gaps: wall 0.5 → reveal front 0.51 → slat back
-// 0.508. A reveal sitting flush at 0.5 z-fights the wall and the window survives
-// or vanishes per house, which is exactly what it looked like.
-// ponytail: a proud plate, not a modelled recess — the wall is solid and there's
-// no CSG here. Swap it for a real frame if one gets commissioned; that opening
-// is the piece the kit is actually missing.
-const WIN_W = 0.18; // width along the wall — the leaf ships 0.30 wide and 0.40
-const WIN_H = 0.4; //  tall, so it needs narrowing to read taller than it is wide
+// Nothing here may share a plane with anything else. proc:block's wall face is
+// at ±0.5, so the stack is: wall 0.5 → frame back 0.504 (its deeper sill dips
+// into the wall) → slat back 0.508 → reveal front 0.51 → frame front 0.554.
+// The reveal is a hair larger than the opening so its edges bury inside the
+// frame ring, and the slats a hair narrower so they clear the opening's faces.
+const WIN_W = WIN_OPENING.w; // the opening the surround frames — the leaf ships
+const WIN_H = WIN_OPENING.h; // 0.30 wide, so it needs narrowing to fit it
 const REVEAL_T = 0.03;
 const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
 const SHUTTER_OUT = 0.07; //  → slat back 0.508. Keep > 0.048 or it re-buries.
-const SHUTTER_NARROW: [number, number, number] = [1, 1, WIN_W / 0.3];
+const SHUTTER_NARROW: [number, number, number] = [1, 1, (WIN_W - 0.01) / 0.3];
+// Wall 0.5 → jamb back 0.504, frame front 0.554 (fitting depth 0.05).
+const SURROUND_OUT = 0.529;
 
 /** One window on a local face, `along` = its offset across that wall. Scale is
  * local and applies before rotationY, so the leaf's own Z (its width) narrows
@@ -335,13 +336,21 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
   const reveal: Part = {
     file: "proc:block",
     tint: "reveal",
-    scale: onX ? [REVEAL_T, WIN_H, WIN_W] : [WIN_W, WIN_H, REVEAL_T],
+    scale: onX ? [REVEAL_T, WIN_H + 0.02, WIN_W + 0.02] : [WIN_W + 0.02, WIN_H + 0.02, REVEAL_T],
     position: onX
-      ? [sign * REVEAL_PLANE, y + 0.3, along]
-      : [along, y + 0.3, sign * REVEAL_PLANE],
+      ? [sign * REVEAL_PLANE, y + 0.29, along]
+      : [along, y + 0.29, sign * REVEAL_PLANE],
     face,
   };
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const surround: Part = {
+    file: "proc:surround-rect",
+    position: onX
+      ? [sign * SURROUND_OUT, y + 0.3 - SILL_H, along]
+      : [along, y + 0.3 - SILL_H, sign * SURROUND_OUT],
+    rotationY,
+    face,
+  };
   const leaf: Part = {
     file: TOWN + "shutters.glb",
     position: onX
@@ -351,7 +360,40 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
     scale: SHUTTER_NARROW,
     face,
   };
-  return [reveal, leaf];
+  return [reveal, surround, leaf];
+}
+
+/** Arched pietra-serena window for the stone buildings (the palazzo reference):
+ * generated voussoir surround + dark reveal, no shutters. The civic prefabs'
+ * wall faces aren't at ±0.5, so `wall` is the face plane's distance from the
+ * origin and `yOpen` the opening bottom's absolute height. */
+const ARCH_WIN_S = 1.25; // palazzo windows run grander than house ones
+function archWindow(face: LocalSide, wall: number, yOpen: number, along: number): Part[] {
+  const s = ARCH_WIN_S;
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const out = wall + 0.004 + 0.035 * s;
+  const rev = wall - 0.005;
+  // The reveal covers the opening to just past its apex; taller or wider and
+  // its top corners poke out past the voussoir ring's outer arc.
+  const w = 0.195 * s;
+  const h = 0.5 * s;
+  const reveal: Part = {
+    file: "proc:block",
+    tint: "reveal",
+    scale: onX ? [REVEAL_T, h, w] : [w, h, REVEAL_T],
+    position: onX ? [sign * rev, yOpen - 0.005, along] : [along, yOpen - 0.005, sign * rev],
+  };
+  const surround: Part = {
+    file: "proc:surround-arch",
+    scale: s,
+    position: onX
+      ? [sign * out, yOpen - SILL_H * s, along]
+      : [along, yOpen - SILL_H * s, sign * out],
+    rotationY,
+  };
+  return [reveal, surround];
 }
 
 // Facade columns, shared by both house tiers so upper windows land directly over
@@ -361,7 +403,10 @@ const DOOR_COL = -0.2;
 const WIN_COL = 0.28;
 const SIDE_COLS = [-0.25, 0.25];
 const houseFront = (upper: number | null): Part[] => [
-  { file: TOWN + "door.glb", position: [0.04, 0, DOOR_COL], face: "posX" },
+  // Stone doorway + planked leaf recessed in it (batch-1 fittings — the kit's
+  // extracted leaf alone never quite read as a door).
+  { file: "proc:door-frame", position: [SURROUND_OUT, 0, DOOR_COL], face: "posX" },
+  { file: "proc:door-leaf", position: [0.526, 0, DOOR_COL], face: "posX" },
   ...windowOn("posX", 0, WIN_COL),
   ...(upper == null
     ? []
@@ -472,8 +517,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // Palazzo, front facing +Z (toward the default camera). Three-story main
   // block under a low hip roof, two-story wing on +X under its own gable,
   // one-story annex on −X. Ground floor is recessed 0.5 behind the upper
-  // floors with stone pillars along the front edge — an open loggia (the kit
-  // has no curved arch piece; wall-arch is just a flat pier strip).
+  // floors with stone pillars along the front edge — an open loggia.
   palazzo: {
     front: [0, 1],
     parts: [
@@ -499,24 +543,24 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "pillar-stone.glb", position: [0.3, 0, 0.92] },
       { file: TOWN + "pillar-stone.glb", position: [0.9, 0, 0.92] },
       { file: TOWN + "pillar-stone.glb", position: [1.5, 0, 0.92] },
-      // piano nobile front: shuttered windows + banner
-      { file: TOWN + "wall-window-shutters.glb", position: [-1, 1, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [1, 1, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
+      // piano nobile front: arched pietra-serena windows + banner
+      ...archWindow("posZ", 1, 1.28, -1),
+      ...archWindow("posZ", 1, 1.28, 0),
+      ...archWindow("posZ", 1, 1.28, 1),
       // top floor (main block only): round windows flanking the banner
       { file: TOWN + "wall-window-round.glb", position: [-1, 2, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
       { file: TOWN + "wall-window-round.glb", position: [0, 2, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
       { file: TOWN + "banner-red.glb", position: [-0.5, 2, 0.66], rotationY: -Math.PI / 2 },
       // side windows: main block −X face (above the annex) and wing +X face
-      { file: TOWN + "wall-window-shutters.glb", position: [-1.02, 1, -0.5], rotationY: Math.PI, tint: "facade" },
+      ...archWindow("negX", 1.5, 1.28, -0.5),
       { file: TOWN + "wall-window-round.glb", position: [-1.02, 2, -0.5], rotationY: Math.PI, tint: "facade" },
       { file: TOWN + "wall-window-round.glb", position: [-1.02, 2, 0.5], rotationY: Math.PI, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [1.02, 1, -0.5], tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [1.02, 1, 0.5], tint: "facade" },
+      ...archWindow("posX", 1.5, 1.28, -0.5),
+      ...archWindow("posX", 1.5, 1.28, 0.5),
       // back windows
-      { file: TOWN + "wall-window-shutters.glb", position: [-1, 1, -0.52], rotationY: Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.52], rotationY: Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [1, 1, -0.52], rotationY: Math.PI / 2, tint: "facade" },
+      ...archWindow("negZ", 1, 1.28, -1),
+      ...archWindow("negZ", 1, 1.28, 0),
+      ...archWindow("negZ", 1, 1.28, 1),
       { file: TOWN + "wall-window-round.glb", position: [-1, 2, -0.52], rotationY: Math.PI / 2, tint: "facade" },
       { file: TOWN + "wall-window-round.glb", position: [0, 2, -0.52], rotationY: Math.PI / 2, tint: "facade" },
     ],
@@ -559,13 +603,15 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-window-round.glb", position: [-1, 1, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [1, 1, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
-      // aisle arcades
-      { file: TOWN + "wall-arch.glb", position: [-1, 0, -1.02], rotationY: Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-arch.glb", position: [0, 0, -1.02], rotationY: Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-arch.glb", position: [1, 0, -1.02], rotationY: Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-arch.glb", position: [-1, 0, 1.02], rotationY: -Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-arch.glb", position: [0, 0, 1.02], rotationY: -Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-arch.glb", position: [1, 0, 1.02], rotationY: -Math.PI / 2, tint: "mint" },
+      // aisle arcades: generated bays (proc:arch-bay) half-buried in the wall —
+      // a blind arcade in verde di Prato, piers standing ~0.1 proud and the
+      // wall face showing as the recess inside each arch
+      { file: "proc:arch-bay", position: [-1, 0, -1.5], rotationY: Math.PI / 2, tint: "verde" },
+      { file: "proc:arch-bay", position: [0, 0, -1.5], rotationY: Math.PI / 2, tint: "verde" },
+      { file: "proc:arch-bay", position: [1, 0, -1.5], rotationY: Math.PI / 2, tint: "verde" },
+      { file: "proc:arch-bay", position: [-1, 0, 1.5], rotationY: -Math.PI / 2, tint: "verde" },
+      { file: "proc:arch-bay", position: [0, 0, 1.5], rotationY: -Math.PI / 2, tint: "verde" },
+      { file: "proc:arch-bay", position: [1, 0, 1.5], rotationY: -Math.PI / 2, tint: "verde" },
     ],
     fit: 0.95,
     scaleY: 0.71,

@@ -18,7 +18,7 @@ The fix was not to commission art. **The pieces that needed fixing were cubes**,
 
 ## What's built
 
-Four pieces are generated in code (`app/game/render/proceduralPieces.ts`) rather than loaded, entering through the `proc:` branch in `getContainer` so material conversion, tinting, desaturation, batching and blend stretch treat them like any kit file:
+Nine pieces are generated in code (`app/game/render/proceduralPieces.ts`) rather than loaded, entering through the `proc:` branch in `getContainer` so material conversion, tinting, desaturation, batching and blend stretch treat them like any kit file:
 
 | piece | replaces | refs |
 |---|---|---|
@@ -26,6 +26,16 @@ Four pieces are generated in code (`app/game/render/proceduralPieces.ts`) rather
 | `proc:roof-gable` | `roof-gable.glb`, `roof-gable-end.glb`, `roof-high-gable.glb` — barrel coppi, lapped rows + ridge cap | 13 |
 | `proc:gable-end` | *new* — the stucco triangle split out of the roof, tinted `"facade"` | 13 |
 | `proc:roof-hip` | `roof-point.glb`, `roof-high-point.glb` — coppi up the fall line, cut at the hips, hip ridges over the cut | 6 |
+
+**Batch-1 fittings** (July 2026): the artist-brief pieces, generated instead of commissioned — the curve test turned out to be passable in code: an arched head reads as voussoirs at 6 flat facets (alternating vertex shades are the joints), an arcade bay at 8. Boxes + hexahedron "wedge" fans, one named flat material per piece (`stone` = pietra serena grey #b3ada1, `wood`), so `Part.tint` recolors a whole fitting — verde trim works exactly as §1 predicted (`tint: "verde"` on the cathedral's arcade bays, `TINT_COLORS.verde`'s first refs). The dark interior stays the manifest's separate reveal part so a tinted surround never greens it; `TINT_COLORS.reveal` was darkened to `#453d33` because at the old value a shutterless window's reveal blew out to pale tan under the ~1.9× sun and read as an empty niche.
+
+| piece | what | used by |
+|---|---|---|
+| `proc:surround-rect` | stone frame + projecting sill around the 0.18×0.40 opening | every house window (`windowOn`), around the reveal + louvre leaf |
+| `proc:surround-arch` | same jambs/sill, 6-facet voussoir ring head | palazzo piano nobile ×9 (`archWindow` — surround + reveal, no shutters) |
+| `proc:door-frame` | jambs + eared lintel + threshold, 0.4×0.75 opening | house fronts (`houseFront`) |
+| `proc:door-leaf` | planked wood leaf + 2 rails, 0.39×0.74 (clearance gap), its own file so it tints apart from the frame | house fronts, recessed in the frame |
+| `proc:arch-bay` | 1×1 arcade bay: half-pier each end, imposts, 8-facet fan running to the bay's own rim (solid spandrels, corners exact) so rows tile seamlessly | cathedral aisle arcades ×6, tint `verde`, half-buried as a blind arcade (`wall-arch.glb`: **0 refs**) |
 
 **No kit roof is left** (only the obelisk's stone cap still uses `roof-point`, and it is not a roof). That makes `TILE_BASE` the whole city's roofline in one constant — the roofs are deliberately browner and less saturated than Kenney's orange tile (hue 19 / saturation 34 vs the kit's 14 / 48), matching Florence rather than the kit. `ROOF_PALETTE` only varies it now: a ~8% cool wash on one roof in three.
 
@@ -41,27 +51,26 @@ Verified by `proceduralPieces.check.ts` (in `npm test`). Its assertions encode t
 
 ### 1. Migrate the remaining panels to loose fittings
 
-**The plan changed under this section** — it used to call for *generating* full-face panels. The residences now do something better (`3829170`): the kit's door and shutter **leaves**, extracted as standalone models (`scripts/make-plain-openings.py` → `door.glb`, `shutters.glb`), sit directly on plain `proc:block` stucco (`windowOn()` in `modelManifest.ts`), with a proud dark plate standing in for the window opening. A fitting carries no wall of its own, so the old panel contract dissolves — no AO-ramp matching, no two-wall-colours risk, no full-face envelope. What's left:
+**The surrounds now exist** (July 2026 — generated, see the batch-1 table above), so this migration is unblocked and partially done: every house window carries a real `proc:surround-rect` (frame + reveal + louvre leaf), house doors are `proc:door-frame` + `proc:door-leaf` (the extracted `door.glb` leaf is unreferenced), the palazzo's nine shuttered panels became `archWindow()` arched surrounds, and the cathedral's aisle arcade is `proc:arch-bay` in verde (`wall-arch.glb` at 0 refs). What's left:
 
-- **Commission the real surrounds** (batch 1 in §2) — the openings the dark plate fakes. The `ponytail:` comment in `windowOn()` marks the swap site.
-- **Migrate the remaining full-face panel refs** to the same fitting pattern once the surrounds exist — 68 refs across `wall-window-shutters.glb` (26), `wall-window-round.glb` (24), `wall-door.glb` (12), `wall-arch.glb` (6, taken by batch 1's arch bay), spread over the cathedral, palazzo, chapel, tavern, plazas, bakery and workshops. The extracted leaves (`door.glb`, `shutters.glb`) are a stopgap too — the kit door never quite read as a door, so batch 1 replaces them outright.
-- **Verde trim becomes trivial**: a surround is one part, so a religious building's green is just `Part.tint: "verde"` on the whole surround — `TINT_COLORS.verde` (`#58634c`, currently 0 refs) finally earns its place instead of being deleted. No per-material tint machinery needed.
-
-Only after the migration can `make-mint-quoins.py`, `colormap-mint.png`, `colormap-mint-desat.png`, the `mint` entry and the four panel files go — and with them the last corner-quoin z-fight flicker (both fighting surfaces are panels; retiring the panels retires the fight).
+- **Migrate the remaining full-face panel refs** to the same fitting pattern — 53 refs: `wall-window-shutters.glb` (17), `wall-window-round.glb` (24 — needs a round/oculus surround piece or the arch surround), `wall-door.glb` (12), spread over the cathedral portals, chapel, tavern, plazas, bakery, market stall and workshops.
+- Only after that migration can `make-mint-quoins.py`, `colormap-mint.png`, `colormap-mint-desat.png`, the `mint` entry and the remaining panel files go — and with them the last corner-quoin z-fight flicker (both fighting surfaces are panels; retiring the panels retires the fight).
+- The palazzo's top floor still wears the kit's salmon-framed `wall-window-round` panels directly above the new white stone arches — the mixed language is visible and is the natural next migration target.
 
 ### 2. The commission
 
-This is where an artist actually earns the fee: curved, tracery, organic — no amount of box-stretching gets there. **The send-ready request script is [artist-brief.md](artist-brief.md)**; it carries the piece specs and the full technical contract (fitting envelope, named flat materials, the no-textures rule) — keep it the single source of those numbers. Leaf/panel dimensions there are verified by parsing the GLBs (door leaf 0.4×0.75×0.05 at 196 tris, shutter pair 0.30×0.40 at 112, the kit window panel 278).
+**Batch 1 is done in code** — see the fittings table in "What's built". The curve test the brief was designed around (arched head, arcade bay) turned out passable with 6–8 flat facets, which at this art style's play distance reads as intentional low-poly voussoirs. [artist-brief.md](artist-brief.md) stays as the spec that piece dimensions trace back to, and as the template if a later quality pass wants hand-modeled replacements — the generated pieces fill the same envelopes, so swaps are drop-in.
+
+What still genuinely needs an artist — curved tracery and organic forms no box or wedge fan gets near:
 
 | batch | pieces | unblocks |
 |---|---|---|
-| **1 — test batch** (brief ready) | rectangular window (optional louvered shutter leaf, its own file), arched window (voussoir head), door — frame + wooden leaf as **two files** so they tint independently, tileable arch bay (`wall-arch.glb` is a flat pier strip — x 0.4→0.5, z 0.2→0.5 — not an arch; the kit has none) | the fitting migration in §1; religious verde trim; loggia/colonnade |
 | **2** | bifora window, rose window | housing tiers 3–5 facade language, the cathedral front |
 | **3** | dome + drum + lantern (the kit has no dome; kitbashing.md's tree-canopy recipe is proven but unused — the cathedral has none), vine/ivy set (wall ivy + vine-on-post; vineyard rows currently stretch tree canopies) | the skyline icon; organic decoration |
 
 **Trap** (also stated in the brief): `convertMaterials` force-swaps the shared colormap into *any* textured material. An artist's own texture is silently discarded. Flat named materials only.
 
-**The one move that matters: milestone it.** Pay for batch 1 alone — the arched window and arch bay are the curve test, the rectangular pieces test the envelope discipline — verify in-engine, then commission the rest. Ask for full commercial rights / work-for-hire; Fiverr's default licence is often limited. The filter question for a candidate is whether they engage with the envelope numbers at all.
+**Milestone it**: pay per batch, verify in-engine, ask for full commercial rights / work-for-hire (Fiverr's default licence is often limited). The filter question for a candidate is whether they engage with the envelope numbers at all.
 
 **Deliberately not commissioned:**
 

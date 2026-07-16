@@ -105,6 +105,30 @@ assert.equal(bounds("proc:gable-end").material, "stucco");
 assert.equal(bounds("proc:roof-gable").material, "tile");
 assert.equal(bounds("proc:roof-hip").material, "tile");
 
+// Batch-1 fittings (the artist-brief pieces, generated). The manifest's
+// window/door composition (windowOn, houseFront, archWindow) is tuned to these
+// exact openings and depths — drift and the reveal/shutter/leaf stack peeks
+// past its frame or buries inside it.
+assertEnvelope("proc:surround-rect", { min: [-0.035, 0, -0.16], max: [0.035, 0.485, 0.16] });
+assertEnvelope("proc:surround-arch", { min: [-0.035, 0, -0.16], max: [0.035, 0.585, 0.16] });
+assertEnvelope("proc:door-frame", { min: [-0.035, 0, -0.27], max: [0.035, 0.81, 0.27] });
+// Arch bay: exactly 1x1 face-on with piers at the z edges — the tiling
+// contract (copies offset by one unit share a full pier and meet at the rim).
+assertEnvelope("proc:arch-bay", { min: [-0.12, 0, -0.5], max: [0.12, 1, 0.5] });
+// Leaf: a hair inside the frame's 0.40x0.75 opening (clearance = the door gap),
+// and thin enough to recess fully behind the frame's front.
+{
+  const leaf = bounds("proc:door-leaf");
+  assert.ok(Math.abs(leaf.max[2] - leaf.min[2] - 0.39) < EPS, `door-leaf width ${leaf.max[2] - leaf.min[2]}, want 0.39`);
+  assert.ok(Math.abs(leaf.max[1] - 0.74) < EPS, `door-leaf height ${leaf.max[1]}, want 0.74`);
+  assert.ok(leaf.max[0] - leaf.min[0] < 0.05, `door-leaf depth ${leaf.max[0] - leaf.min[0]}, must stay under the frame's`);
+}
+assert.equal(bounds("proc:surround-rect").material, "stone");
+assert.equal(bounds("proc:surround-arch").material, "stone");
+assert.equal(bounds("proc:door-frame").material, "stone");
+assert.equal(bounds("proc:arch-bay").material, "stone");
+assert.equal(bounds("proc:door-leaf").material, "wood");
+
 // One mesh per piece keeps the batch key (`${file}#${i}`) stable.
 for (const file of PROC_FILES) assert.equal(bounds(file).meshCount, 1, `${file}: expected 1 mesh`);
 

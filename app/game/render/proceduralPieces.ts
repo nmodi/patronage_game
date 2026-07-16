@@ -413,6 +413,282 @@ function buildGableEnd(scene: Scene) {
   return { mesh, material: "stucco", color: "#f3e4c9" };
 }
 
+// ---------------------------------------------------------------------------
+// Batch-1 fittings: the artist-brief pieces (docs/artist-brief.md), generated.
+// Chunky flat-faceted stone — boxes plus low-count wedge fans, which covers the
+// brief's two curves: an arched head reads as voussoirs at 6 facets, an arcade
+// bay at 8. One material per piece so Part.tint recolors a whole fitting
+// (religious verde trim); the dark interior stays the manifest's separate
+// reveal part, exactly so that tint never greens it.
+
+/** Pietra serena — the grey stone of Florentine surrounds, a step darker than
+ * stucco so a frame reads on colored plaster, and light enough that a verde
+ * tint multiplied over it still reads green rather than black. */
+const STONE = "#b3ada1";
+/** Door wood, between the nature kit's fence tans (#9a7b57 / #6f523a). */
+const WOOD = "#8a6b4d";
+
+/** The window opening every surround frames — the same 0.18x0.40 the
+ * manifest's reveal + shutter-leaf stack already fills (windowOn). */
+export const WIN_OPENING = { w: 0.18, h: 0.4 } as const;
+/** Sill course height; windowOn subtracts it to land the opening at storey+0.3. */
+export const SILL_H = 0.04;
+export const DOOR_OPENING = { w: 0.4, h: 0.75 } as const;
+const BORDER = 0.045; // jamb/head border around a window opening
+const ARCH_BORDER = 0.055; // voussoirs run deeper than the jambs they spring from
+const ARCH_SEGS = 6;
+const FIT_T = 0.05; // fitting depth (local x); sills and thresholds bulge past it
+const SILL_T = 0.07;
+const DOOR_B = 0.05;
+
+/** Box with a uniform vertex shade, spanning the given extents. */
+function shadedBox(
+  name: string,
+  [x0, x1]: readonly [number, number],
+  [y0, y1]: readonly [number, number],
+  [z0, z1]: readonly [number, number],
+  shade: number,
+  scene: Scene
+) {
+  const c = new Color4(shade, shade, shade, 1);
+  const box = MeshBuilder.CreateBox(
+    name,
+    { width: x1 - x0, height: y1 - y0, depth: z1 - z0, faceColors: [c, c, c, c, c, c] },
+    scene
+  );
+  box.bakeTransformIntoVertices(Matrix.Translation((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2));
+  return box;
+}
+
+/** Hexahedron between two ZY quads at x = ±t — a voussoir or fan segment.
+ * Adjacent segments' touching radial faces are interior to the merged solid,
+ * so they never show (same overlap rule the roof barrels rely on). */
+function wedge(
+  name: string,
+  quad: [number, number][], // 4 [z, y] corners: inner0, inner1, outer1, outer0
+  t: number,
+  shade: number,
+  scene: Scene
+) {
+  const positions: number[] = [];
+  for (const x of [-t, t]) for (const [z, y] of quad) positions.push(x, y, z);
+  const indices: number[] = [];
+  const q = (a: number, b: number, c: number, d: number) => indices.push(a, b, c, a, c, d);
+  q(0, 1, 2, 3);
+  q(4, 7, 6, 5);
+  q(0, 4, 5, 1);
+  q(1, 5, 6, 2);
+  q(2, 6, 7, 3);
+  q(3, 7, 4, 0);
+  return meshFrom(name, positions, indices, shade, scene);
+}
+
+/** [z, y] on a circle of radius r about (0, cy); angle 0 = right spring point,
+ * π = left. */
+const arcPt = (r: number, a: number, cy: number): [number, number] => [
+  r * Math.cos(a),
+  cy + r * Math.sin(a),
+];
+
+/** Sill + jambs shared by both window surrounds. The sill projects sideways and
+ * stands deeper than the frame; per-course shades read as stone joints. */
+function surroundBase(scene: Scene): Mesh[] {
+  const t = FIT_T / 2;
+  const hw = WIN_OPENING.w / 2;
+  return [
+    shadedBox(
+      "sill",
+      [-SILL_T / 2, SILL_T / 2],
+      [0, SILL_H],
+      [-(hw + BORDER + 0.025), hw + BORDER + 0.025],
+      0.88,
+      scene
+    ),
+    shadedBox("jamb-l", [-t, t], [SILL_H, SILL_H + WIN_OPENING.h], [-(hw + BORDER), -hw], 1, scene),
+    shadedBox("jamb-r", [-t, t], [SILL_H, SILL_H + WIN_OPENING.h], [hw, hw + BORDER], 1, scene),
+  ];
+}
+
+function buildSurroundRect(scene: Scene) {
+  const t = FIT_T / 2;
+  const hw = WIN_OPENING.w / 2;
+  const head = shadedBox(
+    "head",
+    [-t, t],
+    [SILL_H + WIN_OPENING.h, SILL_H + WIN_OPENING.h + BORDER],
+    [-(hw + BORDER), hw + BORDER],
+    0.95,
+    scene
+  );
+  const mesh = Mesh.MergeMeshes([...surroundBase(scene), head], true, true)!;
+  mesh.name = "proc-surround-rect";
+  return { mesh, material: "stone", color: STONE };
+}
+
+function buildSurroundArch(scene: Scene) {
+  const t = FIT_T / 2;
+  const hw = WIN_OPENING.w / 2;
+  const spring = SILL_H + WIN_OPENING.h;
+  const parts = surroundBase(scene);
+  for (let i = 0; i < ARCH_SEGS; i++) {
+    const a0 = (Math.PI * i) / ARCH_SEGS;
+    const a1 = (Math.PI * (i + 1)) / ARCH_SEGS;
+    parts.push(
+      wedge(
+        `vouss-${i}`,
+        [
+          arcPt(hw, a0, spring),
+          arcPt(hw, a1, spring),
+          arcPt(hw + ARCH_BORDER, a1, spring),
+          arcPt(hw + ARCH_BORDER, a0, spring),
+        ],
+        t,
+        i % 2 ? 0.88 : 1, // alternating wedge shades are the voussoir joints
+        scene
+      )
+    );
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-surround-arch";
+  return { mesh, material: "stone", color: STONE };
+}
+
+function buildDoorFrame(scene: Scene) {
+  const t = FIT_T / 2;
+  const hw = DOOR_OPENING.w / 2;
+  const parts = [
+    shadedBox(
+      "threshold",
+      [-SILL_T / 2, SILL_T / 2],
+      [0, 0.02],
+      [-(hw + DOOR_B), hw + DOOR_B],
+      0.85,
+      scene
+    ),
+    shadedBox("jamb-l", [-t, t], [0, DOOR_OPENING.h], [-(hw + DOOR_B), -hw], 1, scene),
+    shadedBox("jamb-r", [-t, t], [0, DOOR_OPENING.h], [hw, hw + DOOR_B], 1, scene),
+    // Lintel: deeper than the jambs and slightly eared past them.
+    shadedBox(
+      "lintel",
+      [-0.03, 0.03],
+      [DOOR_OPENING.h, DOOR_OPENING.h + 0.06],
+      [-(hw + DOOR_B + 0.02), hw + DOOR_B + 0.02],
+      0.94,
+      scene
+    ),
+  ];
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-door-frame";
+  return { mesh, material: "stone", color: STONE };
+}
+
+function buildDoorLeaf(scene: Scene) {
+  // A hair inside the frame's 0.40x0.75 opening so the leaf's edges never share
+  // a plane with the jambs; the clearance reads as the door gap.
+  const W = DOOR_OPENING.w - 0.01;
+  const H = DOOR_OPENING.h - 0.01;
+  const T = 0.03;
+  const SHADES = [1, 0.9, 0.96, 0.87, 0.94];
+  const pw = W / SHADES.length;
+  const parts: Mesh[] = [];
+  for (let i = 0; i < SHADES.length; i++) {
+    // Planks are contiguous (a real gap would show wall through the door);
+    // alternate faces recess a touch, and the exposed side sliver is the seam.
+    parts.push(
+      shadedBox(
+        `plank-${i}`,
+        [-T / 2, T / 2 - (i % 2 ? 0.006 : 0)],
+        [0, H],
+        [-W / 2 + i * pw, -W / 2 + (i + 1) * pw],
+        SHADES[i]!,
+        scene
+      )
+    );
+  }
+  // Ledges (cross rails), sunk a hair into the proud planks.
+  for (const [y0, y1] of [
+    [0.1, 0.16],
+    [0.57, 0.63],
+  ] as const) {
+    parts.push(
+      shadedBox(
+        `rail-${y0}`,
+        [T / 2 - 0.004, T / 2 + 0.01],
+        [y0, y1],
+        [-W / 2 + 0.02, W / 2 - 0.02],
+        0.8,
+        scene
+      )
+    );
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-door-leaf";
+  // Recenter on x (the rails push the bounds forward) — every piece is
+  // x/z-centered so the manifest picks faces by rotationY alone.
+  mesh.refreshBoundingInfo();
+  mesh.bakeTransformIntoVertices(
+    Matrix.Translation(-mesh.getBoundingInfo().boundingBox.center.x, 0, 0)
+  );
+  return { mesh, material: "wood", color: WOOD };
+}
+
+/** One arcade bay: half a pier at each end + a fan head, 1x1 in plan face-on.
+ * Rows tile by offsetting copies one unit: neighbors complete each other's
+ * piers, and the fan runs out to the bay's own rim (top edge AND corners), so
+ * the spandrels are solid and tiled bays leave no gaps. */
+function buildArchBay(scene: Scene) {
+  const D = 0.1; // half-depth
+  const PIER = 0.08; // half a pier at each end
+  const R = 0.5 - PIER; // inner arc springs off the pier's inner face
+  const SPRING = 0.5;
+  const parts = [
+    shadedBox("pier-l", [-D, D], [0, SPRING], [-0.5, -0.5 + PIER], 1, scene),
+    shadedBox("pier-r", [-D, D], [0, SPRING], [0.5 - PIER, 0.5], 1, scene),
+    // Impost blocks at the spring line, slightly proud all around; a tiled
+    // row's imposts join into a continuous course across each shared pier.
+    shadedBox(
+      "impost-l",
+      [-D - 0.02, D + 0.02],
+      [SPRING - 0.05, SPRING],
+      [-0.5, -0.5 + PIER + 0.02],
+      0.88,
+      scene
+    ),
+    shadedBox(
+      "impost-r",
+      [-D - 0.02, D + 0.02],
+      [SPRING - 0.05, SPRING],
+      [0.5 - PIER - 0.02, 0.5],
+      0.88,
+      scene
+    ),
+  ];
+  // The angle list must include the 45°/135° corners or the fan chamfers them
+  // and tiled bays open triangular gaps at the rim.
+  const SEGS = 8;
+  /** Where the ray at angle a exits the half-square rim above the spring line. */
+  const rim = (a: number): [number, number] => {
+    const m = 0.5 / Math.max(Math.abs(Math.cos(a)), Math.sin(a));
+    return [m * Math.cos(a), SPRING + m * Math.sin(a)];
+  };
+  for (let i = 0; i < SEGS; i++) {
+    const a0 = (Math.PI * i) / SEGS;
+    const a1 = (Math.PI * (i + 1)) / SEGS;
+    parts.push(
+      wedge(
+        `fan-${i}`,
+        [arcPt(R, a0, SPRING), arcPt(R, a1, SPRING), rim(a1), rim(a0)],
+        D,
+        i % 2 ? 0.9 : 1,
+        scene
+      )
+    );
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-arch-bay";
+  return { mesh, material: "stone", color: STONE };
+}
+
 type Builder = (scene: Scene, courses: number, rows: number) => {
   mesh: Mesh;
   material: string;
@@ -423,6 +699,11 @@ const BUILDERS: Record<string, Builder> = {
   "gable-end": buildGableEnd,
   "roof-gable": buildRoofGable,
   "roof-hip": buildRoofHip,
+  "surround-rect": buildSurroundRect,
+  "surround-arch": buildSurroundArch,
+  "door-frame": buildDoorFrame,
+  "door-leaf": buildDoorLeaf,
+  "arch-bay": buildArchBay,
 };
 
 export const PROC_FILES = Object.keys(BUILDERS).map((id) => PROC_PREFIX + id);
