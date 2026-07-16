@@ -217,6 +217,7 @@ const TINT_COLORS: Record<string, string> = {
   verde: "#58634c", // verde di Prato marble — the Duomo's green banding
   roofBrown: "#b1a296", // over terracotta: a slightly browner, sun-faded roof
   bronze: "#a3773e", // warm cast-metal brown for the foundry's ingot stock (diffuse-only — no metal sheen)
+  reveal: "#6a5c4b", // unlit interior behind a window opening (see shutters.glb)
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
@@ -274,6 +275,77 @@ const WORKSHOP_ROOF_POSX: Part = {
   file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE, tint: "roof",
 };
 
+// A window = shutters.glb (the slat leaf extracted from the kit's panel — see
+// scripts/make-plain-openings.py) over a dark plate standing in for the opening
+// it left behind. The kit welds its window's hole and surround into the panel's
+// wall island, so the loose slats alone read as a "#" scribble on bare stucco;
+// the reveal gives them something to be shutters *over*. Matches the slat leaf's
+// extents: y 0.30-0.70, 0.30 wide.
+//
+// Nothing here may share a plane with anything behind it. proc:block's wall face
+// is at ±0.5 and the slats span ±(0.438-0.462) before their offset, so the three
+// surfaces are stacked with real gaps: wall 0.5 → reveal front 0.51 → slat back
+// 0.508. A reveal sitting flush at 0.5 z-fights the wall and the window survives
+// or vanishes per house, which is exactly what it looked like.
+// ponytail: a proud plate, not a modelled recess — the wall is solid and there's
+// no CSG here. Swap it for a real frame if one gets commissioned; that opening
+// is the piece the kit is actually missing.
+const WIN_W = 0.18; // width along the wall — the leaf ships 0.30 wide and 0.40
+const WIN_H = 0.4; //  tall, so it needs narrowing to read taller than it is wide
+const REVEAL_T = 0.03;
+const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
+const SHUTTER_OUT = 0.07; //  → slat back 0.508. Keep > 0.048 or it re-buries.
+const SHUTTER_NARROW: [number, number, number] = [1, 1, WIN_W / 0.3];
+
+/** One window on a local face, `along` = its offset across that wall. Scale is
+ * local and applies before rotationY, so the leaf's own Z (its width) narrows
+ * whichever world axis the face turns it onto. */
+function windowOn(face: LocalSide, y: number, along: number): Part[] {
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const reveal: Part = {
+    file: "proc:block",
+    tint: "reveal",
+    scale: onX ? [REVEAL_T, WIN_H, WIN_W] : [WIN_W, WIN_H, REVEAL_T],
+    position: onX
+      ? [sign * REVEAL_PLANE, y + 0.3, along]
+      : [along, y + 0.3, sign * REVEAL_PLANE],
+    face,
+  };
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const leaf: Part = {
+    file: TOWN + "shutters.glb",
+    position: onX
+      ? [sign * SHUTTER_OUT, y, along]
+      : [along, y, sign * SHUTTER_OUT],
+    rotationY,
+    scale: SHUTTER_NARROW,
+    face,
+  };
+  return [reveal, leaf];
+}
+
+// Facade columns, shared by both house tiers so upper windows land directly over
+// the door and the ground-floor window (the reference elevation). The door leaf
+// is 0.4 wide and sits off-centre; the window shares the remaining bay.
+const DOOR_COL = -0.2;
+const WIN_COL = 0.28;
+const SIDE_COLS = [-0.25, 0.25];
+const houseFront = (upper: number | null): Part[] => [
+  { file: TOWN + "door.glb", position: [0.04, 0, DOOR_COL], face: "posX" },
+  ...windowOn("posX", 0, WIN_COL),
+  ...(upper == null
+    ? []
+    : [...windowOn("posX", upper, DOOR_COL), ...windowOn("posX", upper, WIN_COL)]),
+];
+const houseSides = (floors: number[]): Part[] =>
+  floors.flatMap((y) =>
+    SIDE_COLS.flatMap((c) => [...windowOn("posZ", y, c), ...windowOn("negZ", y, c)])
+  );
+// Back gable: no door, so the columns sit symmetrically.
+const houseBack = (floors: number[]): Part[] =>
+  floors.flatMap((y) => [...windowOn("negX", y, -0.22), ...windowOn("negX", y, 0.22)]);
+
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cottage: {
     front: [1, 0],
@@ -282,10 +354,14 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [0, 0, 0], structural: true, tint: "facade" },
       { file: "proc:roof-gable", position: [0, 1, 0], scale: ROOF_SCALE, structural: true, tint: "roof" },
       { file: "proc:gable-end", position: [0, 1, 0], scale: ROOF_SCALE, tint: "facade" },
-      // door on the gable end, shuttered windows on the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], face: "posX", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, face: "posZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, face: "negZ", tint: "facade" },
+      // Loose fittings, not panels: the door leaf and shutters extracted from
+      // the kit's wall panels (scripts/make-plain-openings.py), so the stucco
+      // keeps its plain corners. They carry no wall of their own — the offset
+      // pushes them proud of proc:block's face at x=0.5 (the panels' own quoins
+      // used to do that job at 0.50, these thin leaves top out at ~0.47).
+      ...houseFront(null),
+      ...houseSides([0]),
+      ...houseBack([0]),
     ],
     fit: 0.85,
     // Keeps the ridge at ~2.4 person-heights (~13.7 ft) after the fit bump.
@@ -300,13 +376,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [0, 1, 0], structural: true, tint: "facade" },
       { file: "proc:roof-gable", position: [0, 2, 0], scale: ROOF_SCALE, structural: true, tint: "roof" },
       { file: "proc:gable-end", position: [0, 2, 0], scale: ROOF_SCALE, tint: "facade" },
-      // door under the banner, shuttered windows on both floors of the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], face: "posX", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, face: "posZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2, face: "posZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, face: "negZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2, face: "negZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.02, 1, 0], rotationY: Math.PI, face: "negX", tint: "facade" },
+      ...houseFront(1),
+      ...houseSides([0, 1]),
+      ...houseBack([0, 1]),
     ],
     // Widened + squashed together: at fit 0.65 / full height the two-story
     // stack read as a tower next to person-scale citizens.
