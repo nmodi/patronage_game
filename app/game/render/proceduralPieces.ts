@@ -231,18 +231,22 @@ function shadeByPosition(mesh: Mesh, shade: (x: number, y: number, z: number) =>
   mesh.setVerticesData(VertexBuffer.ColorKind, colors);
 }
 
-function buildBlock(scene: Scene) {
-  const mesh = MeshBuilder.CreateBox("proc-block", { size: 1 }, scene);
+function buildBlock(scene: Scene, _courses: number, storeys: number) {
+  const mesh = MeshBuilder.CreateBox("proc-block", { width: 1, height: storeys, depth: 1 }, scene);
   // CreateBox centers on the origin; the kit's blocks sit on their base so
   // parts stack by integer y.
-  mesh.bakeTransformIntoVertices(Matrix.Translation(0, 0.5, 0));
+  mesh.bakeTransformIntoVertices(Matrix.Translation(0, storeys / 2, 0));
   // The kit's ramp, rebuilt: dark at the footing, full at the eave. A box only
-  // has verts at y=0 and y=1, so this interpolates across the face for free.
-  shadeByPosition(mesh, (_x, y) => STUCCO_AO + (1 - STUCCO_AO) * y);
+  // has verts at its ends, so this interpolates across the face for free — and a
+  // multi-storey block runs ONE continuous ramp over the whole wall (no dark
+  // seam where two stacked blocks used to meet — see the townhouse).
+  shadeByPosition(mesh, (_x, y) => STUCCO_AO + (1 - STUCCO_AO) * (y / storeys));
   // CreateBox's UVs rotate 90° on the ±X faces, which stands a facade
   // texture's stone courses on end on a house's front. Remap by face normal
   // so v is world height on every wall — and the ±X mapping matches
-  // proc:gable-end's, so courses continue up the gable.
+  // proc:gable-end's, so courses continue up the gable. v = raw y, so a
+  // multi-storey block's texture WRAPS once per storey (same course size as a
+  // cottage) instead of stretching one canvas over the whole wall.
   uvByPosition(mesh, (x, y, z, nx, _ny, nz) =>
     Math.abs(nx) > 0.5 ? [z + 0.5, y] : Math.abs(nz) > 0.5 ? [x + 0.5, y] : [x + 0.5, z + 0.5]
   );
@@ -722,7 +726,13 @@ export function buildProceduralContainer(file: string, scene: Scene): AssetConta
   const [id, counts] = file.slice(PROC_PREFIX.length).split("@");
   const builder = BUILDERS[id!];
   if (!builder) throw new Error(`unknown procedural piece: ${file}`);
-  const [courses, rows] = counts ? counts.split("x").map(Number) : [COURSES, ROWS];
+  // Roofs default to the house-tile density; the block defaults to a single
+  // storey (its `rows` slot is storey count — `proc:block@1x2` for the townhouse).
+  const [courses, rows] = counts
+    ? (counts.split("x").map(Number) as [number, number])
+    : id === "block"
+      ? [1, 1]
+      : [COURSES, ROWS];
   const { mesh, material, color } = builder(scene, courses!, rows!);
   // The kit is flat-shaded and these sit beside it. Profile extrusions share
   // vertices between faces, so ComputeNormals averages them into a smooth

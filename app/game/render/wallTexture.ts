@@ -213,6 +213,10 @@ export function getStoneTexture(tintId: string, scene: Scene) {
     tex = new DynamicTexture(`stone-${tintId}`, { width: SIZE, height: SIZE }, scene, true);
     STONE_TINTS[tintId]!(tex.getContext() as CanvasRenderingContext2D, SIZE);
     tex.update();
+    // Tile in v as well as u: the townhouse's 2-storey block maps v 0..2, so the
+    // course canvas must repeat once per storey instead of clamping the top row
+    // up the upper floor (which read as a smooth, different-looking second storey).
+    tex.wrapU = tex.wrapV = DynamicTexture.WRAP_ADDRESSMODE;
     stoneTextures.set(tintId, tex);
   }
   return tex;

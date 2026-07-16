@@ -6,9 +6,6 @@ import { SILL_H, WIN_OPENING, procRoofFile } from "./proceduralPieces";
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
 /** Grid-space side of a footprint (grid y maps to world z). */
 export type GridSide = "posX" | "negX" | "posY" | "negY";
-/** Local sides whose face stretches to the footprint boundary to meet an
- * abutting row-house (see mapRenderer computeBlend). */
-export type BlendSides = Partial<Record<LocalSide, boolean>>;
 /** Same-buildingId orthogonal neighbors of a drag-placed linear segment tile,
  * in grid space (grid y maps to local/world z). Drives per-cell orientation and
  * open-end caps (see mapRenderer computeSegment). */
@@ -27,13 +24,6 @@ type Part = {
    * box: sunken pieces (negative position.y survives the ground rebase) and
    * overhanging extensions (reach past the footprint without shrinking it). */
   buried?: boolean;
-  /** Stretched along the blend axis so its face meets an abutting row-house
-   * (walls, roof). Non-structural parts keep their true proportions. */
-  structural?: boolean;
-  /** Thin panel attached to this local face (door, windows, banner) — dropped
-   * when that face blends into a neighbor, since it would be buried in the
-   * shared wall. */
-  face?: LocalSide;
   /** Multiply tint over the piece's base color. "facade"/"roof" resolve to the
    * building's position-hashed pick from FACADE_PALETTES/ROOF_PALETTE; any
    * other string is a TINT_COLORS id directly. One tint per part, applied to
@@ -72,10 +62,6 @@ type ModelDef = {
    * overhang the footprint instead of shrinking the fit. */
   extendNegX?: Part[];
   extendPosX?: Part[];
-  /** Buildings sharing a group visually merge when side-adjacent: `structural`
-   * parts stretch to the footprint boundary on sides facing a same-group
-   * neighbor (row-houses). Sides carrying the door (`front`) never blend. */
-  blendGroup?: string;
   /** Drag-placed linear decoration (fence/wall/colonnade): the model is built
    * per 1×1 cell from this spec + the neighbor mask instead of `parts`. */
   segment?: SegmentSpec;
@@ -162,6 +148,18 @@ function segmentParts(spec: SegmentSpec, mask: SegmentMask): Part[] {
 /** Shallower roof pitch: roofs squashed to 60% height, origin at the base so
  * they stay flush on the walls. */
 const ROOF_SCALE: [number, number, number] = [1, 0.6, 1];
+/** Row-house roof, pulled in on plan so it barely overhangs the footprint. The
+ * walls fill the footprint (HOUSE_FIT), so a full-overhang roof pokes ~0.17wu
+ * into a TALLER neighbour's wall (a cottage's roof into a townhouse — same-height
+ * neighbours hide the overlap). Scaling the roof and its gable end together keeps
+ * their fit, so the eave still caps the wall (bulge tiles cover the hair of wall
+ * top left proud); only the projection past the footprint shrinks. */
+const HOUSE_ROOF_SCALE: [number, number, number] = [0.9, 0.6, 0.9];
+/** Row houses fill their footprint to the wall plane so side-adjacent houses
+ * touch (the roof is `buried`, so only the walls + window reveals drive the fit;
+ * >1 to push the block face out past the reveals to the footprint edge). Tuned
+ * by eye — the walls of two neighbours should just meet, no grass sliver. */
+const HOUSE_FIT = 1.07;
 /** The kit's roof-high-gable was a steeper pitch, not a different piece — this
  * is its ridge height over the ordinary gable's (1.112 vs 0.571), so a y-scale
  * reproduces it on the generated roof. */
@@ -173,19 +171,17 @@ const HIGH_GABLE = 1.112 / 0.571;
  * always come as a pair at the SAME transform: the builders share one
  * cross-section, so identical transforms are what keeps them aligned.
  *
- * The gable end is deliberately NOT `structural`, even on the blending row
- * houses. Blend stretch scales each structural part from its OWN bounds to the
- * shared edge, and the gable is necessarily smaller than the roof hiding it (any
- * triangle strictly inside the roof's is), so it would stretch further and walk
- * out through the tiles. It doesn't need to: only the neighbour-facing side
- * stretches, and that gable is buried in the neighbour. */
+ * `buried` excludes the roof from the footprint fit (see instantiateBuilding),
+ * so a house that fills its footprint to the walls can still overhang the tile
+ * with its eaves — which is what makes side-adjacent houses read as one terrace
+ * roof without any neighbour-reactive stretching. */
 const gableRoof = (
   position: [number, number, number],
   scale: [number, number, number] = ROOF_SCALE,
-  opts: { rotationY?: number; structural?: boolean } = {}
+  opts: { rotationY?: number; buried?: boolean } = {}
 ): Part[] => [
   { file: procRoofFile("roof-gable", scale), position, scale, tint: "roof", ...opts },
-  { file: "proc:gable-end", position, scale, tint: "facade", rotationY: opts.rotationY },
+  { file: "proc:gable-end", position, scale, tint: "facade", rotationY: opts.rotationY, buried: opts.buried },
 ];
 
 /** A tiled hip roof (the kit's roof-point). No end pieces — four slopes, no
@@ -345,7 +341,6 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
     position: onX
       ? [sign * REVEAL_PLANE, y + 0.29, along]
       : [along, y + 0.29, sign * REVEAL_PLANE],
-    face,
   };
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
   const surround: Part = {
@@ -354,7 +349,6 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
       ? [sign * SURROUND_OUT, y + 0.3 - SILL_H, along]
       : [along, y + 0.3 - SILL_H, sign * SURROUND_OUT],
     rotationY,
-    face,
   };
   const leaf: Part = {
     file: TOWN + "shutters.glb",
@@ -364,7 +358,6 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
       : [along, y, sign * SHUTTER_OUT],
     rotationY,
     scale: SHUTTER_NARROW,
-    face,
   };
   return [reveal, surround, leaf];
 }
@@ -426,8 +419,8 @@ const SIDE_COLS = [-0.25, 0.25];
 const houseFront = (upper: number | null): Part[] => [
   // Stone doorway + planked leaf recessed in it (batch-1 fittings — the kit's
   // extracted leaf alone never quite read as a door).
-  { file: "proc:door-frame", position: [SURROUND_OUT, 0, DOOR_COL], face: "posX" },
-  { file: "proc:door-leaf", position: [0.508, 0, DOOR_COL], face: "posX" },
+  { file: "proc:door-frame", position: [SURROUND_OUT, 0, DOOR_COL] },
+  { file: "proc:door-leaf", position: [0.508, 0, DOOR_COL] },
   ...windowOn("posX", 0, WIN_COL),
   ...(upper == null
     ? []
@@ -442,12 +435,16 @@ const houseBack = (floors: number[]): Part[] =>
   floors.flatMap((y) => [...windowOn("negX", y, -0.22), ...windowOn("negX", y, 0.22)]);
 
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
+  // Row houses fill their footprint to the walls (HOUSE_FIT ≈ 1), so two placed
+  // side by side simply touch and read as a terrace — no neighbour-reactive
+  // stretching. The gable roof runs its ridge across the party-wall axis (a +90°
+  // turn) so the eaves face the street front/back and the gable ends land on the
+  // shared side walls, where a neighbour buries them into a continuous roofline.
   cottage: {
     front: [1, 0],
-    blendGroup: "rowhouse",
     parts: [
-      { file: "proc:block", position: [0, 0, 0], structural: true, tint: "facade" },
-      ...gableRoof([0, 1, 0], ROOF_SCALE, { structural: true }),
+      { file: "proc:block", position: [0, 0, 0], tint: "facade" },
+      ...gableRoof([0, 1, 0], HOUSE_ROOF_SCALE, { rotationY: Math.PI / 2, buried: true }),
       // Loose fittings, not panels: the door leaf and shutters extracted from
       // the kit's wall panels (scripts/make-plain-openings.py), so the stucco
       // keeps its plain corners. They carry no wall of their own — the offset
@@ -457,25 +454,23 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...houseSides([0]),
       ...houseBack([0]),
     ],
-    fit: 0.85,
+    fit: HOUSE_FIT,
     // Keeps the ridge at ~2.4 person-heights (~13.7 ft) after the fit bump.
     scaleY: 0.58,
     randomRotate: "quarter",
   },
   townhouse: {
     front: [1, 0],
-    blendGroup: "rowhouse",
     parts: [
-      { file: "proc:block", position: [0, 0, 0], structural: true, tint: "facade" },
-      { file: "proc:block", position: [0, 1, 0], structural: true, tint: "facade" },
-      ...gableRoof([0, 2, 0], ROOF_SCALE, { structural: true }),
+      // One 2-storey block, not two stacked — a single continuous AO ramp, so no
+      // dark seam where the floors used to meet (see proc:block storeys).
+      { file: "proc:block@1x2", position: [0, 0, 0], tint: "facade" },
+      ...gableRoof([0, 2, 0], HOUSE_ROOF_SCALE, { rotationY: Math.PI / 2, buried: true }),
       ...houseFront(1),
       ...houseSides([0, 1]),
       ...houseBack([0, 1]),
     ],
-    // Widened + squashed together: at fit 0.65 / full height the two-story
-    // stack read as a tower next to person-scale citizens.
-    fit: 0.82,
+    fit: HOUSE_FIT,
     // ~22.4 ft: cottage story (13.7 ft) plus a ~9 ft second floor.
     scaleY: 0.56,
     randomRotate: "quarter",
@@ -1049,31 +1044,6 @@ export function effectiveFullRotation(
   return effectiveRotation(buildingId, gridPos, rotation);
 }
 
-// Rotation r turns local +X to face grid +x, −y, −x, +y (r = 0-3) — the same
-// table computeExtend uses. Both rings are in facing order, so rotating by r
-// just advances the grid index: local side i faces grid side (i + r) % 4.
-const LOCAL_SIDE_RING: LocalSide[] = ["posX", "negZ", "negX", "posZ"];
-const GRID_SIDE_RING: GridSide[] = ["posX", "negY", "negX", "posY"];
-
-/** Local side of a building (rotated by quarter turns r) that faces the given grid side. */
-export function localSideForGrid(grid: GridSide, r: number): LocalSide {
-  return LOCAL_SIDE_RING[(GRID_SIDE_RING.indexOf(grid) - r + 4) % 4];
-}
-
-/** Row-house blend group, when the building merges with same-group neighbors. */
-export function getBlendGroup(buildingId: BuildingId): string | undefined {
-  return MODEL_MANIFEST[buildingId]?.blendGroup;
-}
-
-/** Local side the entrance is on (from `front`) — this side never blends. */
-export function doorLocalSide(buildingId: BuildingId): LocalSide | null {
-  const front = MODEL_MANIFEST[buildingId]?.front;
-  if (!front) return null;
-  if (front[0] === 1) return "posX";
-  if (front[0] === -1) return "negX";
-  return front[1] === 1 ? "posZ" : "negZ";
-}
-
 /** Whether this building appends extension parts against abutting solids (colonnade). */
 export function hasExtensions(buildingId: BuildingId) {
   const def = MODEL_MANIFEST[buildingId];
@@ -1088,7 +1058,7 @@ export function isSegment(buildingId: BuildingId) {
 /** Whether this building's model reacts to abutting neighbors at all —
  * mapRenderer re-evaluates these origins whenever any tile changes. */
 export function reactsToNeighbors(buildingId: BuildingId) {
-  return hasExtensions(buildingId) || getBlendGroup(buildingId) != null || isSegment(buildingId);
+  return hasExtensions(buildingId) || isSegment(buildingId);
 }
 
 export {

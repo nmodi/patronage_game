@@ -28,7 +28,6 @@ import {
   effectiveRotation,
   hashPosition,
   segmentParts,
-  type BlendSides,
   type ModelDef,
   type Part,
   type SegmentMask,
@@ -316,33 +315,6 @@ export type BuildingModel = {
   offsetZ: number;
 };
 
-/** Move a part's faces along one local axis: faces with a target land exactly
- * on it, faces without stay anchored where they are. `boundMin/Max` are the
- * part's kit-space bounds on that axis (building-root space, pre-rotation). */
-function stretchPartToTargets(
-  roots: TransformNode[],
-  partRotationY: number | undefined,
-  axis: "x" | "z",
-  boundMin: number,
-  boundMax: number,
-  targetMin: number | null,
-  targetMax: number | null
-) {
-  if (targetMin == null && targetMax == null) return;
-  const extent = boundMax - boundMin;
-  if (extent <= 0) return;
-  const newMin = targetMin ?? boundMin;
-  const newMax = targetMax ?? boundMax;
-  const factor = (newMax - newMin) / extent;
-  // A part's quarter-turn rotationY swaps which of its own scaling axes spans
-  // the building axis; its position stays in parent (building) space.
-  const odd = Math.abs(Math.round((partRotationY ?? 0) / (Math.PI / 2))) % 2 === 1;
-  const scaleAxis = odd ? (axis === "x" ? "z" : "x") : axis;
-  for (const partRoot of roots) {
-    partRoot.scaling[scaleAxis] *= factor;
-    partRoot.position[axis] = newMin + factor * (partRoot.position[axis] - boundMin);
-  }
-}
 
 /** Recenter offset for a measured world-frame center vector (vx, vz): −v,
  * swung by the late 45° for diagonal rotations. All fit/stretch math runs in
@@ -366,7 +338,6 @@ export function instantiateBuilding(
   scene: Scene,
   rotation?: number, // player-chosen quarter turns; overrides seeded randomRotate
   extend?: { negX: boolean; posX: boolean }, // append extendNegX/PosX parts
-  blend?: BlendSides, // local sides stretched to the footprint edge (row-houses)
   segmentMask?: SegmentMask // per-cell linear segment: build parts from neighbors
 ): BuildingModel | null {
   const def = MODEL_MANIFEST[buildingId];
@@ -401,30 +372,6 @@ export function instantiateBuilding(
   if (!def.pad && !partInstances.some((pi) => pi.meshes.length > 0)) {
     root.dispose();
     return null;
-  }
-
-  // Kit-space bounds of the stretchable parts, measured while the building
-  // root is still at identity (only part transforms apply — the rotation below
-  // doesn't touch them, so these stay valid in local space).
-  const blendActive =
-    blend != null && Boolean(blend.posX || blend.negX || blend.posZ || blend.negZ);
-  const structuralBounds = new Map<PartInstance, { min: Vector3; max: Vector3 }>();
-  if (blendActive) {
-    root.computeWorldMatrix(true);
-    for (const pi of partInstances) {
-      if (!pi.part.structural) continue;
-      let bounds: { min: Vector3; max: Vector3 } | null = null;
-      for (const partRoot of pi.roots) {
-        partRoot.computeWorldMatrix(true);
-        const b = partRoot.getHierarchyBoundingVectors(true);
-        if (!bounds) bounds = { min: b.min.clone(), max: b.max.clone() };
-        else {
-          bounds.min.minimizeInPlace(b.min);
-          bounds.max.maximizeInPlace(b.max);
-        }
-      }
-      if (bounds) structuralBounds.set(pi, bounds);
-    }
   }
 
   let padMesh: Mesh | null = null;
@@ -507,47 +454,6 @@ export function instantiateBuilding(
   if (def.randomScale) {
     const [lo, hi] = def.randomScale;
     scale *= lo + (hash / 4096) * (hi - lo);
-  }
-
-  if (blendActive && blend) {
-    // Row-house blending: the fit above measured the complete, untouched part
-    // set, so the base scale/offsets are byte-identical with and without
-    // neighbors — only now do the structural faces move. Target rectangle: the
-    // footprint in kit units around the measured center (the caller recenters
-    // by offsetX/Z, so a stretched face lands exactly on the tile boundary,
-    // where the neighbor's own stretched face meets it), inverse-rotated from
-    // world-aligned into local part space.
-    const halfW = (footprint.width * CELL_SIZE) / 2 / scale;
-    const halfD = (footprint.depth * CELL_SIZE) / 2 / scale;
-    const cos = Math.cos(root.rotation.y);
-    const sin = Math.sin(root.rotation.y);
-    let fpMinX = Infinity;
-    let fpMaxX = -Infinity;
-    let fpMinZ = Infinity;
-    let fpMaxZ = -Infinity;
-    for (const wx of [centerX - halfW, centerX + halfW]) {
-      for (const wz of [centerZ - halfD, centerZ + halfD]) {
-        const lx = wx * cos - wz * sin;
-        const lz = wx * sin + wz * cos;
-        fpMinX = Math.min(fpMinX, lx);
-        fpMaxX = Math.max(fpMaxX, lx);
-        fpMinZ = Math.min(fpMinZ, lz);
-        fpMaxZ = Math.max(fpMaxZ, lz);
-      }
-    }
-    for (const [pi, bounds] of structuralBounds) {
-      stretchPartToTargets(pi.roots, pi.part.rotationY, "x", bounds.min.x, bounds.max.x,
-        blend.negX ? fpMinX : null, blend.posX ? fpMaxX : null);
-      stretchPartToTargets(pi.roots, pi.part.rotationY, "z", bounds.min.z, bounds.max.z,
-        blend.negZ ? fpMinZ : null, blend.posZ ? fpMaxZ : null);
-    }
-    // Panels on a blended face would sit buried inside the shared wall.
-    for (const pi of partInstances) {
-      if (pi.part.face && blend[pi.part.face]) {
-        for (const partRoot of pi.roots) partRoot.dispose();
-        pi.meshes = [];
-      }
-    }
   }
 
   collectMeshes();
@@ -675,11 +581,10 @@ export function createBuildingBatcher(
     worldZ: number,
     rotation: number | undefined,
     extend: { negX: boolean; posX: boolean } | undefined,
-    blend: BlendSides | undefined,
     active: boolean,
     segmentMask?: SegmentMask
   ): PlacedBuilding | null {
-    const model = instantiateBuilding(buildingId, footprint, gridPos, scene, rotation, extend, blend, segmentMask);
+    const model = instantiateBuilding(buildingId, footprint, gridPos, scene, rotation, extend, segmentMask);
     if (!model) return null;
     model.root.position.x = worldX + model.offsetX;
     model.root.position.z = worldZ + model.offsetZ;

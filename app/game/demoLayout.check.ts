@@ -1,20 +1,14 @@
 // Self-check for the ?demo layout: every hand-placed building must actually
 // place — i.e. land clear of the seeded river and of every other building —
-// and the two SW residential terraces must row-house-blend. Guards against the
+// and the two SW residential terraces must sit adjacent (row houses fill their
+// footprint, so abutting them is what reads as a terrace). Guards against the
 // map seed / grid size shifting the water under the layout (they just did: 80→120).
 // Run: node --experimental-strip-types app/game/demoLayout.check.ts
 import assert from "node:assert";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint } from "./buildings.ts";
-import type { GridPos, Tile, TileMap } from "./grid.ts";
+import type { Tile, TileMap } from "./grid.ts";
 import { planPlacement } from "./placementRules.ts";
-import {
-  doorLocalSide,
-  effectiveRotation,
-  getBlendGroup,
-  localSideForGrid,
-  type GridSide,
-} from "./render/modelManifest.ts";
 import { DEMO_MAP_SEED, LAYOUT } from "./demoLayout.ts";
 
 // --- 1. Replay LAYOUT exactly as seedDemoCity does, asserting every entry places.
@@ -51,50 +45,32 @@ assert.equal(
   `demo buildings that fail to place (water/overlap/bounds):\n  ${failures.join("\n  ")}`
 );
 
-// --- 2. Row-house blending: a port of mapRenderer.computeBlend (Babylon-free),
-// so the terrace houses are verified to actually merge and the lone house not.
-const OPPOSITE: Record<GridSide, GridSide> = { posX: "negX", negX: "posX", posY: "negY", negY: "posY" };
-
-function blendSides(originKey: string): Set<string> {
+// --- 2. Terraces: row houses fill their footprint, so a terrace is just houses
+// placed wall-to-wall. Count footprint edges that abut another residence.
+function residentialSides(originKey: string): number {
   const tile = tiles[originKey]!;
-  const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-  const group = getBlendGroup(tile.buildingId);
-  const r = effectiveRotation(tile.buildingId, tile.position, tile.rotation);
-  const door = doorLocalSide(tile.buildingId);
-  const { width, depth } = rotatedFootprint(metadata, tile.rotation);
+  const { width, depth } = rotatedFootprint(BUILDING_METADATA_BY_ID[tile.buildingId], tile.rotation);
   const { x, y } = tile.position;
-  const strips: Record<GridSide, GridPos[]> = { negX: [], posX: [], negY: [], posY: [] };
+  const isRes = (cx: number, cy: number) =>
+    BUILDING_METADATA_BY_ID[tiles[`${cx},${cy}`]?.buildingId!]?.type === "residential";
+  const sides = [false, false, false, false]; // -x, +x, -y, +y
   for (let dy = 0; dy < depth; dy += 1) {
-    strips.negX.push({ x: x - 1, y: y + dy });
-    strips.posX.push({ x: x + width, y: y + dy });
+    sides[0] ||= isRes(x - 1, y + dy);
+    sides[1] ||= isRes(x + width, y + dy);
   }
   for (let dx = 0; dx < width; dx += 1) {
-    strips.negY.push({ x: x + dx, y: y - 1 });
-    strips.posY.push({ x: x + dx, y: y + depth });
+    sides[2] ||= isRes(x + dx, y - 1);
+    sides[3] ||= isRes(x + dx, y + depth);
   }
-  const blend = new Set<string>();
-  for (const gridSide of Object.keys(strips) as GridSide[]) {
-    if (localSideForGrid(gridSide, r) === door) continue;
-    const facing = OPPOSITE[gridSide];
-    for (const cell of strips[gridSide]) {
-      const neighbor = tiles[`${cell.x},${cell.y}`];
-      if (!neighbor || getBlendGroup(neighbor.buildingId) !== group) continue;
-      const origin = tiles[`${neighbor.origin.x},${neighbor.origin.y}`]!;
-      const rn = effectiveRotation(origin.buildingId, origin.position, origin.rotation);
-      if (localSideForGrid(facing, rn) === doorLocalSide(origin.buildingId)) continue;
-      blend.add(localSideForGrid(gridSide, r));
-      break;
-    }
-  }
-  return blend;
+  return sides.filter(Boolean).length;
 }
 
-// Middle house of each terrace blends on both shared walls — the two SW
-// vertical terraces (stacked, doors E/W) and the horizontal south-belt farm row.
+// Middle house of each terrace abuts a neighbour on both shared walls — the two
+// SW vertical terraces (stacked, doors E/W) and the horizontal south-belt farm row.
 for (const key of ["22,52", "22,56", "27,52", "27,56", "42,82"]) {
-  assert.ok(blendSides(key).size >= 2, `terrace house ${key} should blend on both shared walls`);
+  assert.ok(residentialSides(key) >= 2, `terrace house ${key} should abut houses on both shared walls`);
 }
-// The lone cottage has no same-group neighbor → no blend.
-assert.equal(blendSides("8,52").size, 0, "isolated cottage 8,52 must not blend");
+// The lone cottage has no residential neighbour.
+assert.equal(residentialSides("8,52"), 0, "isolated cottage 8,52 must stand alone");
 
-console.log(`demoLayout.check: ${LAYOUT.length} entries place on seed "${DEMO_MAP_SEED}", terraces blend`);
+console.log(`demoLayout.check: ${LAYOUT.length} entries place on seed "${DEMO_MAP_SEED}", terraces abut`);
