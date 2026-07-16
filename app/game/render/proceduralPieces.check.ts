@@ -138,6 +138,19 @@ for (const file of PROC_FILES) {
   assert.ok(bounds(file).colors, `${file}: no vertex colors`);
 }
 
+// The residences' stone facade textures ride the stucco pieces (see
+// wallTexture.ts), so both must carry real UVs — block's come from CreateBox,
+// the gable end's are planar (z across, y continuing the wall's courses).
+// All-zero UVs render the texture as a single smeared texel.
+for (const file of ["proc:block", "proc:gable-end"]) {
+  const container = buildProceduralContainer(file, scene);
+  const uvs = (container.meshes[0]! as Mesh).getVerticesData(VertexBuffer.UVKind);
+  assert.ok(
+    uvs && uvs.some((v) => v !== 0),
+    `${file}: zero UVs — a facade texture would render as one texel`
+  );
+}
+
 // THE glow regression. Kenney bakes an ambient-occlusion ramp into the stucco
 // (#c6bba4 at the footing to #f3e4c9 at the eave) and the panels still on the
 // buildings carry it. The first cut replaced that whole ramp with its brightest

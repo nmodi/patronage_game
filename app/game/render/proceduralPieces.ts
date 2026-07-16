@@ -203,6 +203,22 @@ function prism(
   return meshFrom(name, positions, indices, shade, scene);
 }
 
+/** Paint per-vertex UVs from position (and face normal, for meshes that need
+ * a per-face mapping). Like the shading, runs before flat-shading, which
+ * splits the verts but carries their UVs along. */
+function uvByPosition(
+  mesh: Mesh,
+  uv: (x: number, y: number, z: number, nx: number, ny: number, nz: number) => [number, number]
+) {
+  const pos = mesh.getVerticesData(VertexBuffer.PositionKind)!;
+  const norm = mesh.getVerticesData(VertexBuffer.NormalKind)!;
+  const uvs: number[] = [];
+  for (let i = 0; i < pos.length; i += 3) {
+    uvs.push(...uv(pos[i]!, pos[i + 1]!, pos[i + 2]!, norm[i]!, norm[i + 1]!, norm[i + 2]!));
+  }
+  mesh.setVerticesData(VertexBuffer.UVKind, uvs);
+}
+
 /** Paint per-vertex shade from position. Runs before flat-shading, which splits
  * the verts but carries their colors along. */
 function shadeByPosition(mesh: Mesh, shade: (x: number, y: number, z: number) => number) {
@@ -223,6 +239,13 @@ function buildBlock(scene: Scene) {
   // The kit's ramp, rebuilt: dark at the footing, full at the eave. A box only
   // has verts at y=0 and y=1, so this interpolates across the face for free.
   shadeByPosition(mesh, (_x, y) => STUCCO_AO + (1 - STUCCO_AO) * y);
+  // CreateBox's UVs rotate 90° on the ±X faces, which stands a facade
+  // texture's stone courses on end on a house's front. Remap by face normal
+  // so v is world height on every wall — and the ±X mapping matches
+  // proc:gable-end's, so courses continue up the gable.
+  uvByPosition(mesh, (x, y, z, nx, _ny, nz) =>
+    Math.abs(nx) > 0.5 ? [z + 0.5, y] : Math.abs(nz) > 0.5 ? [x + 0.5, y] : [x + 0.5, z + 0.5]
+  );
   return { mesh, material: "stucco", color: "#f3e4c9" };
 }
 
@@ -381,6 +404,12 @@ function buildGableEnd(scene: Scene) {
   );
   const mesh = Mesh.MergeMeshes(ends, true, true)!;
   mesh.name = "proc-gable-end";
+  // Planar UVs so a facade texture can dress the gable: u across the wall, v
+  // continuing the storey below's courses. The 0.6 bakes in the manifest's
+  // default ROOF_SCALE y-squash, so a stone course is the same world height on
+  // the gable as on the wall under it. Refs at other roof scales carry
+  // non-textured tints, where these UVs never show.
+  uvByPosition(mesh, (_x, y, z) => [z + 0.5, y * 0.6]);
   return { mesh, material: "stucco", color: "#f3e4c9" };
 }
 

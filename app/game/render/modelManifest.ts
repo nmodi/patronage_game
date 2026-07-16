@@ -230,7 +230,6 @@ const MATERIAL_TINTS: Record<string, Record<string, string>> = {
 // colormap (town pieces load with a white diffuse, so these are pure tints).
 const TINT_COLORS: Record<string, string> = {
   cream: "#eae5d8",
-  pink: "#e3b8a6",
   sand: "#e0d5bf",
   white: "#f5efe2",
   ochre: "#d9c187", // warm workshop stucco (see FACADE_PALETTES.artist)
@@ -265,7 +264,12 @@ const TEXTURE_TINTS: Record<string, { file: string; diffuse?: string }> = {
 };
 // Facade palette per build-menu category; a building's pick is position-hashed.
 const FACADE_PALETTES: Record<string, string[]> = {
-  residential: ["cream", "pink", "sand", "white"],
+  // Residences read as sandstone, not stucco: these are STONE_TINTS pattern
+  // ids (render/wallTexture.ts), routed down the texture path in
+  // getTintedPair rather than through TINT_COLORS. Repeats weight the
+  // position-hashed pick — patchy (bare stone through broken plaster) is the
+  // loudest pattern, so it lands on one house in six.
+  residential: ["rubble", "ashlar", "brick", "plaster", "rubble", "ashlar", "plaster", "patchy"],
   service: ["cream", "sand"],
   artist: ["ochre", "sand"],
   materials: ["sand", "white"],
