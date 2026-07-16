@@ -245,6 +245,10 @@ const TINT_COLORS: Record<string, string> = {
   // sun on a lit face — at the old #6a5c4b the shutterless arched windows'
   // reveals blew out to pale tan and read as empty niches.
   reveal: "#453d33",
+  // Knocks shutters.glb's orange atlas swatch toward the door WOOD brown. This
+  // multiplies over the swatch, so it's picked for the product, not literal —
+  // tune against the rendered door.
+  shutter: "#b0a488",
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
@@ -314,8 +318,8 @@ const WORKSHOP_BAY_ROOF = gableRoof([-0.5, 1, 0]);
 // street look: grey stone frames, closed louvres, colored plaster.
 //
 // Nothing here may share a plane with anything else. proc:block's wall face is
-// at ±0.5, so the stack is: wall 0.5 → frame back 0.504 (its deeper sill dips
-// into the wall) → slat back 0.508 → reveal front 0.51 → frame front 0.554.
+// at ±0.5, so the stack is: wall 0.5 → jamb back 0.5005 (the deeper sill dips
+// into the wall) → slat back 0.508 → reveal front 0.51 → frame front 0.5355.
 // The reveal is a hair larger than the opening so its edges bury inside the
 // frame ring, and the slats a hair narrower so they clear the opening's faces.
 const WIN_W = WIN_OPENING.w; // the opening the surround frames — the leaf ships
@@ -324,8 +328,9 @@ const REVEAL_T = 0.03;
 const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
 const SHUTTER_OUT = 0.07; //  → slat back 0.508. Keep > 0.048 or it re-buries.
 const SHUTTER_NARROW: [number, number, number] = [1, 1, (WIN_W - 0.01) / 0.3];
-// Wall 0.5 → jamb back 0.504, frame front 0.554 (fitting depth 0.05).
-const SURROUND_OUT = 0.529;
+// Wall 0.5 → jamb back 0.5005, frame front 0.5355 (fitting depth 0.035). Slimmer
+// and pulled flusher than the old kit look — the reference wants near-flush trim.
+const SURROUND_OUT = 0.518;
 
 /** One window on a local face, `along` = its offset across that wall. Scale is
  * local and applies before rotationY, so the leaf's own Z (its width) narrows
@@ -353,6 +358,7 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
   };
   const leaf: Part = {
     file: TOWN + "shutters.glb",
+    tint: "shutter",
     position: onX
       ? [sign * SHUTTER_OUT, y, along]
       : [along, y, sign * SHUTTER_OUT],
@@ -373,7 +379,7 @@ function archWindow(face: LocalSide, wall: number, yOpen: number, along: number)
   const sign = face === "posX" || face === "posZ" ? 1 : -1;
   const onX = face === "posX" || face === "negX";
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
-  const out = wall + 0.004 + 0.035 * s;
+  const out = wall + 0.004 + 0.025 * s; // 0.025 = the slimmed SILL_T/2 (deepest course); frame back kisses the wall
   const rev = wall - 0.005;
   // The reveal covers the opening to just past its apex; taller or wider and
   // its top corners poke out past the voussoir ring's outer arc.
@@ -393,7 +399,22 @@ function archWindow(face: LocalSide, wall: number, yOpen: number, along: number)
       : [along, yOpen - SILL_H * s, sign * out],
     rotationY,
   };
-  return [reveal, surround];
+  // Louvred leaf under the springline (the semicircular lunette above stays dark
+  // reveal), same shutters.glb the house windows use — brown-tinted grill. Native
+  // depth-back ~0.438 (unscaled X), so leafOut lands the slats just proud of the
+  // reveal like the house's SHUTTER_OUT does; native shutter sits +0.3 above its
+  // origin, scaled by s, so leafY drops it onto the opening bottom (yOpen).
+  const leafOut = wall - 0.43;
+  const leaf: Part = {
+    file: TOWN + "shutters.glb",
+    tint: "shutter",
+    scale: [1, s, (WIN_OPENING.w * s - 0.01) / 0.3],
+    position: onX
+      ? [sign * leafOut, yOpen - 0.3 * s, along]
+      : [along, yOpen - 0.3 * s, sign * leafOut],
+    rotationY,
+  };
+  return [reveal, surround, leaf];
 }
 
 // Facade columns, shared by both house tiers so upper windows land directly over
@@ -406,7 +427,7 @@ const houseFront = (upper: number | null): Part[] => [
   // Stone doorway + planked leaf recessed in it (batch-1 fittings — the kit's
   // extracted leaf alone never quite read as a door).
   { file: "proc:door-frame", position: [SURROUND_OUT, 0, DOOR_COL], face: "posX" },
-  { file: "proc:door-leaf", position: [0.526, 0, DOOR_COL], face: "posX" },
+  { file: "proc:door-leaf", position: [0.508, 0, DOOR_COL], face: "posX" },
   ...windowOn("posX", 0, WIN_COL),
   ...(upper == null
     ? []

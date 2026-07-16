@@ -425,6 +425,11 @@ function buildGableEnd(scene: Scene) {
  * stucco so a frame reads on colored plaster, and light enough that a verde
  * tint multiplied over it still reads green rather than black. */
 const STONE = "#b3ada1";
+/** Warm limestone for the residence/palazzo surrounds — a step off the sandstone
+ * facade so a frame still reads as trim, but without the grey pietra-serena clash
+ * against warm stucco. The cathedral arcade (proc:arch-bay) keeps STONE: it's only
+ * ever shown verde-tinted, and STONE's lightness is tuned for that multiply. */
+const SURROUND = "#c9bda1";
 /** Door wood, between the nature kit's fence tans (#9a7b57 / #6f523a). */
 const WOOD = "#8a6b4d";
 
@@ -433,12 +438,12 @@ const WOOD = "#8a6b4d";
 export const WIN_OPENING = { w: 0.18, h: 0.4 } as const;
 /** Sill course height; windowOn subtracts it to land the opening at storey+0.3. */
 export const SILL_H = 0.04;
-export const DOOR_OPENING = { w: 0.4, h: 0.75 } as const;
+export const DOOR_OPENING = { w: 0.3, h: 0.75 } as const;
 const BORDER = 0.045; // jamb/head border around a window opening
 const ARCH_BORDER = 0.055; // voussoirs run deeper than the jambs they spring from
 const ARCH_SEGS = 6;
-const FIT_T = 0.05; // fitting depth (local x); sills and thresholds bulge past it
-const SILL_T = 0.07;
+const FIT_T = 0.035; // fitting depth (local x); sills and thresholds bulge past it
+const SILL_T = 0.05;
 const DOOR_B = 0.05;
 
 /** Box with a uniform vertex shade, spanning the given extents. */
@@ -522,7 +527,7 @@ function buildSurroundRect(scene: Scene) {
   );
   const mesh = Mesh.MergeMeshes([...surroundBase(scene), head], true, true)!;
   mesh.name = "proc-surround-rect";
-  return { mesh, material: "stone", color: STONE };
+  return { mesh, material: "stone", color: SURROUND };
 }
 
 function buildSurroundArch(scene: Scene) {
@@ -550,7 +555,7 @@ function buildSurroundArch(scene: Scene) {
   }
   const mesh = Mesh.MergeMeshes(parts, true, true)!;
   mesh.name = "proc-surround-arch";
-  return { mesh, material: "stone", color: STONE };
+  return { mesh, material: "stone", color: SURROUND };
 }
 
 function buildDoorFrame(scene: Scene) {
@@ -567,10 +572,11 @@ function buildDoorFrame(scene: Scene) {
     ),
     shadedBox("jamb-l", [-t, t], [0, DOOR_OPENING.h], [-(hw + DOOR_B), -hw], 1, scene),
     shadedBox("jamb-r", [-t, t], [0, DOOR_OPENING.h], [hw, hw + DOOR_B], 1, scene),
-    // Lintel: deeper than the jambs and slightly eared past them.
+    // Lintel: deeper than the jambs and slightly eared past them (but under the
+    // threshold's SILL_T/2, which stays the frame's deepest course).
     shadedBox(
       "lintel",
-      [-0.03, 0.03],
+      [-0.022, 0.022],
       [DOOR_OPENING.h, DOOR_OPENING.h + 0.06],
       [-(hw + DOOR_B + 0.02), hw + DOOR_B + 0.02],
       0.94,
@@ -579,11 +585,11 @@ function buildDoorFrame(scene: Scene) {
   ];
   const mesh = Mesh.MergeMeshes(parts, true, true)!;
   mesh.name = "proc-door-frame";
-  return { mesh, material: "stone", color: STONE };
+  return { mesh, material: "stone", color: SURROUND };
 }
 
 function buildDoorLeaf(scene: Scene) {
-  // A hair inside the frame's 0.40x0.75 opening so the leaf's edges never share
+  // A hair inside the frame's 0.30x0.75 opening so the leaf's edges never share
   // a plane with the jambs; the clearance reads as the door gap.
   const W = DOOR_OPENING.w - 0.01;
   const H = DOOR_OPENING.h - 0.01;
