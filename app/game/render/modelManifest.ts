@@ -1,5 +1,7 @@
 import type { BuildingId } from "~/game/buildings";
 
+import { procRoofFile } from "./proceduralPieces";
+
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
 /** Grid-space side of a footprint (grid y maps to world z). */
@@ -32,10 +34,11 @@ type Part = {
    * when that face blends into a neighbor, since it would be buried in the
    * shared wall. */
   face?: LocalSide;
-  /** Multiply tint over the shared colormap. "facade"/"roof" resolve to the
+  /** Multiply tint over the piece's base color. "facade"/"roof" resolve to the
    * building's position-hashed pick from FACADE_PALETTES/ROOF_PALETTE; any
-   * other string is a TINT_COLORS id directly. Walls' baked quoins share the
-   * material, so they shift with the facade — intended (Florence look). */
+   * other string is a TINT_COLORS id directly. One tint per part, applied to
+   * every material it has — so a detail that must move independently of its
+   * wall needs to be its own part (see proc:gable-end), not its own material. */
   tint?: "facade" | "roof" | string;
 };
 
@@ -156,12 +159,49 @@ function segmentParts(spec: SegmentSpec, mask: SegmentMask): Part[] {
   return out;
 }
 
-/** Shallower roof pitch: kit roofs squashed to 60% height, origin at the base
- * so they stay flush on the walls. */
+/** Shallower roof pitch: roofs squashed to 60% height, origin at the base so
+ * they stay flush on the walls. */
 const ROOF_SCALE: [number, number, number] = [1, 0.6, 1];
+/** The kit's roof-high-gable was a steeper pitch, not a different piece — this
+ * is its ridge height over the ordinary gable's (1.112 vs 0.571), so a y-scale
+ * reproduces it on the generated roof. */
+const HIGH_GABLE = 1.112 / 0.571;
+
+/** A tiled gable roof and the stucco triangles that close its ends. They are two
+ * pieces because a tint covers a whole part — the kit's roof baked its gable
+ * wall onto the tile material, so a pink house got a brown gable — but they
+ * always come as a pair at the SAME transform: the builders share one
+ * cross-section, so identical transforms are what keeps them aligned.
+ *
+ * The gable end is deliberately NOT `structural`, even on the blending row
+ * houses. Blend stretch scales each structural part from its OWN bounds to the
+ * shared edge, and the gable is necessarily smaller than the roof hiding it (any
+ * triangle strictly inside the roof's is), so it would stretch further and walk
+ * out through the tiles. It doesn't need to: only the neighbour-facing side
+ * stretches, and that gable is buried in the neighbour. */
+const gableRoof = (
+  position: [number, number, number],
+  scale: [number, number, number] = ROOF_SCALE,
+  opts: { rotationY?: number; structural?: boolean } = {}
+): Part[] => [
+  { file: procRoofFile("roof-gable", scale), position, scale, tint: "roof", ...opts },
+  { file: "proc:gable-end", position, scale, tint: "facade", rotationY: opts.rotationY },
+];
+
+/** A tiled hip roof (the kit's roof-point). No end pieces — four slopes, no
+ * gable to close. Only ever used square in plan; an sx != sz ref would stretch
+ * the tiles the way procRoofFile exists to prevent. */
+const hipRoof = (
+  position: [number, number, number],
+  scale: [number, number, number]
+): Part => ({ file: procRoofFile("roof-hip", scale), position, scale, tint: "roof" });
 
 // Flat-color material tints per file (Nature Kit has no texture; defaults are teal/orange).
 const MATERIAL_TINTS: Record<string, Record<string, string>> = {
+  // No entries for the generated `proc:` pieces — they author their own base
+  // colors (render/proceduralPieces.ts), which is the whole point of building
+  // them. Adding one here would silently override the piece and split the
+  // colour across two files; their check tests the piece's own value.
   [NATURE + "tree_default.glb"]: { leafsGreen: "#6b7d46", woodBark: "#7a5a40" },
   [NATURE + "tree_fat.glb"]: { leafsGreen: "#75854d", woodBark: "#7a5a40" },
   [NATURE + "tree_oak.glb"]: { leafsGreen: "#5f7540", woodBark: "#6f523a" },
@@ -193,18 +233,26 @@ const TINT_COLORS: Record<string, string> = {
   pink: "#e3b8a6",
   sand: "#e0d5bf",
   white: "#f5efe2",
+  ochre: "#d9c187", // warm workshop stucco (see FACADE_PALETTES.artist)
   stone: "#ddd8ca", // pale stone — marks civic/monumental buildings
-  roofBrown: "#b1a296", // over terracotta: a slightly browner, sun-faded roof
+  verde: "#58634c", // verde di Prato marble — the Duomo's green banding
+  // The roof colour itself is TILE_BASE (proceduralPieces.ts) — every roof is a
+  // generated piece now, so this only varies it: a slight cool-grey wash, ~8%
+  // down, for the sun-faded third. Anything stronger and the city stops reading
+  // as one roofline.
+  roofFaded: "#e9eef0",
   bronze: "#a3773e", // warm cast-metal brown for the foundry's ingot stock (diffuse-only — no metal sheen)
+  reveal: "#6a5c4b", // unlit interior behind a window opening (see shutters.glb)
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
-// "mint" recolors just the terracotta quoin swatch (see make-mint-quoins.py)
-// to deep olive-green marble (verde di Prato, ~#58634c) — so a religious
-// wall-block keeps stone plaster but green corner quoins, like the Duomo.
-// (The id stays "mint" from an earlier lighter draft.) `diffuse` multiplies on.
 const TEXTURE_TINTS: Record<string, { file: string; diffuse?: string }> = {
-  // stone diffuse so the plaster matches the civic "stone" panels beside it;
+  // "mint" recolors the atlas's terracotta quoin swatch (see make-mint-quoins.py)
+  // to verde di Prato — the Duomo's green trim. Still needed: the generated
+  // pieces have no quoins to recolor, but the kit's door/window/arch panels are
+  // still atlas-textured, and they are where a religious building's green now
+  // comes from. Retires only when those panels are generated too.
+  // stone diffuse so the plaster matches the civic "stone" walls beside it;
   // the olive quoin swatch is pre-divided by stone so it lands on target.
   mint: { file: "colormap-mint", diffuse: "stone" },
   // Market-stall awning fabrics: the retint left both fabric-red and roof-red as
@@ -223,8 +271,8 @@ const FACADE_PALETTES: Record<string, string[]> = {
   materials: ["sand", "white"],
   city: ["stone"],
 };
-// Minor city-wide roof variation: ~1 in 3 roofs leans slightly brown.
-const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofBrown"];
+// Minor city-wide roof variation: ~1 in 3 roofs is slightly sun-faded.
+const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofFaded"];
 
 // Long workshop hall: two bays, 3x2 footprint. Walls/openings are shared by
 // both workshop types; roofs are per-workshop (the painter runs the full
@@ -233,8 +281,8 @@ const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofBrown"]
 // scaleZ ≥ scaleX still holds and the hall's fitted height is unchanged —
 // the yard just borrows footprint depth from the hall.
 const WORKSHOP_WALLS: Part[] = [
-  { file: TOWN + "wall-block.glb", position: [-0.5, 0, 0], tint: "facade" },
-  { file: TOWN + "wall-block.glb", position: [0.5, 0, 0], tint: "facade" },
+  { file: "proc:block", position: [-0.5, 0, 0], tint: "facade" },
+  { file: "proc:block", position: [0.5, 0, 0], tint: "facade" },
   // door on the front bay, windows on the other faces (wall-doorway-square-wide
   // is an open hole showing the blank block behind it — reads as a gray smear)
   { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
@@ -244,25 +292,100 @@ const WORKSHOP_WALLS: Part[] = [
   { file: TOWN + "wall-window-shutters.glb", position: [0.52, 0, 0], tint: "facade" },
   { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI, tint: "facade" },
 ];
-// Gable halves of the hall roof: caps face outward, open ends meet at x=0.
-const WORKSHOP_ROOF_NEGX: Part = {
-  file: TOWN + "roof-gable-end.glb", position: [-0.5, 1, 0], rotationY: Math.PI, scale: ROOF_SCALE, tint: "roof",
-};
-const WORKSHOP_ROOF_POSX: Part = {
-  file: TOWN + "roof-gable-end.glb", position: [0.5, 1, 0], scale: ROOF_SCALE, tint: "roof",
-};
+// One gable over both bays. The kit had no piece this long, so the hall was two
+// half-gables meeting at x=0 (caps outward); a generated roof just spans it. The
+// x-scale is what keeps the houses' 0.05 verge over the ±1 walls.
+const WORKSHOP_HALL_ROOF = gableRoof([0, 1, 0], [1.05 / 0.55, 0.6, 1]);
+// The sculptor roofs only the -X bay: its head-house takes the +X bay and buries
+// this roof's inner gable end in its wall.
+const WORKSHOP_BAY_ROOF = gableRoof([-0.5, 1, 0]);
+
+// A window = shutters.glb (the slat leaf extracted from the kit's panel — see
+// scripts/make-plain-openings.py) over a dark plate standing in for the opening
+// it left behind. The kit welds its window's hole and surround into the panel's
+// wall island, so the loose slats alone read as a "#" scribble on bare stucco;
+// the reveal gives them something to be shutters *over*. Matches the slat leaf's
+// extents: y 0.30-0.70, 0.30 wide.
+//
+// Nothing here may share a plane with anything behind it. proc:block's wall face
+// is at ±0.5 and the slats span ±(0.438-0.462) before their offset, so the three
+// surfaces are stacked with real gaps: wall 0.5 → reveal front 0.51 → slat back
+// 0.508. A reveal sitting flush at 0.5 z-fights the wall and the window survives
+// or vanishes per house, which is exactly what it looked like.
+// ponytail: a proud plate, not a modelled recess — the wall is solid and there's
+// no CSG here. Swap it for a real frame if one gets commissioned; that opening
+// is the piece the kit is actually missing.
+const WIN_W = 0.18; // width along the wall — the leaf ships 0.30 wide and 0.40
+const WIN_H = 0.4; //  tall, so it needs narrowing to read taller than it is wide
+const REVEAL_T = 0.03;
+const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
+const SHUTTER_OUT = 0.07; //  → slat back 0.508. Keep > 0.048 or it re-buries.
+const SHUTTER_NARROW: [number, number, number] = [1, 1, WIN_W / 0.3];
+
+/** One window on a local face, `along` = its offset across that wall. Scale is
+ * local and applies before rotationY, so the leaf's own Z (its width) narrows
+ * whichever world axis the face turns it onto. */
+function windowOn(face: LocalSide, y: number, along: number): Part[] {
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const reveal: Part = {
+    file: "proc:block",
+    tint: "reveal",
+    scale: onX ? [REVEAL_T, WIN_H, WIN_W] : [WIN_W, WIN_H, REVEAL_T],
+    position: onX
+      ? [sign * REVEAL_PLANE, y + 0.3, along]
+      : [along, y + 0.3, sign * REVEAL_PLANE],
+    face,
+  };
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const leaf: Part = {
+    file: TOWN + "shutters.glb",
+    position: onX
+      ? [sign * SHUTTER_OUT, y, along]
+      : [along, y, sign * SHUTTER_OUT],
+    rotationY,
+    scale: SHUTTER_NARROW,
+    face,
+  };
+  return [reveal, leaf];
+}
+
+// Facade columns, shared by both house tiers so upper windows land directly over
+// the door and the ground-floor window (the reference elevation). The door leaf
+// is 0.4 wide and sits off-centre; the window shares the remaining bay.
+const DOOR_COL = -0.2;
+const WIN_COL = 0.28;
+const SIDE_COLS = [-0.25, 0.25];
+const houseFront = (upper: number | null): Part[] => [
+  { file: TOWN + "door.glb", position: [0.04, 0, DOOR_COL], face: "posX" },
+  ...windowOn("posX", 0, WIN_COL),
+  ...(upper == null
+    ? []
+    : [...windowOn("posX", upper, DOOR_COL), ...windowOn("posX", upper, WIN_COL)]),
+];
+const houseSides = (floors: number[]): Part[] =>
+  floors.flatMap((y) =>
+    SIDE_COLS.flatMap((c) => [...windowOn("posZ", y, c), ...windowOn("negZ", y, c)])
+  );
+// Back gable: no door, so the columns sit symmetrically.
+const houseBack = (floors: number[]): Part[] =>
+  floors.flatMap((y) => [...windowOn("negX", y, -0.22), ...windowOn("negX", y, 0.22)]);
 
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cottage: {
     front: [1, 0],
     blendGroup: "rowhouse",
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], structural: true, tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE, structural: true, tint: "roof" },
-      // door on the gable end, shuttered windows on the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], face: "posX", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, face: "posZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, face: "negZ", tint: "facade" },
+      { file: "proc:block", position: [0, 0, 0], structural: true, tint: "facade" },
+      ...gableRoof([0, 1, 0], ROOF_SCALE, { structural: true }),
+      // Loose fittings, not panels: the door leaf and shutters extracted from
+      // the kit's wall panels (scripts/make-plain-openings.py), so the stucco
+      // keeps its plain corners. They carry no wall of their own — the offset
+      // pushes them proud of proc:block's face at x=0.5 (the panels' own quoins
+      // used to do that job at 0.50, these thin leaves top out at ~0.47).
+      ...houseFront(null),
+      ...houseSides([0]),
+      ...houseBack([0]),
     ],
     fit: 0.85,
     // Keeps the ridge at ~2.4 person-heights (~13.7 ft) after the fit bump.
@@ -273,16 +396,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     front: [1, 0],
     blendGroup: "rowhouse",
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], structural: true, tint: "facade" },
-      { file: TOWN + "wall-block.glb", position: [0, 1, 0], structural: true, tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [0, 2, 0], scale: ROOF_SCALE, structural: true, tint: "roof" },
-      // door under the banner, shuttered windows on both floors of the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], face: "posX", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, face: "posZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2, face: "posZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, face: "negZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2, face: "negZ", tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.02, 1, 0], rotationY: Math.PI, face: "negX", tint: "facade" },
+      { file: "proc:block", position: [0, 0, 0], structural: true, tint: "facade" },
+      { file: "proc:block", position: [0, 1, 0], structural: true, tint: "facade" },
+      ...gableRoof([0, 2, 0], ROOF_SCALE, { structural: true }),
+      ...houseFront(1),
+      ...houseSides([0, 1]),
+      ...houseBack([0, 1]),
     ],
     // Widened + squashed together: at fit 0.65 / full height the two-story
     // stack read as a tower next to person-scale citizens.
@@ -295,14 +414,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     front: [0, 1],
     parts: [
       ...WORKSHOP_WALLS,
-      WORKSHOP_ROOF_NEGX,
-      WORKSHOP_ROOF_POSX,
+      ...WORKSHOP_HALL_ROOF,
       // Dormer (north light for the painter): a mini block + cross-ridge gable
       // buried into the front slope of the -X bay (chapel-lantern trick —
       // roof-window's thin overlay showed its open underside over the ridge
       // from behind). Apex 1.29 stays under the hall ridge (1.343).
-      { file: TOWN + "wall-block.glb", position: [-0.5, 1, 0.33], scale: [0.22, 0.2, 0.24], tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [-0.5, 1.2, 0.33], rotationY: Math.PI / 2, scale: [0.26, 0.15, 0.26], tint: "roof" },
+      { file: "proc:block", position: [-0.5, 1, 0.33], scale: [0.22, 0.2, 0.24], tint: "facade" },
+      ...gableRoof([-0.5, 1.2, 0.33], [0.26, 0.15, 0.26], { rotationY: Math.PI / 2 }),
       // Prominent chimney — the production tell. The shaft sits at x 0.21-0.43
       // inside its cell, so the position compensates for the 1.3 scale-out.
       { file: TOWN + "chimney.glb", position: [0.405, 0.55, 0], scale: 1.3 },
@@ -310,9 +428,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // canvases leaning on the wall (squashed wall-blocks — the texture's
       // corner quoins read as frame corners), and a squat pigment basin.
       { file: TOWN + "stall-bench.glb", position: [0.32, 0, 0.66], rotationY: Math.PI / 2, scale: 0.85 },
-      { file: TOWN + "wall-block.glb", position: [0.15, 0.19, 0.66], scale: [0.26, 0.3, 0.04], rotationY: 0.12 },
-      { file: TOWN + "wall-block.glb", position: [-0.88, 0, 0.57], scale: [0.3, 0.42, 0.05], rotationY: -0.12 },
-      { file: TOWN + "wall-block.glb", position: [-0.16, 0, 0.58], scale: [0.2, 0.28, 0.05], rotationY: 0.2 },
+      { file: "proc:block", position: [0.15, 0.19, 0.66], scale: [0.26, 0.3, 0.04], rotationY: 0.12 },
+      { file: "proc:block", position: [-0.88, 0, 0.57], scale: [0.3, 0.42, 0.05], rotationY: -0.12 },
+      { file: "proc:block", position: [-0.16, 0, 0.58], scale: [0.2, 0.28, 0.05], rotationY: 0.2 },
       { file: TOWN + "pillar-stone.glb", position: [0.85, 0, 0.68], scale: [1.4, 0.1, 1.4] },
     ],
     fit: 0.92,
@@ -323,21 +441,21 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     front: [0, 1],
     parts: [
       ...WORKSHOP_WALLS,
-      WORKSHOP_ROOF_NEGX,
+      ...WORKSHOP_BAY_ROOF,
       // Head-house over the +X bay: a half-story under its own cross-ridge
       // gable rising above the hall ridge (apex 1.84 vs 1.34) — T-silhouette
       // vs the painter's long hall. It buries the +X gable half entirely.
-      { file: TOWN + "wall-block.glb", position: [0.5, 1, 0], scale: [1, 0.55, 1], tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [0.5, 1.55, 0], rotationY: Math.PI / 2, scale: [1, 0.5, 1], tint: "roof" },
+      { file: "proc:block", position: [0.5, 1, 0], scale: [1, 0.55, 1], tint: "facade" },
+      ...gableRoof([0.5, 1.55, 0], [1, 0.5, 1], { rotationY: Math.PI / 2 }),
       { file: TOWN + "chimney.glb", position: [0.5, 1.3, 0] },
       // Stone yard: the Phase-9 display plinth stands here, front-right of this
       // bay (footprint cell (4,3)) — so the yard is just its supporting cast:
       // uncarved boulder, scattered/stacked cut blocks, a column drum stub.
       { file: TOWN + "rock-large.glb", position: [0.85, 0, 0.62], scale: 0.22, rotationY: 2.3 },
       { file: TOWN + "pillar-stone.glb", position: [0.08, 0, 0.7], scale: [1.8, 0.35, 1.8] },
-      { file: TOWN + "wall-block.glb", position: [-0.22, 0, 0.6], scale: 0.17 },
-      { file: TOWN + "wall-block.glb", position: [-0.22, 0.17, 0.6], scale: 0.12, rotationY: 0.4 },
-      { file: TOWN + "wall-block.glb", position: [-0.95, 0, 0.6], scale: 0.14, rotationY: 0.6 },
+      { file: "proc:block", position: [-0.22, 0, 0.6], scale: 0.17 },
+      { file: "proc:block", position: [-0.22, 0.17, 0.6], scale: 0.12, rotationY: 0.4 },
+      { file: "proc:block", position: [-0.95, 0, 0.6], scale: 0.14, rotationY: 0.6 },
     ],
     fit: 0.92,
     scaleY: 0.65,
@@ -356,19 +474,19 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     front: [0, 1],
     parts: [
       // recessed ground floor (loggia interior wall)
-      { file: TOWN + "wall-block.glb", position: [0, 0, -0.25], scale: [3, 1, 1.5], tint: "facade" },
+      { file: "proc:block", position: [0, 0, -0.25], scale: [3, 1, 1.5], tint: "facade" },
       { file: TOWN + "wall-doorway-square-wide.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
       // main block upper stories, overhanging the loggia
-      { file: TOWN + "wall-block.glb", position: [-0.5, 1, 0], scale: [2, 1, 2], tint: "facade" },
-      { file: TOWN + "wall-block.glb", position: [-0.5, 2, 0], scale: [2, 1, 2], tint: "facade" },
-      { file: TOWN + "roof-point.glb", position: [-0.5, 3, 0], scale: [2, 1, 2], tint: "roof" },
+      { file: "proc:block", position: [-0.5, 1, 0], scale: [2, 1, 2], tint: "facade" },
+      { file: "proc:block", position: [-0.5, 2, 0], scale: [2, 1, 2], tint: "facade" },
+      hipRoof([-0.5, 3, 0], [2, 1, 2]),
       // wing on +X, one story lower
-      { file: TOWN + "wall-block.glb", position: [1, 1, 0], scale: [1, 1, 2], tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [1, 2, 0], scale: [1, 1, 2], tint: "roof" },
+      { file: "proc:block", position: [1, 1, 0], scale: [1, 1, 2], tint: "facade" },
+      ...gableRoof([1, 2, 0], [1, 1, 2]),
       { file: TOWN + "chimney.glb", position: [0.5, 2.3, 0] },
       // one-story annex on −X, set slightly behind the colonnade line
-      { file: TOWN + "wall-block.glb", position: [-2, 0, 0.25], tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [-2, 1, 0.25], tint: "roof" },
+      { file: "proc:block", position: [-2, 0, 0.25], tint: "facade" },
+      ...gableRoof([-2, 1, 0.25], [1, 1, 1]),
       { file: TOWN + "wall-door.glb", position: [-2, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
       // loggia colonnade
       { file: TOWN + "pillar-stone.glb", position: [-1.5, 0, 0.92] },
@@ -414,17 +532,17 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   cathedral: {
     front: [1, 0],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [4, 1, 1], tint: "mint" },
-      { file: TOWN + "wall-block.glb", position: [0, 1, 0], scale: [4, 1, 1], tint: "mint" },
-      { file: TOWN + "roof-high-gable.glb", position: [0, 2, 0], scale: [4, 1, 1], tint: "roof" },
+      { file: "proc:block", position: [0, 0, 0], scale: [4, 1, 1], tint: "stone" },
+      { file: "proc:block", position: [0, 1, 0], scale: [4, 1, 1], tint: "stone" },
+      ...gableRoof([0, 2, 0], [4, HIGH_GABLE, 1]),
       // side aisles
-      { file: TOWN + "wall-block.glb", position: [0, 0, -1], scale: [4, 1, 1], tint: "mint" },
+      { file: "proc:block", position: [0, 0, -1], scale: [4, 1, 1], tint: "stone" },
       // lean-to roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it just
       // inside the ±2 facades (no ledge poking past the front); ridge cap sits
       // 0.02 behind the nave wall face (z-fight)
-      { file: TOWN + "roof-gable.glb", position: [0, 1, -0.48], scale: [3.62, 0.4, 2.1], tint: "roof" },
-      { file: TOWN + "wall-block.glb", position: [0, 0, 1], scale: [4, 1, 1], tint: "mint" },
-      { file: TOWN + "roof-gable.glb", position: [0, 1, 0.48], scale: [3.62, 0.4, 2.1], tint: "roof" },
+      ...gableRoof([0, 1, -0.48], [3.62, 0.4, 2.1]),
+      { file: "proc:block", position: [0, 0, 1], scale: [4, 1, 1], tint: "stone" },
+      ...gableRoof([0, 1, 0.48], [3.62, 0.4, 2.1]),
       // facade: central portal + rose window, side portals on the aisle fronts
       { file: TOWN + "wall-door.glb", position: [1.52, 0, 0], tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [1.52, 1, 0], tint: "mint" },
@@ -456,10 +574,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   chapel: {
     front: [0, 1],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [1.3, 1.2, 2], tint: "mint" },
-      // High gable (1.112 native vs 0.571) at y-scale 0.75: apex 2.03 vs the
-      // old 1.89 — a steeper, taller nave; civic breaks the skyline.
-      { file: TOWN + "roof-high-gable.glb", position: [0, 1.2, 0], scale: [2, 0.75, 1.3], rotationY: Math.PI / 2, tint: "roof" },
+      { file: "proc:block", position: [0, 0, 0], scale: [1.3, 1.2, 2], tint: "stone" },
+      // High gable at y-scale 0.75: apex 2.03 vs the old 1.89 — a steeper,
+      // taller nave; civic breaks the skyline.
+      ...gableRoof([0, 1.2, 0], [2, 0.75 * HIGH_GABLE, 1.3], { rotationY: Math.PI / 2 }),
       // facade
       { file: TOWN + "wall-door.glb", position: [0, 0, 0.52], rotationY: -Math.PI / 2, tint: "mint" },
       // half-size oculus, scaled to fit inside the gable triangle
@@ -469,10 +587,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "wall-window-round.glb", position: [0.17, 0.1, 0.45], tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [-0.17, 0.1, -0.45], rotationY: Math.PI, tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [-0.17, 0.1, 0.45], rotationY: Math.PI, tint: "mint" },
-      // bell lantern on the ridge (spire cap stays pure terracotta), raised
-      // to straddle the taller high-gable ridge (apex 2.03)
-      { file: TOWN + "wall-block.glb", position: [0, 1.75, 0.35], scale: [0.32, 0.6, 0.32], tint: "mint" },
-      { file: TOWN + "roof-point.glb", position: [0, 2.35, 0.35], scale: 0.55 },
+      // bell lantern on the ridge, raised to straddle the taller high-gable
+      // ridge (apex 2.03)
+      { file: "proc:block", position: [0, 1.75, 0.35], scale: [0.32, 0.6, 0.32], tint: "stone" },
+      hipRoof([0, 2.35, 0.35], [0.55, 0.55, 0.55]),
     ],
     fit: 0.95,
     scaleY: 0.63,
@@ -481,18 +599,18 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   pigment_trader: {
     front: [1, 0],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], tint: "facade" },
+      { file: "proc:block", position: [0, 0, 0], tint: "facade" },
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0] },
       // low hip, not a spire — spires read civic now
-      { file: TOWN + "roof-point.glb", position: [0, 1, 0], scale: [1, 0.45, 1], tint: "roof" },
+      hipRoof([0, 1, 0], [1, 0.45, 1]),
       // shop door under the banner, windows on the long sides
       { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], tint: "facade" },
       { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
       { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, tint: "facade" },
       // delivery yard along the back side: cart + pigment crates
       { file: TOWN + "cart.glb", position: [-0.15, 0, -0.85], rotationY: Math.PI / 2, scale: 0.5 },
-      { file: TOWN + "wall-block.glb", position: [0.45, 0, -0.7], scale: 0.18 },
-      { file: TOWN + "wall-block.glb", position: [0.66, 0, -0.68], scale: 0.14, rotationY: 0.5 },
+      { file: "proc:block", position: [0.45, 0, -0.7], scale: 0.18 },
+      { file: "proc:block", position: [0.66, 0, -0.68], scale: 0.14, rotationY: 0.5 },
     ],
     fit: 0.8,
     scaleY: 0.68,
@@ -504,8 +622,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   marble_supplier: {
     front: [1, 0],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [-0.4, 0, -0.3], tint: "facade" },
-      { file: TOWN + "roof-point.glb", position: [-0.4, 1, -0.3], scale: [1, 0.35, 1], tint: "roof" },
+      { file: "proc:block", position: [-0.4, 0, -0.3], tint: "facade" },
+      hipRoof([-0.4, 1, -0.3], [1, 0.35, 1]),
       // shed door opening onto the yard, window on the side
       { file: TOWN + "wall-door.glb", position: [-0.38, 0, -0.3], tint: "facade" },
       { file: TOWN + "wall-window-shutters.glb", position: [-0.4, 0, -0.28], rotationY: -Math.PI / 2, tint: "facade" },
@@ -513,8 +631,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.7], scale: 0.7 },
       { file: TOWN + "pillar-stone.glb", position: [0.65, 0, -0.35], scale: 0.6 },
       // cut marble stock: stacked slabs + a cart
-      { file: TOWN + "wall-block.glb", position: [0.15, 0, 0.72], scale: [0.3, 0.14, 0.22] },
-      { file: TOWN + "wall-block.glb", position: [0.17, 0.14, 0.72], scale: [0.22, 0.11, 0.17], rotationY: 0.35 },
+      { file: "proc:block", position: [0.15, 0, 0.72], scale: [0.3, 0.14, 0.22] },
+      { file: "proc:block", position: [0.17, 0.14, 0.72], scale: [0.22, 0.11, 0.17], rotationY: 0.35 },
       { file: TOWN + "cart.glb", position: [0.95, 0, 0.15], rotationY: 0.5, scale: 0.6 },
     ],
     fit: 0.88,
@@ -527,14 +645,14 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   bronze_foundry: {
     front: [1, 0],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [-0.4, 0, -0.3], tint: "facade" },
-      { file: TOWN + "roof-point.glb", position: [-0.4, 1, -0.3], scale: [1, 0.35, 1], tint: "roof" },
+      { file: "proc:block", position: [-0.4, 0, -0.3], tint: "facade" },
+      hipRoof([-0.4, 1, -0.3], [1, 0.35, 1]),
       { file: TOWN + "wall-door.glb", position: [-0.38, 0, -0.3], tint: "facade" },
       { file: TOWN + "wall-window-shutters.glb", position: [-0.4, 0, -0.28], rotationY: -Math.PI / 2, tint: "facade" },
       // yard: a stout stone furnace + warm bronze ingot stacks + a hauling cart
-      { file: TOWN + "wall-block.glb", position: [0.55, 0, 0.5], scale: [0.35, 0.5, 0.35], tint: "stone" },
-      { file: TOWN + "wall-block.glb", position: [0.15, 0, 0.72], scale: [0.3, 0.12, 0.2], tint: "bronze" },
-      { file: TOWN + "wall-block.glb", position: [0.18, 0.12, 0.7], scale: [0.2, 0.1, 0.16], rotationY: 0.4, tint: "bronze" },
+      { file: "proc:block", position: [0.55, 0, 0.5], scale: [0.35, 0.5, 0.35], tint: "stone" },
+      { file: "proc:block", position: [0.15, 0, 0.72], scale: [0.3, 0.12, 0.2], tint: "bronze" },
+      { file: "proc:block", position: [0.18, 0.12, 0.7], scale: [0.2, 0.1, 0.16], rotationY: 0.4, tint: "bronze" },
       { file: TOWN + "cart.glb", position: [0.95, 0, 0.15], rotationY: 0.5, scale: 0.6 },
     ],
     fit: 0.88,
@@ -550,11 +668,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   tavern: {
     front: [0, 1],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [-1, 0, 0], scale: [1, 1, 1.5], tint: "facade" },
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], scale: [1, 1, 1.5], tint: "facade" },
-      { file: TOWN + "wall-block.glb", position: [1, 0, 0], scale: [1, 1, 1.5], tint: "facade" },
-      { file: TOWN + "roof-gable-end.glb", position: [-0.75, 1, 0], rotationY: Math.PI, scale: [1.5, 0.6, 1.5], tint: "roof" },
-      { file: TOWN + "roof-gable-end.glb", position: [0.75, 1, 0], scale: [1.5, 0.6, 1.5], tint: "roof" },
+      { file: "proc:block", position: [-1, 0, 0], scale: [1, 1, 1.5], tint: "facade" },
+      { file: "proc:block", position: [0, 0, 0], scale: [1, 1, 1.5], tint: "facade" },
+      { file: "proc:block", position: [1, 0, 0], scale: [1, 1, 1.5], tint: "facade" },
+      // one gable over all three bays (the kit needed two halves meeting at
+      // x=0); x-scale keeps the halves' 0.075 verge over the ±1.5 walls
+      ...gableRoof([0, 1, 0], [1.575 / 0.55, 0.6, 1.5]),
       { file: TOWN + "banner-red.glb", position: [1, 0.25, 0] },
       // door + windows on the front, windows on the back and far gable end
       { file: TOWN + "wall-door.glb", position: [-1, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
@@ -569,7 +688,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // global stretch (~1.36x / 1.84z) so they render roughly square.
       // awning rides just under the eaves — the arched door frame reaches
       // nearly the full wall height, so anything lower slices through it
-      { file: TOWN + "roof-gable.glb", position: [0, 0.82, 0.75], scale: [2.6, 0.2, 0.5], tint: "roof" },
+      ...gableRoof([0, 0.82, 0.75], [2.6, 0.2, 0.5]),
       // square café tables (the market's open table stand); z=0.9 keeps the legs
       // clear of the wall face at 0.75, buried so poking past the awning's
       // z=1.0 fit edge doesn't rescale the walls
@@ -586,15 +705,15 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   bakery: {
     front: [1, 0],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [0, 1, 0], scale: ROOF_SCALE, tint: "roof" },
+      { file: "proc:block", position: [0, 0, 0], tint: "facade" },
+      ...gableRoof([0, 1, 0]),
       // oven chimney, scaled up (production tell); position compensates for
       // the shaft sitting at x 0.21-0.43 inside its cell
       { file: TOWN + "chimney.glb", position: [-0.08, 0.55, 0], scale: 1.25 },
       // projecting shop bay: gable end faces the street (service grammar),
       // apex 0.98 tucks under the main eave line
-      { file: TOWN + "wall-block.glb", position: [0.45, 0, 0], scale: [0.4, 0.75, 0.5], tint: "facade" },
-      { file: TOWN + "roof-gable.glb", position: [0.45, 0.75, 0], scale: [0.4, 0.4, 0.55], tint: "roof" },
+      { file: "proc:block", position: [0.45, 0, 0], scale: [0.4, 0.75, 0.5], tint: "facade" },
+      ...gableRoof([0.45, 0.75, 0], [0.4, 0.4, 0.55]),
       // shop door on the bay front, sign banner on the street-side wall
       { file: TOWN + "wall-door.glb", position: [0.29, 0, 0], scale: 0.75, tint: "facade" },
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0.02], rotationY: -Math.PI / 2 },
@@ -683,11 +802,11 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   bell_tower: {
     front: [1, 0],
     parts: [
-      { file: TOWN + "wall-block.glb", position: [0, 0, 0], tint: "mint" },
-      { file: TOWN + "wall-block.glb", position: [0, 1, 0], tint: "mint" },
-      { file: TOWN + "wall-block.glb", position: [0, 2, 0], tint: "mint" },
-      { file: TOWN + "wall-block.glb", position: [0, 3, 0], tint: "mint" },
-      { file: TOWN + "roof-high-point.glb", position: [0, 4, 0] },
+      { file: "proc:block", position: [0, 0, 0], tint: "stone" },
+      { file: "proc:block", position: [0, 1, 0], tint: "stone" },
+      { file: "proc:block", position: [0, 2, 0], tint: "stone" },
+      { file: "proc:block", position: [0, 3, 0], tint: "stone" },
+      hipRoof([0, 4, 0], [1, 2, 1]), // roof-high-point = the hip at twice the height
       // door at the base, slit windows up the shaft
       { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], tint: "mint" },
       { file: TOWN + "wall-window-round.glb", position: [0.02, 1.2, 0], scale: [1, 0.6, 0.6], tint: "mint" },
@@ -735,7 +854,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   colonnade: {
     segment: {
       core: [{ file: TOWN + "pillar-stone.glb", scale: [1.7, 1.55, 1.7] }],
-      along: [{ file: TOWN + "wall-block.glb", position: [0, 1.5, 0], scale: [1, 0.13, 0.72] }],
+      along: [{ file: "proc:block", position: [0, 1.5, 0], scale: [1, 0.13, 0.72] }],
     },
     fit: 1.0,
   },
@@ -743,7 +862,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     parts: [
       { file: TOWN + "pillar-stone.glb", scale: [5.5, 0.2, 5.5] },
       { file: TOWN + "pillar-stone.glb", position: [0, 0.2, 0], scale: [3.8, 0.15, 3.8] },
-      { file: TOWN + "wall-block.glb", position: [0, 0.35, 0], scale: [0.26, 1.5, 0.26] },
+      { file: "proc:block", position: [0, 0.35, 0], scale: [0.26, 1.5, 0.26] },
       { file: TOWN + "roof-point.glb", position: [0, 1.85, 0], scale: [0.24, 0.7, 0.24] },
     ],
     fit: 0.85,
@@ -803,8 +922,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // end posts at the open ends of a run only. Drag a run like a road.
   stone_wall: {
     segment: {
-      along: [{ file: TOWN + "wall-block.glb", scale: [1, 0.4, 0.18] }],
-      cap: { file: TOWN + "wall-block.glb", scale: [0.2, 0.52, 0.24] },
+      along: [{ file: "proc:block", scale: [1, 0.4, 0.18] }],
+      cap: { file: "proc:block", scale: [0.2, 0.52, 0.24] },
     },
     fit: 1.0,
   },

@@ -6,7 +6,7 @@
     "build": "react-router build",
     "dev": "react-router dev",
     "start": "vite preview",
-    "test": "tsx --test app/game/*.check.ts",
+    "test": "tsx --test app/game/*.check.ts app/game/render/*.check.ts",
     "typecheck": "react-router typegen && tsc"
   },
   "dependencies": {

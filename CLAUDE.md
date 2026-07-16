@@ -14,6 +14,7 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 - Renaissance = prestige milestone soft ending; play continues afterward.
 
 - After implementing a phase in the design doc, move it to the done section. When other features are complete, mark them as *(built)*. 
+- Commit messages are one line. Add a body only when the change genuinely can't be understood without one — the docs carry the reasoning, not the git log.
 
 ## Current state vs. doc phases
 
