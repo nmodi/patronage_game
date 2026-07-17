@@ -111,6 +111,9 @@ assert.equal(bounds("proc:roof-hip").material, "tile");
 // past its frame or buries inside it.
 assertEnvelope("proc:surround-rect", { min: [-0.011, 0, -0.11], max: [0.011, 0.405, 0.11] });
 assertEnvelope("proc:surround-arch", { min: [-0.011, 0, -0.11], max: [0.011, 0.485, 0.11] });
+// Bifora: 0.22 opening; outer ring (radius 0.11 + 0.065 band) is the widest
+// and tallest extent — spring 0.38, apex vertex 0.38 + 0.175.
+assertEnvelope("proc:bifora", { min: [-0.011, 0, -0.175], max: [0.011, 0.555, 0.175] });
 // Glazed leaf: a hair inside the 0.13x0.34 opening (clearance = its gap), thin
 // enough that the depth stack (reveal front → leaf → frame front) holds.
 assertEnvelope("proc:shutter", { min: [-0.0035, 0, -0.06], max: [0.0035, 0.33, 0.06] });
@@ -139,6 +142,7 @@ assertEnvelope("proc:portal-frame", { min: [-0.03, 0, -0.29], max: [0.03, 1.13, 
 }
 assert.equal(bounds("proc:surround-rect").material, "stone");
 assert.equal(bounds("proc:surround-arch").material, "stone");
+assert.equal(bounds("proc:bifora").material, "stone");
 assert.equal(bounds("proc:door-frame").material, "stone");
 assert.equal(bounds("proc:portal-frame").material, "stone");
 assert.equal(bounds("proc:arch-bay").material, "stone");

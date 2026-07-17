@@ -38,6 +38,7 @@ Eleven pieces are generated in code (`app/game/render/proceduralPieces.ts`) rath
 | `proc:arch-bay` | 1×1 arcade bay: half-pier each end, imposts, 8-facet fan running to the bay's own rim (solid spandrels, corners exact) so rows tile seamlessly | palazzo loggia ×5, colonnade (one per cell); the cathedral's verde blind arcade used it too until the marble pass swapped it for window rows (`wall-arch.glb`: **0 refs**) |
 | `proc:portal-frame` | landmark portal (July 2026): chunkier jambs + imposts + 8-facet voussoir ring over a 0.42×0.85 opening (apex 1.06, ring top 1.13), plus a recessed stone tympanum filling the lunette — so a portal needs **no reveal part** | cathedral west front ×3 (center 1.15×, sides 0.85×) + bell tower base (0.75×), via `portalOn()` |
 | `proc:portal-leaf` | double METAL doors, rectangular to the spring line — a column of 3 raised bronze panels per leaf (2×3 across the pair; a finer grid stopped reading as doors) on a dark slab; `bronze` material, aged grey-green #6e6753, diffuse-only | same sites, recessed in the portal frame |
+| `proc:bifora` | two-light window (July 2026, Giotto's-campanile grammar): twin 4-facet arched lights split by a colonnette (base + capital), springing at 0.30 so their apexes poke into the lunette of the grander 8-facet voussoir arch (0.22 opening, band 0.065 — sized so `biforaWindow`'s full-lunette reveal corners stay inside the *faceted* ring), octagonal roundel boss in the spandrel; the inner order recesses a hair behind the frame planes | palazzo piano nobile ×4/face + sides (`biforaWindow` — reveal + frame, **no glazing**: the lights stay dark voids), bell tower all 4 storeys (0.95, `verdeLight`), cathedral west front (2 nave + 2 per aisle, `verdeLight`) |
 
 *(A twelfth piece — `proc:oculus`, a 12-facet round-window ring — shipped briefly in the panel-free pass and was deleted: at this art scale it read as portholes. Every former round-window site is an `archWindow` now, and the surround took an optional `tint` param so the chapel's verde trim rides its arch surrounds. In git history if a rose-window pass ever wants the ring back.)*
 
@@ -69,7 +70,7 @@ What still genuinely needs an artist — curved tracery and organic forms no box
 
 | batch | pieces | unblocks |
 |---|---|---|
-| **2** | bifora window, rose window | housing tiers 3–5 facade language, the cathedral front |
+| **2** | rose window (the bifora turned out passable in code — see the fittings table; a hand-modeled swap stays drop-in) | housing tiers 3–5 facade language, the cathedral front |
 | **3** | dome + drum + lantern (the kit has no dome; kitbashing.md's tree-canopy recipe is proven but unused — the cathedral has none), vine/ivy set (wall ivy + vine-on-post; vineyard rows currently stretch tree canopies) | the skyline icon; organic decoration |
 
 **Trap** (also stated in the brief): `convertMaterials` force-swaps the shared colormap into *any* textured material. An artist's own texture is silently discarded. Flat named materials only.

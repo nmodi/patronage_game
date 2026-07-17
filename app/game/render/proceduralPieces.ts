@@ -574,6 +574,109 @@ function buildSurroundArch(scene: Scene) {
   return { mesh, material: "stone", color: SURROUND };
 }
 
+/** Bifora (proc:bifora) — the two-light window of Giotto's campanile and the
+ * palazzo piano nobile: twin arched lights split by a slender colonnette under
+ * one grander voussoir arch, a carved roundel in the spandrel. The frame runs
+ * at the surrounds' depth; the inner order (colonnette, light arches, roundel)
+ * recesses a hair so no face shares the frame's planes. */
+export const BIF_OPENING = { w: 0.22, h: 0.34 } as const;
+// Outer voussoir band — deeper than ARCH_BORDER so the manifest's full-lunette
+// reveal keeps its top corners inside the FACETED ring (chord midpoints dip
+// under the vertex radius — the trap archWindow's comment warns about).
+const BIF_BORDER = 0.065;
+const BIF_COL_HW = 0.011; // colonnette half-width
+const BIF_SPRING2 = 0.3; // lights' springline; their apexes poke into the lunette
+/** Light radius + centre offset, derived from opening and colonnette. */
+const BIF_LIGHT = {
+  r: (BIF_OPENING.w / 2 - BIF_COL_HW) / 2,
+  z: BIF_COL_HW + (BIF_OPENING.w / 2 - BIF_COL_HW) / 2,
+} as const;
+
+function buildBifora(scene: Scene) {
+  const t = WIN_T / 2;
+  const ti = t - 0.001; // inner order, recessed behind the frame planes
+  const hw = BIF_OPENING.w / 2;
+  const spring = SILL_H + BIF_OPENING.h;
+  const spring2 = SILL_H + BIF_SPRING2;
+  const parts = [
+    shadedBox(
+      "sill",
+      [-WIN_SILL_T / 2, WIN_SILL_T / 2],
+      [0, SILL_H],
+      [-(hw + BORDER + 0.02), hw + BORDER + 0.02],
+      0.88,
+      scene
+    ),
+    shadedBox("jamb-l", [-t, t], [SILL_H, spring], [-(hw + BORDER), -hw], 1, scene),
+    shadedBox("jamb-r", [-t, t], [SILL_H, spring], [hw, hw + BORDER], 1, scene),
+    shadedBox("col-base", [-ti, ti], [SILL_H, SILL_H + 0.02], [-0.02, 0.02], 0.9, scene),
+    shadedBox(
+      "colonnette",
+      [-ti, ti],
+      [SILL_H, spring2 - 0.02],
+      [-BIF_COL_HW, BIF_COL_HW],
+      0.97,
+      scene
+    ),
+    shadedBox("col-cap", [-ti, ti], [spring2 - 0.02, spring2], [-0.02, 0.02], 0.9, scene),
+  ];
+  // Outer ring: 8 facets on the grander arc (6 reads chunky at this radius).
+  for (let i = 0; i < 8; i++) {
+    const a0 = (Math.PI * i) / 8;
+    const a1 = (Math.PI * (i + 1)) / 8;
+    parts.push(
+      wedge(
+        `vouss-${i}`,
+        [
+          arcPt(hw, a0, spring),
+          arcPt(hw, a1, spring),
+          arcPt(hw + BIF_BORDER, a1, spring),
+          arcPt(hw + BIF_BORDER, a0, spring),
+        ],
+        t,
+        i % 2 ? 0.88 : 1,
+        scene
+      )
+    );
+  }
+  // Twin light arches: 4-facet fans between jamb and colonnette; their band
+  // tips bury inside the jambs (depth differs, so no coplanar faces).
+  for (const side of [-1, 1]) {
+    for (let i = 0; i < 4; i++) {
+      const at = (r: number, a: number): [number, number] => {
+        const [z, y] = arcPt(r, a, spring2);
+        return [side * BIF_LIGHT.z + z, y];
+      };
+      const a0 = (Math.PI * i) / 4;
+      const a1 = (Math.PI * (i + 1)) / 4;
+      parts.push(
+        wedge(
+          `light${side}-${i}`,
+          [at(BIF_LIGHT.r, a0), at(BIF_LIGHT.r, a1), at(BIF_LIGHT.r + 0.02, a1), at(BIF_LIGHT.r + 0.02, a0)],
+          ti,
+          i % 2 ? 0.92 : 1,
+          scene
+        )
+      );
+    }
+  }
+  // Spandrel roundel (the campanile's quatrefoil boss, one octagonal disc):
+  // pie-slice wedges whose inner edge degenerates at the centre.
+  const cy = SILL_H + 0.405;
+  for (let i = 0; i < 8; i++) {
+    const p = (a: number): [number, number] => [
+      0.025 * Math.cos(a),
+      cy + 0.025 * Math.sin(a),
+    ];
+    const a0 = (Math.PI * 2 * i) / 8;
+    const a1 = (Math.PI * 2 * (i + 1)) / 8;
+    parts.push(wedge(`roundel-${i}`, [[0, cy], [0, cy], p(a1), p(a0)], ti - 0.001, 0.85, scene));
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-bifora";
+  return { mesh, material: "stone", color: SURROUND };
+}
+
 function buildDoorFrame(scene: Scene) {
   const t = DOOR_T / 2;
   const hw = DOOR_OPENING.w / 2;
@@ -898,6 +1001,7 @@ const BUILDERS: Record<string, Builder> = {
   "roof-hip": buildRoofHip,
   "surround-rect": buildSurroundRect,
   "surround-arch": buildSurroundArch,
+  bifora: buildBifora,
   shutter: buildShutter,
   "door-frame": buildDoorFrame,
   "door-leaf": buildDoorLeaf,

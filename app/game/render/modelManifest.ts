@@ -1,6 +1,6 @@
 import type { BuildingId } from "~/game/buildings";
 
-import { DOOR_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
+import { BIF_OPENING, DOOR_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
 
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
@@ -233,6 +233,11 @@ const TINT_COLORS: Record<string, string> = {
   // facade palette entry is a STONE_TINTS pattern now)
   stone: "#ddd8ca", // pale stone — trim-scale parts (pilasters, lantern, plastered gables)
   verde: "#58634c", // verde di Prato marble — the Duomo's green banding
+  // Lighter verde for the bifora frames: tints multiply, so over the warm
+  // SURROUND stone the plain verde landed near-black; this lands sage.
+  // Blue-leaning multiplier: the warm SURROUND base it multiplies over eats
+  // the blue channel, so a neutral green here rendered yellow-olive.
+  verdeLight: "#6b878e",
   // The roof colour itself is TILE_BASE (proceduralPieces.ts) — every roof is a
   // generated piece now, so this only varies it: a slight cool-grey wash, ~8%
   // down, for the sun-faded third. Anything stronger and the city stops reading
@@ -390,6 +395,46 @@ function archWindow(
   return [reveal, surround, leaf];
 }
 
+/** Bifora (proc:bifora) — the fancier window: two dark arched lights split
+ * by a colonnette under one grand voussoir arch, roundel in the spandrel
+ * (Giotto's campanile, the palazzo piano nobile). Same contract as archWindow:
+ * `wall` = face plane distance, `yOpen` = opening bottom's absolute height. */
+function biforaWindow(
+  face: LocalSide,
+  wall: number,
+  yOpen: number,
+  along: number,
+  s = 1,
+  tint?: string // surround only, like archWindow's
+): Part[] {
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const out = wall + 0.004 + (WIN_SILL_T / 2) * s;
+  const rev = wall - 0.01;
+  // Reveal to just past the intrados apex (h + w/2); BIF_BORDER is sized so
+  // the top corners stay inside the faceted outer ring.
+  const w = (BIF_OPENING.w + 0.015) * s;
+  const h = (BIF_OPENING.h + BIF_OPENING.w / 2 + 0.005) * s;
+  const reveal: Part = {
+    file: "proc:block",
+    tint: "reveal",
+    scale: onX ? [REVEAL_T, h, w] : [w, h, REVEAL_T],
+    position: onX ? [sign * rev, yOpen - 0.005, along] : [along, yOpen - 0.005, sign * rev],
+  };
+  const frame: Part = {
+    file: "proc:bifora",
+    scale: s,
+    position: onX
+      ? [sign * out, yOpen - SILL_H * s, along]
+      : [along, yOpen - SILL_H * s, sign * out],
+    rotationY,
+    tint,
+  };
+  // No glazed leaves — the lights stay dark reveal, the campanile's open voids.
+  return [reveal, frame];
+}
+
 /** Stone doorway + planked leaf on any local face (the batch-1 door fittings,
  * generalized from houseFront's +X-only stack). `wall` is the face plane's
  * distance from the origin; `scale` narrows/shortens like HOUSE_DOOR_SCALE
@@ -416,15 +461,17 @@ function doorOn(
 /** Landmark portal (proc:portal-frame + proc:portal-leaf): voussoir-arched
  * stone frame + double bronze-panel doors with a dark tympanum filling the
  * lunette — self-contained, no reveal part. Same depth stack as the house
- * door (leaf recessed inside the frame), scaled by `s`. */
-function portalOn(face: LocalSide, wall: number, along: number, s = 1): Part[] {
+ * door (leaf recessed inside the frame), scaled by `s`. `tint` recolors the
+ * stone surround only (cathedral/bell tower verde trim); the bronze doors
+ * keep their color. */
+function portalOn(face: LocalSide, wall: number, along: number, s = 1, tint?: string): Part[] {
   const sign = face === "posX" || face === "posZ" ? 1 : -1;
   const onX = face === "posX" || face === "negX";
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
   const at = (out: number): [number, number, number] =>
     onX ? [sign * out, 0, along] : [along, 0, sign * out];
   return [
-    { file: "proc:portal-frame", position: at(wall + 0.023 * s), scale: s, rotationY },
+    { file: "proc:portal-frame", position: at(wall + 0.023 * s), scale: s, rotationY, tint },
     { file: "proc:portal-leaf", position: at(wall + 0.008 * s), scale: s, rotationY },
   ];
 }
@@ -493,10 +540,14 @@ const WORKSHOP_BAY_ROOF = gableRoof([-0.5, 1, 0]);
 const BT_W = 0.72;
 const BT_WALL = BT_W / 2;
 const BT_FACES: LocalSide[] = ["posX", "negX", "posZ", "negZ"];
-// Cathedral west front: the marble screen slabs' face plane (shell wall at 2,
-// slab centered 2.01 with thickness 0.06); CATH_BAYS = the five-bay window
+// Cathedral west front: the marble screen slabs' face planes (shell wall at 2,
+// slabs 0.06 thick). The nave slab rides 0.01 proud of the aisle wedges so
+// their inner triangle tails (the aisle-slope profile crossing the nave zone)
+// hide behind it instead of slicing through the nave bifore; nave fittings
+// take CATH_NAVE, aisle fittings CATH_FRONT. CATH_BAYS = the five-bay window
 // rhythm shared by the clerestory and both aisle rows.
 const CATH_FRONT = 2.04;
+const CATH_NAVE = 2.05;
 const CATH_BAYS = [-1.6, -0.8, 0, 0.8, 1.6];
 
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
@@ -645,9 +696,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
         rotationY: Math.PI / 2,
         scale: [1, 1, 0.6],
       })),
-      // piano nobile front: arched pietra-serena windows + banner — five bays
-      // (the Medici rhythm; three read sparse once the arches slimmed down)
-      ...[-1, -0.5, 0, 0.5, 1].flatMap((z) => archWindow("posZ", 1, 1.28, z)),
+      // piano nobile front: bifore (the Medici window — twin arched lights
+      // under one arch) — four bays; the wider frames run wall-to-wall at five
+      ...[-0.9, -0.3, 0.3, 0.9].flatMap((z) => biforaWindow("posZ", 1, 1.28, z)),
       // top floor (main block only): smaller arched windows flanking the
       // banner — the piano nobile's language a size down (round windows
       // read as portholes and were dropped)
@@ -655,13 +706,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...archWindow("posZ", 1, 2.35, 0, 0.9),
       { file: TOWN + "banner-red.glb", position: [-0.5, 2, 0.66], rotationY: -Math.PI / 2 },
       // side windows: main block −X face (above the annex) and wing +X face
-      ...archWindow("negX", 1.5, 1.28, -0.5),
+      ...biforaWindow("negX", 1.5, 1.28, -0.5),
       ...archWindow("negX", 1.5, 2.35, -0.5, 0.9),
       ...archWindow("negX", 1.5, 2.35, 0.5, 0.9),
-      ...archWindow("posX", 1.5, 1.28, -0.5),
-      ...archWindow("posX", 1.5, 1.28, 0.5),
-      // back windows — the piano nobile's five-bay rhythm carries around
-      ...[-1, -0.5, 0, 0.5, 1].flatMap((z) => archWindow("negZ", 1, 1.28, z)),
+      ...biforaWindow("posX", 1.5, 1.28, -0.5),
+      ...biforaWindow("posX", 1.5, 1.28, 0.5),
+      // back windows — the piano nobile's bifora rhythm carries around
+      ...[-0.9, -0.3, 0.3, 0.9].flatMap((z) => biforaWindow("negZ", 1, 1.28, z)),
       ...archWindow("negZ", 1, 2.35, -1, 0.9),
       ...archWindow("negZ", 1, 2.35, 0, 0.9),
     ],
@@ -707,7 +758,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // CATH_FRONT. Storey-fitted UV wraps (@1x3 / @1x2, like the flanks) so
       // the panel grid completes exactly at each slab's top — a raw-height
       // slab cut the pattern mid-panel and the sections read as patchwork
-      { file: "proc:block@1x3", position: [2.01, 0, 0], scale: [0.06, 2.5 / 3, 1], tint: "screen" },
+      { file: "proc:block@1x3", position: [2.02, 0, 0], scale: [0.06, 2.5 / 3, 1], tint: "screen" },
       { file: "proc:block@1x2", position: [2.01, 0, -1], scale: [0.06, 0.875, 1], tint: "screen" },
       { file: "proc:block@1x2", position: [2.01, 0, 1], scale: [0.06, 0.875, 1], tint: "screen" },
       // marble wedges over the aisle slabs: gable-end triangles at the exact
@@ -727,11 +778,17 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // three-portal facade, the center one grander — arched stone portals
       // with double bronze-panel doors (proc:portal-*). Center tops out at
       // 1.30, under the rose slot at 1.5; sides clear the seam pilasters.
-      ...portalOn("posX", CATH_FRONT, 0, 1.15),
-      ...portalOn("posX", CATH_FRONT, -1, 0.85),
-      ...portalOn("posX", CATH_FRONT, 1, 0.85),
-      // the rose slot over the portal, mirrored on the apse end (plain wall, 2)
-      ...archWindow("posX", CATH_FRONT, 1.5, 0, 1.3),
+      ...portalOn("posX", CATH_NAVE, 0, 1.15, "verdeLight"),
+      ...portalOn("posX", CATH_FRONT, -1, 0.85, "verdeLight"),
+      ...portalOn("posX", CATH_FRONT, 1, 0.85, "verdeLight"),
+      // paired verde bifore over the center portal (replacing the single
+      // arched slot) + two high on each aisle front; sizes run the sections'
+      // clear spans between the pilasters. The apse end keeps its arch.
+      ...biforaWindow("posX", CATH_NAVE, 1.5, -0.25, 1, "verdeLight"),
+      ...biforaWindow("posX", CATH_NAVE, 1.5, 0.25, 1, "verdeLight"),
+      ...[-1.25, -0.75, 0.75, 1.25].flatMap((z) =>
+        biforaWindow("posX", CATH_FRONT, 1.05, z, 0.78, "verdeLight")
+      ),
       ...archWindow("negX", 2, 1.5, 0, 1.3),
       // five arched clerestory windows per side above the aisle roofs
       // (aisle ridge lands at ~1.98 on the nave wall, so openings start above)
@@ -1025,15 +1082,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block@1x5", position: [0, 0, 0], scale: [BT_W, 1, BT_W], tint: "campanile" },
       // arched bronze-door portal at the base (wall face at BT_WALL); 0.75
       // keeps it ~60% of the 0.72 face and under the first window at 1.35
-      ...portalOn("posX", BT_WALL, 0, 0.75),
-      // arched windows on every face, scaled up storey by storey — the belfry's
-      // louvred leaf reads as the bell chamber's slats
-      ...BT_FACES.flatMap((f) => [
-        ...archWindow(f, BT_WALL, 1.35, 0, 0.7),
-        ...archWindow(f, BT_WALL, 2.32, 0, 0.8),
-        ...archWindow(f, BT_WALL, 3.28, 0, 0.95),
-        ...archWindow(f, BT_WALL, 4.18, 0, 1.15),
-      ]),
+      ...portalOn("posX", BT_WALL, 0, 0.75, "verdeLight"),
+      // bifore (twin lights under one arch) on every face, one per storey at
+      // a uniform size — just under half the 0.72 face; verde frames, the
+      // campanile's green-on-white marble language
+      ...BT_FACES.flatMap((f) =>
+        [1.35, 2.32, 3.28, 4.18].flatMap((y) => biforaWindow(f, BT_WALL, y, 0, 0.95, "verdeLight"))
+      ),
       // projecting crown (Giotto's gallery, minus the balustrade) + shallow cap
       { file: "proc:block", position: [0, 4.97, 0], scale: [BT_W + 0.16, 0.13, BT_W + 0.16], tint: "stone" },
       hipRoof([0, 5.1, 0], [BT_W + 0.2, 0.5, BT_W + 0.2]),
