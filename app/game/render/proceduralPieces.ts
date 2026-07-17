@@ -453,8 +453,12 @@ export const PORTAL_OPENING = { w: 0.42, h: 0.85 } as const;
 const BORDER = 0.025; // jamb/head border around a window opening
 const ARCH_BORDER = 0.04; // voussoirs run deeper than the jambs they spring from
 const ARCH_SEGS = 6;
-const FIT_T = 0.035; // fitting depth (local x); sills and thresholds bulge past it
-const SILL_T = 0.05;
+export const DOOR_T = 0.02; // door-frame depth (local x); the threshold bulges past it
+const SILL_T = 0.032;
+/** Window-surround depth — much slimmer than the door's: trim reads as a shadow
+ * line on the wall, not a box standing off it. The manifest's stack rides both. */
+export const WIN_T = 0.014;
+export const WIN_SILL_T = 0.022;
 const DOOR_B = 0.05;
 
 /** Box with a uniform vertex shade, spanning the given extents. */
@@ -509,12 +513,12 @@ const arcPt = (r: number, a: number, cy: number): [number, number] => [
 /** Sill + jambs shared by both window surrounds. The sill projects sideways and
  * stands deeper than the frame; per-course shades read as stone joints. */
 function surroundBase(scene: Scene): Mesh[] {
-  const t = FIT_T / 2;
+  const t = WIN_T / 2;
   const hw = WIN_OPENING.w / 2;
   return [
     shadedBox(
       "sill",
-      [-SILL_T / 2, SILL_T / 2],
+      [-WIN_SILL_T / 2, WIN_SILL_T / 2],
       [0, SILL_H],
       [-(hw + BORDER + 0.02), hw + BORDER + 0.02],
       0.88,
@@ -526,7 +530,7 @@ function surroundBase(scene: Scene): Mesh[] {
 }
 
 function buildSurroundRect(scene: Scene) {
-  const t = FIT_T / 2;
+  const t = WIN_T / 2;
   const hw = WIN_OPENING.w / 2;
   const head = shadedBox(
     "head",
@@ -542,7 +546,7 @@ function buildSurroundRect(scene: Scene) {
 }
 
 function buildSurroundArch(scene: Scene) {
-  const t = FIT_T / 2;
+  const t = WIN_T / 2;
   const hw = WIN_OPENING.w / 2;
   const spring = SILL_H + WIN_OPENING.h;
   const parts = surroundBase(scene);
@@ -570,7 +574,7 @@ function buildSurroundArch(scene: Scene) {
 }
 
 function buildDoorFrame(scene: Scene) {
-  const t = FIT_T / 2;
+  const t = DOOR_T / 2;
   const hw = DOOR_OPENING.w / 2;
   const parts = [
     shadedBox(
@@ -587,7 +591,7 @@ function buildDoorFrame(scene: Scene) {
     // threshold's SILL_T/2, which stays the frame's deepest course).
     shadedBox(
       "lintel",
-      [-0.022, 0.022],
+      [-0.013, 0.013],
       [DOOR_OPENING.h, DOOR_OPENING.h + 0.06],
       [-(hw + DOOR_B + 0.02), hw + DOOR_B + 0.02],
       0.94,
@@ -695,7 +699,7 @@ function buildShutter(scene: Scene) {
 // SMN/baptistery door language), not planks — stopping at the spring line.
 const PORTAL_JAMB = 0.06;
 const PORTAL_B = 0.07; // voussoir ring depth; overruns the jambs like ARCH_BORDER
-const PORTAL_T = 0.045; // frame depth — heavier than the houses' FIT_T
+const PORTAL_T = 0.045; // frame depth — heavier than the houses' DOOR_T
 const PORTAL_SEGS = 8;
 /** Aged bronze for the portal doors — grey-green patina, not the foundry
  * tint's warm ingot. Diffuse-only like everything else (no metal sheen); the

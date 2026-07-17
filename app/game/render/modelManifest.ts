@@ -1,6 +1,6 @@
 import type { BuildingId } from "~/game/buildings";
 
-import { SHUTTER_T, SILL_H, WIN_OPENING, procRoofFile } from "./proceduralPieces";
+import { DOOR_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
 
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
@@ -285,17 +285,17 @@ const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofFaded"]
 //
 // Nothing here may share a plane with anything else. proc:block's wall face is
 // at ±0.5, so the stack is: wall 0.5 → jamb back 0.5005 (the deeper sill dips
-// into the wall) → reveal front 0.51 → leaf back 0.511 → frame front 0.5355.
+// into the wall) → reveal front 0.505 → leaf back 0.506 → leaf front 0.513 →
+// frame front 0.5145 — everything within ~0.015 of the wall, near-flush trim.
 // The reveal is a hair larger than the opening so its edges bury inside the
 // frame ring, and the leaf a hair smaller so the clearance reads as its gap.
 const WIN_W = WIN_OPENING.w;
 const WIN_H = WIN_OPENING.h;
 const REVEAL_T = 0.03;
-const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
-const SHUTTER_BACK = 0.011; // leaf back, just proud of the reveal front
-// Wall 0.5 → jamb back 0.5005, frame front 0.5355 (fitting depth 0.035). Slimmer
-// and pulled flusher than the old kit look — the reference wants near-flush trim.
-const SURROUND_OUT = 0.518;
+const REVEAL_PLANE = 0.49; // block face 0.5 → reveal front 0.505
+const SHUTTER_BACK = 0.006; // leaf back, just proud of the reveal front
+const SURROUND_OUT = 0.5005 + WIN_T / 2; // jamb back kisses the wall
+const DOOR_OUT = 0.5005 + DOOR_T / 2; // same near-flush stack as the windows
 
 /** One window on a local face, `along` = its offset across that wall. Scale is
  * local and applies before rotationY, so the leaf's own Z (its width) narrows
@@ -352,8 +352,9 @@ function archWindow(
   const sign = face === "posX" || face === "posZ" ? 1 : -1;
   const onX = face === "posX" || face === "negX";
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
-  const out = wall + 0.004 + 0.025 * s; // 0.025 = the slimmed SILL_T/2 (deepest course); frame back kisses the wall
-  const rev = wall - 0.005;
+  const out = wall + 0.004 + (WIN_SILL_T / 2) * s; // sill = deepest course; frame back kisses the wall
+  const rev = wall - 0.01; // reveal front wall+0.005, just behind the leaf back
+
   // The reveal covers the opening to just past its apex; taller or wider and
   // its top corners poke out past the voussoir ring's outer arc.
   const w = (WIN_OPENING.w + 0.015) * s;
@@ -405,8 +406,10 @@ function doorOn(
   const at = (out: number): [number, number, number] =>
     onX ? [sign * out, 0, along] : [along, 0, sign * out];
   return [
-    { file: "proc:door-frame", position: at(wall + (SURROUND_OUT - 0.5)), rotationY, scale },
-    { file: "proc:door-leaf", position: at(wall + 0.008), rotationY, scale },
+    { file: "proc:door-frame", position: at(wall + (DOOR_OUT - 0.5)), rotationY, scale },
+    // Leaf sunk so its rail fronts stay behind the slimmed frame front; the
+    // plank backs bury inside the wall, which never shows.
+    { file: "proc:door-leaf", position: at(wall - 0.002), rotationY, scale },
   ];
 }
 
