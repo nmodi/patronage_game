@@ -35,7 +35,7 @@ Nine pieces are generated in code (`app/game/render/proceduralPieces.ts`) rather
 | `proc:surround-arch` | same jambs/sill, 6-facet voussoir ring head | palazzo piano nobile ×9 (`archWindow` — surround + reveal, no shutters) |
 | `proc:door-frame` | jambs + eared lintel + threshold, 0.4×0.75 opening | house fronts (`houseFront`) |
 | `proc:door-leaf` | planked wood leaf + 2 rails, 0.39×0.74 (clearance gap), its own file so it tints apart from the frame | house fronts, recessed in the frame |
-| `proc:arch-bay` | 1×1 arcade bay: half-pier each end, imposts, 8-facet fan running to the bay's own rim (solid spandrels, corners exact) so rows tile seamlessly | cathedral aisle arcades ×6, tint `verde`, half-buried as a blind arcade (`wall-arch.glb`: **0 refs**) |
+| `proc:arch-bay` | 1×1 arcade bay: half-pier each end, imposts, 8-facet fan running to the bay's own rim (solid spandrels, corners exact) so rows tile seamlessly | palazzo loggia ×5, colonnade (one per cell); the cathedral's verde blind arcade used it too until the marble pass swapped it for window rows (`wall-arch.glb`: **0 refs**) |
 
 **No kit roof is left** (only the obelisk's stone cap still uses `roof-point`, and it is not a roof). That makes `TILE_BASE` the whole city's roofline in one constant — the roofs are deliberately browner and less saturated than Kenney's orange tile (hue 19 / saturation 34 vs the kit's 14 / 48), matching Florence rather than the kit. `ROOF_PALETTE` only varies it now: a ~8% cool wash on one roof in three.
 
@@ -51,11 +51,12 @@ Verified by `proceduralPieces.check.ts` (in `npm test`). Its assertions encode t
 
 ### 1. Migrate the remaining panels to loose fittings
 
-**The surrounds now exist** (July 2026 — generated, see the batch-1 table above), so this migration is unblocked and partially done: every house window carries a real `proc:surround-rect` (frame + reveal + louvre leaf), house doors are `proc:door-frame` + `proc:door-leaf` (the extracted `door.glb` leaf is unreferenced), the palazzo's nine shuttered panels became `archWindow()` arched surrounds, and the cathedral's aisle arcade is `proc:arch-bay` in verde (`wall-arch.glb` at 0 refs). What's left:
+**The surrounds now exist** (July 2026 — generated, see the batch-1 table above), so this migration is unblocked and partially done: every house window carries a real `proc:surround-rect` (frame + reveal + louvre leaf), house doors are `proc:door-frame` + `proc:door-leaf` (the extracted `door.glb` leaf is unreferenced), the palazzo's nine shuttered panels became `archWindow()` arched surrounds, and `proc:arch-bay` retired `wall-arch.glb` (0 refs — it arcades the palazzo loggia and colonnade; the cathedral's blind arcade version gave way to window rows in the marble pass). What's left:
 
-- **Migrate the remaining full-face panel refs** to the same fitting pattern — 53 refs: `wall-window-shutters.glb` (17), `wall-window-round.glb` (24 — needs a round/oculus surround piece or the arch surround), `wall-door.glb` (12), spread over the cathedral portals, chapel, tavern, plazas, bakery, market stall and workshops.
+- **Migrate the remaining full-face panel refs** to the same fitting pattern — 36 refs (was 53 before the marble pass took the cathedral and bell tower panel-free, July 2026): `wall-window-shutters.glb` (17), `wall-window-round.glb` (11 — needs a round/oculus surround piece or the arch surround), `wall-door.glb` (8), spread over the chapel, tavern, plazas, bakery, market stall and workshops.
 - Only after that migration can `make-mint-quoins.py`, `colormap-mint.png`, `colormap-mint-desat.png`, the `mint` entry and the remaining panel files go — and with them the last corner-quoin z-fight flicker (both fighting surfaces are panels; retiring the panels retires the fight).
 - The palazzo's top floor still wears the kit's salmon-framed `wall-window-round` panels directly above the new white stone arches — the mixed language is visible and is the natural next migration target.
+- **A grander door for landmark buildings** (July 2026, from the bell tower rebuild): the campanile reuses the house-scale `proc:door-frame`/`proc:door-leaf`, which reads modest on a five-storey marble tower. Wants a taller arched portal fitting in the same loose-fitting pattern — voussoir arch over the frame (the `surround-arch` wedge fan at door scale) + a double planked leaf — shared by the bell tower, the cathedral portals when they migrate, and the future Town Hall.
 
 ### 2. The commission
 

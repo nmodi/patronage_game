@@ -181,10 +181,11 @@ const HIGH_GABLE = 1.112 / 0.571;
 const gableRoof = (
   position: [number, number, number],
   scale: [number, number, number] = ROOF_SCALE,
-  opts: { rotationY?: number; buried?: boolean } = {}
+  opts: { rotationY?: number; buried?: boolean; tint?: string } = {}
 ): Part[] => [
-  { file: procRoofFile("roof-gable", scale), position, scale, tint: "roof", ...opts },
-  { file: "proc:gable-end", position, scale, tint: "facade", rotationY: opts.rotationY, buried: opts.buried },
+  // (the roof part never takes opts.tint — tiles stay terracotta city-wide)
+  { file: procRoofFile("roof-gable", scale), position, scale, tint: "roof", rotationY: opts.rotationY, buried: opts.buried },
+  { file: "proc:gable-end", position, scale, tint: opts.tint ?? "facade", rotationY: opts.rotationY, buried: opts.buried },
 ];
 
 /** A tiled hip roof (the kit's roof-point). No end pieces — four slopes, no
@@ -255,8 +256,9 @@ const TEXTURE_TINTS: Record<string, { file: string; diffuse?: string }> = {
   // "mint" recolors the atlas's terracotta quoin swatch (see make-mint-quoins.py)
   // to verde di Prato — the Duomo's green trim. Still needed: the generated
   // pieces have no quoins to recolor, but the kit's door/window/arch panels are
-  // still atlas-textured, and they are where a religious building's green now
-  // comes from. Retires only when those panels are generated too.
+  // still atlas-textured, and they are where the chapel's green now comes from
+  // (the cathedral and bell tower are panel-free since the marble pass).
+  // Retires only when those panels are generated too.
   // stone diffuse so the plaster matches the civic "stone" walls beside it;
   // the olive quoin swatch is pre-divided by stone so it lands on target.
   mint: { file: "colormap-mint", diffuse: "stone" },
@@ -333,32 +335,37 @@ const SURROUND_OUT = 0.518;
 
 /** One window on a local face, `along` = its offset across that wall. Scale is
  * local and applies before rotationY, so the leaf's own Z (its width) narrows
- * whichever world axis the face turns it onto. */
-function windowOn(face: LocalSide, y: number, along: number): Part[] {
+ * whichever world axis the face turns it onto. `wall` is the face plane's
+ * distance from the origin (the houses' 0.5 by default) — the depth stack
+ * (reveal/leaf/frame) rides it like archWindow's does. */
+function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[] {
   const sign = face === "posX" || face === "posZ" ? 1 : -1;
   const onX = face === "posX" || face === "negX";
+  const revealPlane = wall + (REVEAL_PLANE - 0.5);
+  const surroundOut = wall + (SURROUND_OUT - 0.5);
+  const shutterOut = wall + (SHUTTER_OUT - 0.5);
   const reveal: Part = {
     file: "proc:block",
     tint: "reveal",
     scale: onX ? [REVEAL_T, WIN_H + 0.02, WIN_W + 0.02] : [WIN_W + 0.02, WIN_H + 0.02, REVEAL_T],
     position: onX
-      ? [sign * REVEAL_PLANE, y + 0.29, along]
-      : [along, y + 0.29, sign * REVEAL_PLANE],
+      ? [sign * revealPlane, y + 0.29, along]
+      : [along, y + 0.29, sign * revealPlane],
   };
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
   const surround: Part = {
     file: "proc:surround-rect",
     position: onX
-      ? [sign * SURROUND_OUT, y + 0.3 - SILL_H, along]
-      : [along, y + 0.3 - SILL_H, sign * SURROUND_OUT],
+      ? [sign * surroundOut, y + 0.3 - SILL_H, along]
+      : [along, y + 0.3 - SILL_H, sign * surroundOut],
     rotationY,
   };
   const leaf: Part = {
     file: TOWN + "shutters.glb",
     tint: "shutter",
     position: onX
-      ? [sign * SHUTTER_OUT, y, along]
-      : [along, y, sign * SHUTTER_OUT],
+      ? [sign * shutterOut, y, along]
+      : [along, y, sign * shutterOut],
     rotationY,
     scale: SHUTTER_NARROW,
   };
@@ -370,8 +377,13 @@ function windowOn(face: LocalSide, y: number, along: number): Part[] {
  * wall faces aren't at ±0.5, so `wall` is the face plane's distance from the
  * origin and `yOpen` the opening bottom's absolute height. */
 const ARCH_WIN_S = 1.25; // palazzo windows run grander than house ones
-function archWindow(face: LocalSide, wall: number, yOpen: number, along: number): Part[] {
-  const s = ARCH_WIN_S;
+function archWindow(
+  face: LocalSide,
+  wall: number,
+  yOpen: number,
+  along: number,
+  s = ARCH_WIN_S
+): Part[] {
   const sign = face === "posX" || face === "posZ" ? 1 : -1;
   const onX = face === "posX" || face === "negX";
   const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
@@ -436,6 +448,17 @@ const houseSides = (floors: number[]): Part[] =>
 // Back gable: no door, so the columns sit symmetrically.
 const houseBack = (floors: number[]): Part[] =>
   floors.flatMap((y) => [...windowOn("negX", y, -0.22), ...windowOn("negX", y, 0.22)]);
+
+// Bell tower shaft: slimmer than its unit cell so the crown and cap (which set
+// the footprint fit) overhang it and the tower reads slender, Giotto-style.
+const BT_W = 0.72;
+const BT_WALL = BT_W / 2;
+const BT_FACES: LocalSide[] = ["posX", "negX", "posZ", "negZ"];
+// Cathedral west front: the marble screen slabs' face plane (shell wall at 2,
+// slab centered 2.01 with thickness 0.06); CATH_BAYS = the five-bay window
+// rhythm shared by the clerestory and both aisle rows.
+const CATH_FRONT = 2.04;
+const CATH_BAYS = [-1.6, -0.8, 0, 0.8, 1.6];
 
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // Row houses fill their footprint to the walls (HOUSE_FIT ≈ 1), so two placed
@@ -597,44 +620,80 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // two-story nave under a high gable (ridge runs along X in the kit) with a
   // single-story aisle on each side under a shallow lean-to roof sloping up
   // to the nave wall (no shed piece in the kit: a gable with its ridge sunk
-  // into the nave block, so only the outer slope shows). Three-portal facade
-  // with a rose window, arcaded aisle walls, clerestory rounds above both
-  // aisle roofs. (The bell tower is its own building now — see bell_tower.)
+  // into the nave block, so only the outer slope shows). The Santa Croce
+  // scheme: a campanile-marble SCREEN FACADE — thin slabs hung on the west
+  // front plus the pediment — over a brown rubble shell (the real fronts are
+  // exactly that, a marble screen on a medieval brick basilica). Three
+  // generated portals, a tall arch holding the rose window's slot (the round
+  // rose stays a batch-2 commission — procedural-pieces.md), and a five-bay
+  // window rhythm: arched clerestories on the nave, arched-over-rectangular
+  // rows on the aisle flanks.
   cathedral: {
     front: [1, 0],
     parts: [
-      { file: "proc:block", position: [0, 0, 0], scale: [4, 1, 1], tint: "stone" },
-      { file: "proc:block", position: [0, 1, 0], scale: [4, 1, 1], tint: "stone" },
-      ...gableRoof([0, 2, 0], [4, HIGH_GABLE, 1]),
-      // side aisles
-      { file: "proc:block", position: [0, 0, -1], scale: [4, 1, 1], tint: "stone" },
-      // lean-to roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it just
-      // inside the ±2 facades (no ledge poking past the front); ridge cap sits
-      // 0.02 behind the nave wall face (z-fight)
-      ...gableRoof([0, 1, -0.48], [3.62, 0.4, 2.1]),
-      { file: "proc:block", position: [0, 0, 1], scale: [4, 1, 1], tint: "stone" },
-      ...gableRoof([0, 1, 0.48], [3.62, 0.4, 2.1]),
-      // facade: central portal + rose window, side portals on the aisle fronts
-      { file: TOWN + "wall-door.glb", position: [1.52, 0, 0], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [1.52, 1, 0], tint: "mint" },
-      { file: TOWN + "wall-door.glb", position: [1.52, 0, -1], tint: "mint" },
-      { file: TOWN + "wall-door.glb", position: [1.52, 0, 1], tint: "mint" },
-      // clerestory rounds above both aisle roofs
-      { file: TOWN + "wall-window-round.glb", position: [-1, 1, -0.02], rotationY: Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0, 1, -0.02], rotationY: Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [1, 1, -0.02], rotationY: Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [-1, 1, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0, 1, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [1, 1, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
-      // aisle arcades: generated bays (proc:arch-bay) half-buried in the wall —
-      // a blind arcade in verde di Prato, piers standing ~0.1 proud and the
-      // wall face showing as the recess inside each arch
-      { file: "proc:arch-bay", position: [-1, 0, -1.5], rotationY: Math.PI / 2, tint: "verde" },
-      { file: "proc:arch-bay", position: [0, 0, -1.5], rotationY: Math.PI / 2, tint: "verde" },
-      { file: "proc:arch-bay", position: [1, 0, -1.5], rotationY: Math.PI / 2, tint: "verde" },
-      { file: "proc:arch-bay", position: [-1, 0, 1.5], rotationY: -Math.PI / 2, tint: "verde" },
-      { file: "proc:arch-bay", position: [0, 0, 1.5], rotationY: -Math.PI / 2, tint: "verde" },
-      { file: "proc:arch-bay", position: [1, 0, 1.5], rotationY: -Math.PI / 2, tint: "verde" },
+      // nave 2.5 tall, aisles 1.75, in brown rubble (`flank`) — the marble is
+      // only ever the screen front. One column per unit so the courses don't
+      // stretch; @1x3 / @1x2 wrap v in near-equal course sizes (0.83 vs 0.875)
+      // while keeping ONE continuous AO ramp per wall
+      ...[-1.5, -0.5, 0.5, 1.5].flatMap((x): Part[] => [
+        { file: "proc:block@1x3", position: [x, 0, 0], scale: [1, 2.5 / 3, 1], tint: "flank" },
+        { file: "proc:block@1x2", position: [x, 0, -1], scale: [1, 0.875, 1], tint: "flank" },
+        { file: "proc:block@1x2", position: [x, 0, 1], scale: [1, 0.875, 1], tint: "flank" },
+      ]),
+      // pediment in the campanile (vertical) pattern — the gable's planar UVs
+      // (v = y*0.6) cut the screen grid mid-panel; verticals rise cleanly
+      ...gableRoof([0, 2.5, 0], [4, HIGH_GABLE, 1], { tint: "campanile" }),
+      // lean-to aisle roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it
+      // just inside the ±2 facades (no ledge poking past the front); ridge cap
+      // sits 0.02 behind the nave wall face (z-fight)
+      ...gableRoof([0, 1.75, -0.48], [3.62, 0.4, 2.1]),
+      ...gableRoof([0, 1.75, 0.48], [3.62, 0.4, 2.1]),
+      // the marble screen: one slab per front (nave + both aisles), faces at
+      // CATH_FRONT. Storey-fitted UV wraps (@1x3 / @1x2, like the flanks) so
+      // the panel grid completes exactly at each slab's top — a raw-height
+      // slab cut the pattern mid-panel and the sections read as patchwork
+      { file: "proc:block@1x3", position: [2.01, 0, 0], scale: [0.06, 2.5 / 3, 1], tint: "screen" },
+      { file: "proc:block@1x2", position: [2.01, 0, -1], scale: [0.06, 0.875, 1], tint: "screen" },
+      { file: "proc:block@1x2", position: [2.01, 0, 1], scale: [0.06, 0.875, 1], tint: "screen" },
+      // marble wedges over the aisle slabs: gable-end triangles at the exact
+      // lean-to profile, so the marble climbs the aisle slope and closes the
+      // open slot between slab top and roof underside (SMN's sloped shoulder
+      // sections). 0.005 proud of the slab plane so nothing coplanar fights.
+      // Campanile (vertical) pattern — the slope cuts the screen grid badly.
+      { file: "proc:gable-end", position: [2.015, 1.75, -0.48], scale: [0.06, 0.4, 2.1], tint: "campanile" },
+      { file: "proc:gable-end", position: [2.015, 1.75, 0.48], scale: [0.06, 0.4, 2.1], tint: "campanile" },
+      // giant-order pilasters proud of the screen, covering the section joints
+      // (nave/aisle seams full height, outer corners to the aisle top) — the
+      // grid mismatch between slab wraps hides behind them, SMN-style
+      { file: "proc:block", position: [2.045, 0, -0.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, 0.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, -1.45], scale: [0.05, 1.75, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, 1.45], scale: [0.05, 1.75, 0.1], tint: "stone" },
+      // three-portal facade, the center one grander (scaled house fittings
+      // until the landmark portal piece lands — see procedural-pieces.md)
+      { file: "proc:door-frame", position: [CATH_FRONT + 0.018 * 1.35, 0, 0], scale: 1.35 },
+      { file: "proc:door-leaf", position: [CATH_FRONT + 0.008 * 1.35, 0, 0], scale: 1.35 },
+      { file: "proc:door-frame", position: [CATH_FRONT + 0.018, 0, -1] },
+      { file: "proc:door-leaf", position: [CATH_FRONT + 0.008, 0, -1] },
+      { file: "proc:door-frame", position: [CATH_FRONT + 0.018, 0, 1] },
+      { file: "proc:door-leaf", position: [CATH_FRONT + 0.008, 0, 1] },
+      // the rose slot over the portal, mirrored on the apse end (plain wall, 2)
+      ...archWindow("posX", CATH_FRONT, 1.5, 0, 1.3),
+      ...archWindow("negX", 2, 1.5, 0, 1.3),
+      // five arched clerestory windows per side above the aisle roofs
+      // (aisle ridge lands at ~1.98 on the nave wall, so openings start above)
+      ...CATH_BAYS.flatMap((x) => [
+        ...archWindow("negZ", 0.5, 2.02, x, 0.75),
+        ...archWindow("posZ", 0.5, 2.02, x, 0.75),
+      ]),
+      // aisle flanks: two window rows — rectangular street-level, arched above
+      // (the blind arcade is gone; windows carry the rhythm now)
+      ...CATH_BAYS.flatMap((x) => [
+        ...windowOn("negZ", 0, x, 1.5),
+        ...windowOn("posZ", 0, x, 1.5),
+        ...archWindow("negZ", 1.5, 0.95, x, 0.75),
+        ...archWindow("posZ", 1.5, 0.95, x, 0.75),
+      ]),
     ],
     fit: 0.95,
     scaleY: 0.71,
@@ -870,24 +929,36 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     pad: 3,
     fit: 1,
   },
-  // Freestanding campanile (the cathedral's old bell tower): four stacked
-  // stories under a spire, belfry windows on all four faces.
+  // Freestanding campanile (Giotto's, at street zoom): a slim marble-panelled
+  // shaft — five stretched-cube storeys in the campanile inlay texture
+  // (wallTexture.ts) — with the palazzo's arched pietra-serena windows growing
+  // up the shaft to a four-face belfry, under a projecting crown and shallow
+  // tiled cap. Kit facade panels are gone; the fittings are all generated.
   bell_tower: {
     front: [1, 0],
     parts: [
-      { file: "proc:block", position: [0, 0, 0], tint: "stone" },
-      { file: "proc:block", position: [0, 1, 0], tint: "stone" },
-      { file: "proc:block", position: [0, 2, 0], tint: "stone" },
-      { file: "proc:block", position: [0, 3, 0], tint: "stone" },
-      hipRoof([0, 4, 0], [1, 2, 1]), // roof-high-point = the hip at twice the height
-      // door at the base, slit windows up the shaft
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0.02, 1.2, 0], scale: [1, 0.6, 0.6], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0.02, 2.2, 0], scale: [1, 0.6, 0.6], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0.02, 3, 0], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [-0.02, 3, 0], rotationY: Math.PI, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0, 3, 0.02], rotationY: -Math.PI / 2, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0, 3, -0.02], rotationY: Math.PI / 2, tint: "mint" },
+      ...[0, 1, 2, 3, 4].map(
+        (y): Part => ({
+          file: "proc:block",
+          position: [0, y, 0],
+          scale: [BT_W, 1, BT_W],
+          tint: "campanile",
+        })
+      ),
+      // stone doorway at the base (wall face at BT_WALL, not the houses' 0.5)
+      { file: "proc:door-frame", position: [BT_WALL + 0.018, 0, 0] },
+      { file: "proc:door-leaf", position: [BT_WALL + 0.008, 0, 0] },
+      // arched windows on every face, scaled up storey by storey — the belfry's
+      // louvred leaf reads as the bell chamber's slats
+      ...BT_FACES.flatMap((f) => [
+        ...archWindow(f, BT_WALL, 1.35, 0, 0.7),
+        ...archWindow(f, BT_WALL, 2.32, 0, 0.8),
+        ...archWindow(f, BT_WALL, 3.28, 0, 0.95),
+        ...archWindow(f, BT_WALL, 4.18, 0, 1.15),
+      ]),
+      // projecting crown (Giotto's gallery, minus the balustrade) + shallow cap
+      { file: "proc:block", position: [0, 4.97, 0], scale: [BT_W + 0.16, 0.13, BT_W + 0.16], tint: "stone" },
+      hipRoof([0, 5.1, 0], [BT_W + 0.2, 0.5, BT_W + 0.2]),
     ],
     fit: 0.8,
     scaleY: 0.75,
