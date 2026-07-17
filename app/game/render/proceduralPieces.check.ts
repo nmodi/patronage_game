@@ -109,12 +109,12 @@ assert.equal(bounds("proc:roof-hip").material, "tile");
 // window/door composition (windowOn, houseFront, archWindow) is tuned to these
 // exact openings and depths — drift and the reveal/shutter/leaf stack peeks
 // past its frame or buries inside it.
-assertEnvelope("proc:surround-rect", { min: [-0.025, 0, -0.11], max: [0.025, 0.405, 0.11] });
-assertEnvelope("proc:surround-arch", { min: [-0.025, 0, -0.11], max: [0.025, 0.485, 0.11] });
-// Louvre leaf: a hair inside the 0.13x0.34 opening (clearance = its gap), thin
+assertEnvelope("proc:surround-rect", { min: [-0.011, 0, -0.11], max: [0.011, 0.405, 0.11] });
+assertEnvelope("proc:surround-arch", { min: [-0.011, 0, -0.11], max: [0.011, 0.485, 0.11] });
+// Glazed leaf: a hair inside the 0.13x0.34 opening (clearance = its gap), thin
 // enough that the depth stack (reveal front → leaf → frame front) holds.
 assertEnvelope("proc:shutter", { min: [-0.0035, 0, -0.06], max: [0.0035, 0.33, 0.06] });
-assertEnvelope("proc:door-frame", { min: [-0.025, 0, -0.22], max: [0.025, 0.81, 0.22] });
+assertEnvelope("proc:door-frame", { min: [-0.016, 0, -0.22], max: [0.016, 0.81, 0.22] });
 // Arch bay: exactly 1x1 face-on with piers at the z edges — the tiling
 // contract (copies offset by one unit share a full pier and meet at the rim).
 assertEnvelope("proc:arch-bay", { min: [-0.12, 0, -0.5], max: [0.12, 1, 0.5] });
@@ -144,7 +144,7 @@ assert.equal(bounds("proc:portal-frame").material, "stone");
 assert.equal(bounds("proc:arch-bay").material, "stone");
 assert.equal(bounds("proc:door-leaf").material, "wood");
 assert.equal(bounds("proc:portal-leaf").material, "bronze");
-assert.equal(bounds("proc:shutter").material, "shutterWood");
+assert.equal(bounds("proc:shutter").material, "glazing");
 
 // One mesh per piece keeps the batch key (`${file}#${i}`) stable.
 for (const file of PROC_FILES) assert.equal(bounds(file).meshCount, 1, `${file}: expected 1 mesh`);

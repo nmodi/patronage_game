@@ -461,16 +461,17 @@ export const WIN_T = 0.014;
 export const WIN_SILL_T = 0.022;
 const DOOR_B = 0.05;
 
-/** Box with a uniform vertex shade, spanning the given extents. */
+/** Box with a uniform vertex shade (grey scalar or a full colour — the glazed
+ * leaf carries two hues on one material this way), spanning the given extents. */
 function shadedBox(
   name: string,
   [x0, x1]: readonly [number, number],
   [y0, y1]: readonly [number, number],
   [z0, z1]: readonly [number, number],
-  shade: number,
+  shade: number | Color4,
   scene: Scene
 ) {
-  const c = new Color4(shade, shade, shade, 1);
+  const c = typeof shade === "number" ? new Color4(shade, shade, shade, 1) : shade;
   const box = MeshBuilder.CreateBox(
     name,
     { width: x1 - x0, height: y1 - y0, depth: z1 - z0, faceColors: [c, c, c, c, c, c] },
@@ -653,42 +654,50 @@ function buildDoorLeaf(scene: Scene) {
   return { mesh, material: "wood", color: WOOD };
 }
 
-/** Louvred window leaf (proc:shutter) — replaces the plate extracted from the
- * kit's wall-window-shutters.glb, whose baked orange atlas swatch capped color
- * control (a tint multiply can only darken it). Authored to the generated
- * opening — WIN_OPENING minus the clearance gap, base at y=0 — so the manifest
- * places it at the opening like any fitting, with none of the rescale dance
- * the kit leaf's native 0.30x0.40 needed. The dark backing plate shows between
- * slats and reads as the gaps into the interior. */
-const SHUTTER_WOOD = "#8f7c63"; // weathered wood brown — picked directly now
+/** Glazed casement leaf (proc:shutter — the id stays so every manifest ref
+ * holds). Replaces the closed louvre with the Tuscan street reference: slate
+ * sky-glass panes behind a sparse wood muntin grid (centre mullion + two
+ * transoms → 2×3 panes) inside a thin casement frame. Authored to the
+ * generated opening — WIN_OPENING minus the clearance gap, base at y=0. Two
+ * hues ride one white material as coloured vertex tints; per-pane brightness
+ * varies so the glass reads as reflections, not a flat plate. */
 export const SHUTTER_T = 0.007; // total depth; the manifest's stack rides it
-const SHUTTER_SLATS = 7;
+const GLASS = Color3.FromHexString("#5f6b7a"); // slate sky-reflection blue
+const MUNTIN = Color3.FromHexString("#8d7f6b"); // grey-tan casement wood
+// One brightness per pane (2 cols × 3 rows, bottom-up) — a hair of sky sparkle.
+const PANE_SHADES = [0.86, 1, 0.93, 0.8, 1.04, 0.9];
 
 function buildShutter(scene: Scene) {
   const hw = (WIN_OPENING.w - 0.01) / 2;
   const H = WIN_OPENING.h - 0.01;
-  const xMid = -SHUTTER_T / 2 + 0.002; // plate in the back 0.002, slats proud
-  const parts = [shadedBox("plate", [-SHUTTER_T / 2, xMid], [0, H], [-hw, hw], 0.55, scene)];
-  const pitch = H / SHUTTER_SLATS;
-  for (let i = 0; i < SHUTTER_SLATS; i++) {
-    // Slats nearly contiguous: the exposed plate is a hairline groove per
-    // pitch, so the leaf reads as one closed shutter with scored lines. A
-    // first cut left 26% gaps in alternating shades — that read as a lattice,
-    // not a louvre, at the game's zoom.
-    parts.push(
-      shadedBox(
-        `slat-${i}`,
-        [xMid, SHUTTER_T / 2],
-        [(i + 0.1) * pitch, (i + 1) * pitch],
-        [-hw, hw],
-        i % 2 ? 0.97 : 1,
-        scene
-      )
-    );
-  }
+  const xMid = -SHUTTER_T / 2 + 0.0025; // glass in the back, woodwork proud
+  const tint = (c: Color3, s: number) => new Color4(c.r * s, c.g * s, c.b * s, 1);
+  const parts: Mesh[] = [];
+  for (let row = 0; row < 3; row++)
+    for (let col = 0; col < 2; col++)
+      parts.push(
+        shadedBox(
+          `pane-${row}${col}`,
+          [-SHUTTER_T / 2, xMid],
+          [(row * H) / 3, ((row + 1) * H) / 3],
+          [(col - 1) * hw, col * hw],
+          tint(GLASS, PANE_SHADES[row * 2 + col]!),
+          scene
+        )
+      );
+  const wood = (name: string, y: readonly [number, number], z: readonly [number, number], s = 1) =>
+    parts.push(shadedBox(name, [xMid, SHUTTER_T / 2], y, z, tint(MUNTIN, s), scene));
+  wood("stile-l", [0, H], [-hw, -hw + 0.01], 0.96);
+  wood("stile-r", [0, H], [hw - 0.01, hw], 0.96);
+  wood("rail-b", [0, 0.012], [-hw, hw]);
+  wood("rail-t", [H - 0.012, H], [-hw, hw]);
+  wood("mullion", [0, H], [-0.004, 0.004]);
+  wood("transom-1", [H / 3 - 0.004, H / 3 + 0.004], [-hw, hw]);
+  wood("transom-2", [(2 * H) / 3 - 0.004, (2 * H) / 3 + 0.004], [-hw, hw]);
   const mesh = Mesh.MergeMeshes(parts, true, true)!;
   mesh.name = "proc-shutter";
-  return { mesh, material: "shutterWood", color: SHUTTER_WOOD };
+  // White base: the vertex tints above ARE the colours (GLASS/MUNTIN the knobs).
+  return { mesh, material: "glazing", color: "#ffffff" };
 }
 
 // Landmark portal (bell tower, cathedral fronts, future Town Hall) — the

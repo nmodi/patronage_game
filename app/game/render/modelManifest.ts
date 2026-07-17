@@ -280,8 +280,8 @@ const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofFaded"]
 
 // A window = a generated pietra-serena surround (proc:surround-rect, the
 // batch-1 fitting the brief asked an artist for) around a dark reveal plate,
-// with a generated louvre leaf (proc:shutter) recessed inside the frame — the
-// Florence street look: grey stone frames, closed louvres, colored plaster.
+// with a generated glazed leaf (proc:shutter) recessed inside the frame — the
+// Tuscan street look: stone frames, slate glass behind wood muntins, plaster.
 //
 // Nothing here may share a plane with anything else. proc:block's wall face is
 // at ±0.5, so the stack is: wall 0.5 → jamb back 0.5005 (the deeper sill dips
