@@ -556,13 +556,15 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...gableRoof([-2, 1, 0.25], [1, 1, 1]),
       { file: TOWN + "wall-door.glb", position: [-2, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
       // loggia colonnade — generated pietra-serena arcade (proc:arch-bay), five
-      // bays tiling the front (shared piers), springing under the overhang and
-      // opening ±Z; untinted STONE matches the piano-nobile archWindows above.
+      // bays tiling the front (shared piers) and opening ±Z; untinted STONE
+      // matches the piano-nobile archWindows above. Full unit tall so the solid
+      // top band meets the overhang's base at y=1 (the block above is base-
+      // mounted from y=1) — a shorter arcade leaves a gap under the overhang.
       ...[-1.2, -0.6, 0, 0.6, 1.2].map((x): Part => ({
         file: "proc:arch-bay",
         position: [x, 0, 0.9],
         rotationY: Math.PI / 2,
-        scale: [1, 0.68, 0.6],
+        scale: [1, 1, 0.6],
       })),
       // piano nobile front: arched pietra-serena windows + banner
       ...archWindow("posZ", 1, 1.28, -1),
