@@ -649,6 +649,44 @@ function buildDoorLeaf(scene: Scene) {
   return { mesh, material: "wood", color: WOOD };
 }
 
+/** Louvred window leaf (proc:shutter) — replaces the plate extracted from the
+ * kit's wall-window-shutters.glb, whose baked orange atlas swatch capped color
+ * control (a tint multiply can only darken it). Authored to the generated
+ * opening — WIN_OPENING minus the clearance gap, base at y=0 — so the manifest
+ * places it at the opening like any fitting, with none of the rescale dance
+ * the kit leaf's native 0.30x0.40 needed. The dark backing plate shows between
+ * slats and reads as the gaps into the interior. */
+const SHUTTER_WOOD = "#8f7c63"; // weathered wood brown — picked directly now
+export const SHUTTER_T = 0.007; // total depth; the manifest's stack rides it
+const SHUTTER_SLATS = 7;
+
+function buildShutter(scene: Scene) {
+  const hw = (WIN_OPENING.w - 0.01) / 2;
+  const H = WIN_OPENING.h - 0.01;
+  const xMid = -SHUTTER_T / 2 + 0.002; // plate in the back 0.002, slats proud
+  const parts = [shadedBox("plate", [-SHUTTER_T / 2, xMid], [0, H], [-hw, hw], 0.55, scene)];
+  const pitch = H / SHUTTER_SLATS;
+  for (let i = 0; i < SHUTTER_SLATS; i++) {
+    // Slats nearly contiguous: the exposed plate is a hairline groove per
+    // pitch, so the leaf reads as one closed shutter with scored lines. A
+    // first cut left 26% gaps in alternating shades — that read as a lattice,
+    // not a louvre, at the game's zoom.
+    parts.push(
+      shadedBox(
+        `slat-${i}`,
+        [xMid, SHUTTER_T / 2],
+        [(i + 0.1) * pitch, (i + 1) * pitch],
+        [-hw, hw],
+        i % 2 ? 0.97 : 1,
+        scene
+      )
+    );
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-shutter";
+  return { mesh, material: "shutterWood", color: SHUTTER_WOOD };
+}
+
 // Landmark portal (bell tower, cathedral fronts, future Town Hall) — the
 // grander door the house fittings only impersonated. Frame: chunkier jambs
 // under an 8-facet voussoir ring off impost blocks, with a stone tympanum
@@ -847,6 +885,7 @@ const BUILDERS: Record<string, Builder> = {
   "roof-hip": buildRoofHip,
   "surround-rect": buildSurroundRect,
   "surround-arch": buildSurroundArch,
+  shutter: buildShutter,
   "door-frame": buildDoorFrame,
   "door-leaf": buildDoorLeaf,
   "portal-frame": buildPortalFrame,

@@ -1,6 +1,6 @@
 import type { BuildingId } from "~/game/buildings";
 
-import { SILL_H, WIN_OPENING, procRoofFile } from "./proceduralPieces";
+import { SHUTTER_T, SILL_H, WIN_OPENING, procRoofFile } from "./proceduralPieces";
 
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
@@ -243,11 +243,8 @@ const TINT_COLORS: Record<string, string> = {
   // sun on a lit face — at the old #6a5c4b the shutterless arched windows'
   // reveals blew out to pale tan and read as empty niches.
   reveal: "#453d33",
-  // Fades shutters.glb's orange atlas swatch (#c5896d) to weathered grey-brown.
-  // This multiplies over the swatch, so it's picked for the product (~#9a8161),
-  // not literal — the old warmer #b0a488 left louvres saturated orange-brown,
-  // the loudest element on every facade from the overhead camera.
-  shutter: "#c8f0e4",
+  // (shutter retired July 2026 — the louvre leaf is generated now, proc:shutter,
+  // and carries its own neutral-brown base color directly.)
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
@@ -283,22 +280,19 @@ const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofFaded"]
 
 // A window = a generated pietra-serena surround (proc:surround-rect, the
 // batch-1 fitting the brief asked an artist for) around a dark reveal plate,
-// with shutters.glb's louvred leaf (extracted from the kit's panel — see
-// scripts/make-plain-openings.py) recessed inside the frame — the Florence
-// street look: grey stone frames, closed louvres, colored plaster.
+// with a generated louvre leaf (proc:shutter) recessed inside the frame — the
+// Florence street look: grey stone frames, closed louvres, colored plaster.
 //
 // Nothing here may share a plane with anything else. proc:block's wall face is
 // at ±0.5, so the stack is: wall 0.5 → jamb back 0.5005 (the deeper sill dips
-// into the wall) → slat back 0.508 → reveal front 0.51 → frame front 0.5355.
+// into the wall) → reveal front 0.51 → leaf back 0.511 → frame front 0.5355.
 // The reveal is a hair larger than the opening so its edges bury inside the
-// frame ring, and the slats a hair narrower so they clear the opening's faces.
-const WIN_W = WIN_OPENING.w; // the opening the surround frames — the leaf ships
-const WIN_H = WIN_OPENING.h; // 0.30x0.40 (it filled the old kit panel), so both
-const REVEAL_T = 0.03; //       axes squeeze to fit the generated opening
+// frame ring, and the leaf a hair smaller so the clearance reads as its gap.
+const WIN_W = WIN_OPENING.w;
+const WIN_H = WIN_OPENING.h;
+const REVEAL_T = 0.03;
 const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
-const SHUTTER_OUT = 0.07; //  → slat back 0.508. Keep > 0.048 or it re-buries.
-const SHUTTER_YS = WIN_H / 0.4; // leaf bottom sits +0.3 above its origin, so a
-const SHUTTER_FIT: [number, number, number] = [1, SHUTTER_YS, (WIN_W - 0.01) / 0.3];
+const SHUTTER_BACK = 0.011; // leaf back, just proud of the reveal front
 // Wall 0.5 → jamb back 0.5005, frame front 0.5355 (fitting depth 0.035). Slimmer
 // and pulled flusher than the old kit look — the reference wants near-flush trim.
 const SURROUND_OUT = 0.518;
@@ -313,7 +307,7 @@ function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[]
   const onX = face === "posX" || face === "negX";
   const revealPlane = wall + (REVEAL_PLANE - 0.5);
   const surroundOut = wall + (SURROUND_OUT - 0.5);
-  const shutterOut = wall + (SHUTTER_OUT - 0.5);
+  const shutterOut = wall + SHUTTER_BACK + SHUTTER_T / 2;
   const reveal: Part = {
     file: "proc:block",
     tint: "reveal",
@@ -330,17 +324,14 @@ function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[]
       : [along, y + 0.3 - SILL_H, sign * surroundOut],
     rotationY,
   };
-  // y-squeezing the leaf about its origin would lift its bottom off the opening
-  // (native bottom = origin + 0.3); drop the origin so it lands back on y + 0.3.
-  const leafY = y + 0.3 * (1 - SHUTTER_YS);
+  // Generated leaf, authored to the opening: base at its bottom edge, so it
+  // just lands on the opening bottom plus the clearance gap.
   const leaf: Part = {
-    file: TOWN + "shutters.glb",
-    tint: "shutter",
+    file: "proc:shutter",
     position: onX
-      ? [sign * shutterOut, leafY, along]
-      : [along, leafY, sign * shutterOut],
+      ? [sign * shutterOut, y + 0.305, along]
+      : [along, y + 0.305, sign * shutterOut],
     rotationY,
-    scale: SHUTTER_FIT,
   };
   return [reveal, surround, leaf];
 }
@@ -382,19 +373,17 @@ function archWindow(
     rotationY,
     tint,
   };
-  // Louvred leaf under the springline (the semicircular lunette above stays dark
-  // reveal), same shutters.glb the house windows use — brown-tinted grill. Native
-  // depth-back ~0.438 (unscaled X), so leafOut lands the slats just proud of the
-  // reveal like the house's SHUTTER_OUT does; native shutter sits +0.3 above its
-  // origin, scaled by s, so leafY drops it onto the opening bottom (yOpen).
-  const leafOut = wall - 0.43;
+  // Louvred leaf under the springline (the semicircular lunette above stays
+  // dark reveal), the same proc:shutter the house windows use, at the
+  // surround's own scale. Its back rides the UNSCALED reveal-front line
+  // (REVEAL_T doesn't scale with s), so small-s lancets don't sink behind it.
+  const leafOut = wall + SHUTTER_BACK + (SHUTTER_T / 2) * s;
   const leaf: Part = {
-    file: TOWN + "shutters.glb",
-    tint: "shutter",
-    scale: [1, s * SHUTTER_YS, (WIN_OPENING.w * s - 0.01) / 0.3],
+    file: "proc:shutter",
+    scale: s,
     position: onX
-      ? [sign * leafOut, yOpen - 0.3 * s * SHUTTER_YS, along]
-      : [along, yOpen - 0.3 * s * SHUTTER_YS, sign * leafOut],
+      ? [sign * leafOut, yOpen + 0.005 * s, along]
+      : [along, yOpen + 0.005 * s, sign * leafOut],
     rotationY,
   };
   return [reveal, surround, leaf];

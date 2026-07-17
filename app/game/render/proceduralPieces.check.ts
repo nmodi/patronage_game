@@ -111,6 +111,9 @@ assert.equal(bounds("proc:roof-hip").material, "tile");
 // past its frame or buries inside it.
 assertEnvelope("proc:surround-rect", { min: [-0.025, 0, -0.11], max: [0.025, 0.405, 0.11] });
 assertEnvelope("proc:surround-arch", { min: [-0.025, 0, -0.11], max: [0.025, 0.485, 0.11] });
+// Louvre leaf: a hair inside the 0.13x0.34 opening (clearance = its gap), thin
+// enough that the depth stack (reveal front → leaf → frame front) holds.
+assertEnvelope("proc:shutter", { min: [-0.0035, 0, -0.06], max: [0.0035, 0.33, 0.06] });
 assertEnvelope("proc:door-frame", { min: [-0.025, 0, -0.22], max: [0.025, 0.81, 0.22] });
 // Arch bay: exactly 1x1 face-on with piers at the z edges — the tiling
 // contract (copies offset by one unit share a full pier and meet at the rim).
@@ -141,6 +144,7 @@ assert.equal(bounds("proc:portal-frame").material, "stone");
 assert.equal(bounds("proc:arch-bay").material, "stone");
 assert.equal(bounds("proc:door-leaf").material, "wood");
 assert.equal(bounds("proc:portal-leaf").material, "bronze");
+assert.equal(bounds("proc:shutter").material, "shutterWood");
 
 // One mesh per piece keeps the batch key (`${file}#${i}`) stable.
 for (const file of PROC_FILES) assert.equal(bounds(file).meshCount, 1, `${file}: expected 1 mesh`);
