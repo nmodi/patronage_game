@@ -431,23 +431,27 @@ function buildGableEnd(scene: Scene) {
 const STONE = "#b3ada1";
 /** Warm limestone for the residence/palazzo surrounds — a step off the sandstone
  * facade so a frame still reads as trim, but without the grey pietra-serena clash
- * against warm stucco. The cathedral arcade (proc:arch-bay) keeps STONE: it's only
+ * against warm stucco. Kept under the wall texture's average: the ~1.9x sun used
+ * to clip the old #c9bda1 to pure white, ringing every window (the overhead-view
+ * bullseye read). The cathedral arcade (proc:arch-bay) keeps STONE: it's only
  * ever shown verde-tinted, and STONE's lightness is tuned for that multiply. */
-const SURROUND = "#c9bda1";
+const SURROUND = "#bcae90";
 /** Door wood, between the nature kit's fence tans (#9a7b57 / #6f523a). */
 const WOOD = "#8a6b4d";
 
-/** The window opening every surround frames — the same 0.18x0.40 the
- * manifest's reveal + shutter-leaf stack already fills (windowOn). */
-export const WIN_OPENING = { w: 0.18, h: 0.4 } as const;
+/** The window opening every surround frames; the manifest's reveal +
+ * shutter-leaf stack (windowOn) derives from it. Sized against real Florentine
+ * elevations — a window is ~15% of a house facade's width, not the 27% the
+ * first cut used, which read as bullseyes from the overhead camera. */
+export const WIN_OPENING = { w: 0.13, h: 0.34 } as const;
 /** Sill course height; windowOn subtracts it to land the opening at storey+0.3. */
 export const SILL_H = 0.04;
 export const DOOR_OPENING = { w: 0.3, h: 0.75 } as const;
 /** Landmark portal: the door part of the opening; a semicircular arch of
  * radius w/2 springs at h, so the frame's inner apex is h + w/2. */
 export const PORTAL_OPENING = { w: 0.42, h: 0.85 } as const;
-const BORDER = 0.045; // jamb/head border around a window opening
-const ARCH_BORDER = 0.055; // voussoirs run deeper than the jambs they spring from
+const BORDER = 0.025; // jamb/head border around a window opening
+const ARCH_BORDER = 0.04; // voussoirs run deeper than the jambs they spring from
 const ARCH_SEGS = 6;
 const FIT_T = 0.035; // fitting depth (local x); sills and thresholds bulge past it
 const SILL_T = 0.05;
@@ -512,7 +516,7 @@ function surroundBase(scene: Scene): Mesh[] {
       "sill",
       [-SILL_T / 2, SILL_T / 2],
       [0, SILL_H],
-      [-(hw + BORDER + 0.025), hw + BORDER + 0.025],
+      [-(hw + BORDER + 0.02), hw + BORDER + 0.02],
       0.88,
       scene
     ),

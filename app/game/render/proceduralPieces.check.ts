@@ -109,8 +109,8 @@ assert.equal(bounds("proc:roof-hip").material, "tile");
 // window/door composition (windowOn, houseFront, archWindow) is tuned to these
 // exact openings and depths — drift and the reveal/shutter/leaf stack peeks
 // past its frame or buries inside it.
-assertEnvelope("proc:surround-rect", { min: [-0.025, 0, -0.16], max: [0.025, 0.485, 0.16] });
-assertEnvelope("proc:surround-arch", { min: [-0.025, 0, -0.16], max: [0.025, 0.585, 0.16] });
+assertEnvelope("proc:surround-rect", { min: [-0.025, 0, -0.11], max: [0.025, 0.405, 0.11] });
+assertEnvelope("proc:surround-arch", { min: [-0.025, 0, -0.11], max: [0.025, 0.485, 0.11] });
 assertEnvelope("proc:door-frame", { min: [-0.025, 0, -0.22], max: [0.025, 0.81, 0.22] });
 // Arch bay: exactly 1x1 face-on with piers at the z edges — the tiling
 // contract (copies offset by one unit share a full pier and meet at the rim).

@@ -243,10 +243,11 @@ const TINT_COLORS: Record<string, string> = {
   // sun on a lit face — at the old #6a5c4b the shutterless arched windows'
   // reveals blew out to pale tan and read as empty niches.
   reveal: "#453d33",
-  // Knocks shutters.glb's orange atlas swatch toward the door WOOD brown. This
-  // multiplies over the swatch, so it's picked for the product, not literal —
-  // tune against the rendered door.
-  shutter: "#b0a488",
+  // Fades shutters.glb's orange atlas swatch (#c5896d) to weathered grey-brown.
+  // This multiplies over the swatch, so it's picked for the product (~#9a8161),
+  // not literal — the old warmer #b0a488 left louvres saturated orange-brown,
+  // the loudest element on every facade from the overhead camera.
+  shutter: "#c8f0e4",
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
@@ -292,11 +293,12 @@ const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofFaded"]
 // The reveal is a hair larger than the opening so its edges bury inside the
 // frame ring, and the slats a hair narrower so they clear the opening's faces.
 const WIN_W = WIN_OPENING.w; // the opening the surround frames — the leaf ships
-const WIN_H = WIN_OPENING.h; // 0.30 wide, so it needs narrowing to fit it
-const REVEAL_T = 0.03;
+const WIN_H = WIN_OPENING.h; // 0.30x0.40 (it filled the old kit panel), so both
+const REVEAL_T = 0.03; //       axes squeeze to fit the generated opening
 const REVEAL_PLANE = 0.495; // block face 0.5 → reveal front 0.51
 const SHUTTER_OUT = 0.07; //  → slat back 0.508. Keep > 0.048 or it re-buries.
-const SHUTTER_NARROW: [number, number, number] = [1, 1, (WIN_W - 0.01) / 0.3];
+const SHUTTER_YS = WIN_H / 0.4; // leaf bottom sits +0.3 above its origin, so a
+const SHUTTER_FIT: [number, number, number] = [1, SHUTTER_YS, (WIN_W - 0.01) / 0.3];
 // Wall 0.5 → jamb back 0.5005, frame front 0.5355 (fitting depth 0.035). Slimmer
 // and pulled flusher than the old kit look — the reference wants near-flush trim.
 const SURROUND_OUT = 0.518;
@@ -328,14 +330,17 @@ function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[]
       : [along, y + 0.3 - SILL_H, sign * surroundOut],
     rotationY,
   };
+  // y-squeezing the leaf about its origin would lift its bottom off the opening
+  // (native bottom = origin + 0.3); drop the origin so it lands back on y + 0.3.
+  const leafY = y + 0.3 * (1 - SHUTTER_YS);
   const leaf: Part = {
     file: TOWN + "shutters.glb",
     tint: "shutter",
     position: onX
-      ? [sign * shutterOut, y, along]
-      : [along, y, sign * shutterOut],
+      ? [sign * shutterOut, leafY, along]
+      : [along, leafY, sign * shutterOut],
     rotationY,
-    scale: SHUTTER_NARROW,
+    scale: SHUTTER_FIT,
   };
   return [reveal, surround, leaf];
 }
@@ -360,8 +365,8 @@ function archWindow(
   const rev = wall - 0.005;
   // The reveal covers the opening to just past its apex; taller or wider and
   // its top corners poke out past the voussoir ring's outer arc.
-  const w = 0.195 * s;
-  const h = 0.5 * s;
+  const w = (WIN_OPENING.w + 0.015) * s;
+  const h = (WIN_OPENING.h + 0.075) * s;
   const reveal: Part = {
     file: "proc:block",
     tint: "reveal",
@@ -386,10 +391,10 @@ function archWindow(
   const leaf: Part = {
     file: TOWN + "shutters.glb",
     tint: "shutter",
-    scale: [1, s, (WIN_OPENING.w * s - 0.01) / 0.3],
+    scale: [1, s * SHUTTER_YS, (WIN_OPENING.w * s - 0.01) / 0.3],
     position: onX
-      ? [sign * leafOut, yOpen - 0.3 * s, along]
-      : [along, yOpen - 0.3 * s, sign * leafOut],
+      ? [sign * leafOut, yOpen - 0.3 * s * SHUTTER_YS, along]
+      : [along, yOpen - 0.3 * s * SHUTTER_YS, sign * leafOut],
     rotationY,
   };
   return [reveal, surround, leaf];
@@ -433,11 +438,12 @@ function portalOn(face: LocalSide, wall: number, along: number, s = 1): Part[] {
 }
 
 // Facade columns, shared by both house tiers so upper windows land directly over
-// the door and the ground-floor window (the reference elevation). The door leaf
-// is 0.4 wide and sits off-centre; the window shares the remaining bay.
-const DOOR_COL = -0.2;
-const WIN_COL = 0.28;
-const SIDE_COLS = [-0.25, 0.25];
+// the door and the ground-floor window (the reference elevation). Three columns
+// per face now that windows are smaller — a finer rhythm reads as wall texture
+// where two big openings read as a face.
+const DOOR_COL = -0.25;
+const WIN_COL = 0.25;
+const SIDE_COLS = [-0.3, 0, 0.3];
 // The house scaleY squash (~0.57) makes the unit door read garage-wide; narrow
 // it and drop the head to the window-head line. Width only via z — depth (x)
 // stays so the fittings sit proud of the wall exactly as before.
@@ -449,7 +455,7 @@ const houseFront = (upper: number | null): Part[] => [
   ...windowOn("posX", 0, WIN_COL),
   ...(upper == null
     ? []
-    : [...windowOn("posX", upper, DOOR_COL), ...windowOn("posX", upper, WIN_COL)]),
+    : [DOOR_COL, 0, WIN_COL].flatMap((c) => windowOn("posX", upper, c))),
 ];
 const houseSides = (floors: number[]): Part[] =>
   floors.flatMap((y) =>
@@ -457,7 +463,7 @@ const houseSides = (floors: number[]): Part[] =>
   );
 // Back gable: no door, so the columns sit symmetrically.
 const houseBack = (floors: number[]): Part[] =>
-  floors.flatMap((y) => [...windowOn("negX", y, -0.22), ...windowOn("negX", y, 0.22)]);
+  floors.flatMap((y) => SIDE_COLS.flatMap((c) => windowOn("negX", y, c)));
 
 // Long workshop hall: two bays, 3x2 footprint. Walls/openings are shared by
 // both workshop types; roofs are per-workshop (the painter runs the full
@@ -472,11 +478,15 @@ const WORKSHOP_WALLS: Part[] = [
   // stone door on the front bay, surround-framed windows on the other faces
   // (same generated fittings as the houses; the hall spans x ±1, faces z ±0.5)
   ...doorOn("posZ", -0.5),
+  ...windowOn("posZ", 0, 0),
   ...windowOn("posZ", 0, 0.5),
   ...windowOn("negZ", 0, -0.5),
+  ...windowOn("negZ", 0, 0),
   ...windowOn("negZ", 0, 0.5),
-  ...windowOn("posX", 0, 0, 1),
-  ...windowOn("negX", 0, 0, 1),
+  ...windowOn("posX", 0, -0.25, 1),
+  ...windowOn("posX", 0, 0.25, 1),
+  ...windowOn("negX", 0, -0.25, 1),
+  ...windowOn("negX", 0, 0.25, 1),
 ];
 // One gable over both bays. The kit had no piece this long, so the hall was two
 // half-gables meeting at x=0 (caps outward); a generated roof just spans it. The
@@ -643,10 +653,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
         rotationY: Math.PI / 2,
         scale: [1, 1, 0.6],
       })),
-      // piano nobile front: arched pietra-serena windows + banner
-      ...archWindow("posZ", 1, 1.28, -1),
-      ...archWindow("posZ", 1, 1.28, 0),
-      ...archWindow("posZ", 1, 1.28, 1),
+      // piano nobile front: arched pietra-serena windows + banner — five bays
+      // (the Medici rhythm; three read sparse once the arches slimmed down)
+      ...[-1, -0.5, 0, 0.5, 1].flatMap((z) => archWindow("posZ", 1, 1.28, z)),
       // top floor (main block only): smaller arched windows flanking the
       // banner — the piano nobile's language a size down (round windows
       // read as portholes and were dropped)
@@ -659,10 +668,8 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...archWindow("negX", 1.5, 2.35, 0.5, 0.9),
       ...archWindow("posX", 1.5, 1.28, -0.5),
       ...archWindow("posX", 1.5, 1.28, 0.5),
-      // back windows
-      ...archWindow("negZ", 1, 1.28, -1),
-      ...archWindow("negZ", 1, 1.28, 0),
-      ...archWindow("negZ", 1, 1.28, 1),
+      // back windows — the piano nobile's five-bay rhythm carries around
+      ...[-1, -0.5, 0, 0.5, 1].flatMap((z) => archWindow("negZ", 1, 1.28, z)),
       ...archWindow("negZ", 1, 2.35, -1, 0.9),
       ...archWindow("negZ", 1, 2.35, 0, 0.9),
     ],
@@ -803,8 +810,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       hipRoof([0, 1.25, 0], [1.25, 0.5, 1.25]),
       // shop door under the banner, windows on the long sides (faces at ±0.625)
       ...doorOn("posX", 0, 0.625),
-      ...windowOn("posZ", 0.3, 0, 0.625),
-      ...windowOn("negZ", 0.3, 0, 0.625),
+      ...windowOn("posZ", 0.3, -0.28, 0.625),
+      ...windowOn("posZ", 0.3, 0.28, 0.625),
+      ...windowOn("negZ", 0.3, -0.28, 0.625),
+      ...windowOn("negZ", 0.3, 0.28, 0.625),
       // delivery yard along the back side: cart + pigment crates
       { file: TOWN + "cart.glb", position: [-0.15, 0, -0.85], rotationY: Math.PI / 2, scale: 0.55 },
       { file: "proc:block", position: [0.42, 0, -0.8], scale: 0.2 },
@@ -826,7 +835,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
       // shed door opening onto the yard (+X face at 0.395), window on the side
       ...doorOn("posX", -0.28, 0.395),
-      ...windowOn("posZ", 0.15, -0.28, 0.395),
+      ...windowOn("posZ", 0.15, -0.62, 0.395),
+      ...windowOn("posZ", 0.15, 0.02, 0.395),
+      ...windowOn("negZ", 0.15, -0.28, 0.955),
       { file: TOWN + "rock-large.glb", position: [0.55, 0, 0.55], scale: 0.6 },
       { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.8], scale: 0.8 },
       { file: TOWN + "pillar-stone.glb", position: [0.72, 0, -0.55], scale: 0.65 },
@@ -848,7 +859,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
       hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
       ...doorOn("posX", -0.28, 0.395),
-      ...windowOn("posZ", 0.15, -0.28, 0.395),
+      ...windowOn("posZ", 0.15, -0.62, 0.395),
+      ...windowOn("posZ", 0.15, 0.02, 0.395),
+      ...windowOn("negZ", 0.15, -0.28, 0.955),
       // yard: a stout stone furnace + warm bronze ingot stacks + a hauling cart
       { file: "proc:block", position: [0.58, 0, 0.55], scale: [0.4, 0.6, 0.4], tint: "stone" },
       { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.34, 0.14, 0.22], tint: "bronze" },
@@ -878,12 +891,17 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // door + windows on the front, windows on the back and far gable end
       // (walls at z ±0.75, far gable end at x −1.5)
       ...doorOn("posZ", -1, 0.75, [1, 1, 0.8]),
+      ...windowOn("posZ", 0, -0.5, 0.75),
       ...windowOn("posZ", 0, 0, 0.75),
+      ...windowOn("posZ", 0, 0.5, 0.75),
       ...windowOn("posZ", 0, 1, 0.75),
       ...windowOn("negZ", 0, -1, 0.75),
+      ...windowOn("negZ", 0, -0.5, 0.75),
       ...windowOn("negZ", 0, 0, 0.75),
+      ...windowOn("negZ", 0, 0.5, 0.75),
       ...windowOn("negZ", 0, 1, 0.75),
-      ...windowOn("negX", 0, 0, 1.5),
+      ...windowOn("negX", 0, -0.3, 1.5),
+      ...windowOn("negX", 0, 0.3, 1.5),
       // terrace: shallow tiled awning (ridge sunk into the wall, cathedral
       // lean-to trick) over benches and potted shrubs. Prop scales counter the
       // global stretch (~1.36x / 1.84z) so they render roughly square.
@@ -919,8 +937,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // bay's 0.75 wall), sign banner on the street-side wall
       ...doorOn("posX", 0, 0.65, [1, 0.85, 0.8]),
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0.02], rotationY: -Math.PI / 2 },
-      ...windowOn("posZ", 0, 0),
-      ...windowOn("negZ", 0, 0),
+      ...windowOn("posZ", 0, -0.22),
+      ...windowOn("posZ", 0, 0.22),
+      ...windowOn("negZ", 0, -0.22),
+      ...windowOn("negZ", 0, 0.22),
     ],
     fit: 0.88,
     scaleY: 0.56, // ridge matches the cottage; chimney tips out at ~16 ft
