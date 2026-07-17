@@ -82,19 +82,19 @@ function getTintedPair(pair: { on: Material; off: Material }, tintId: string) {
       on.diffuseTexture = variant.on;
       off.diffuseTexture = variant.off;
     }
-    // Stone facades (residences): the pattern rides a DynamicTexture on the
-    // tint clone — added after conversion, so the colormap force-swap above
-    // never sees it — and its colour is authored in the canvas, so the stucco
-    // base diffuse is replaced rather than multiplied. The pieces' vertex AO
-    // ramp still multiplies underneath, grounding the wall.
+    // Stone facades (the whole roster since the texture pass): the pattern
+    // rides a DynamicTexture on the tint clone — added after conversion, so
+    // the colormap force-swap above never sees it — and its colour is authored
+    // in the canvas, so the stucco base diffuse is replaced rather than
+    // multiplied. The pieces' vertex AO ramp still multiplies underneath,
+    // grounding the wall.
     if (STONE_TINTS[tintId]) {
-      const tex = getStoneTexture(tintId, on.getScene());
-      on.diffuseTexture = tex;
+      on.diffuseTexture = getStoneTexture(tintId, on.getScene());
       on.diffuseColor = Color3.White();
-      // ponytail: no desat stone twin — housing never renders inactive; the
-      // 0.9 matches how textured kit pieces dim their off state.
-      off.diffuseTexture = tex;
-      off.diffuseColor = new Color3(0.9, 0.9, 0.9);
+      // Real desat twin: stone tints now dress workshops/suppliers/services,
+      // which (unlike housing) do render inactive.
+      off.diffuseTexture = getStoneTexture(tintId, on.getScene(), true);
+      off.diffuseColor = Color3.White();
     }
     byTint.set(tintId, (tinted = { on, off }));
   }

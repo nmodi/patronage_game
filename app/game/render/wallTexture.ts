@@ -3,13 +3,16 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { mulberry32 } from "~/game/random";
 
-// Sandstone facades for the residences: coursed-stone textures in the warm
+// Masonry facades for the whole roster (residences first, the rest of the
+// city since the texture pass, July 2026): coursed-stone textures in the warm
 // gold-tan of Tuscan rubble walls, applied per building through the tint layer
 // (see STONE_TINTS in getTintedPair). Authored in final colour — every
 // pattern's average sits under the stucco walls' ~#dcd0b6, since the scene
 // lights a sun-facing wall at ~1.9x and only *brighter* than the kit clips
-// (kitbashing.md). One canvas per pattern, city-wide; per-house variety comes
-// from the position-hashed palette pick, not from the texture itself.
+// (kitbashing.md). One canvas per pattern, city-wide; per-building variety
+// comes from the position-hashed palette pick, not from the texture itself.
+// Textured walls must keep unit-scale faces — storeys via proc:block@1xN,
+// plans as unit columns (the cathedral rule) — or the courses stretch.
 
 const SIZE = 256;
 
@@ -33,6 +36,13 @@ const ASHLAR_JOINT = "#c6b48d";
 // brown — Santa Croce's medieval walls behind the white marble screen front.
 const FLANK_TONES = ["#c9ab80", "#bf9f74", "#d1b48c", "#b39367", "#c5a87c", "#aa8a5e"];
 const FLANK_MORTAR = "#b69c73";
+// Civic dressed ashlar: the flat pale-stone tint (#ddd8ca) become masonry —
+// large smooth blocks, cooler and paler than the residences' gold-tan, for the
+// palazzo and chapel (Palazzo Medici's upper registers).
+// Warmed like everything else in this file: a neutral pale grey here rendered
+// as concrete under the scene's cool light — pale must still mean warm.
+const CIVIC_TONES = ["#ddd5bc", "#d8d0b6", "#e2dbc4", "#d5cdb2", "#dfd8bf"];
+const CIVIC_JOINT = "#c9c1a7";
 
 /** One face of proc:block = one storey = the full 0..1 UV tile, so `rows` is
  * courses per storey. Bands fit the canvas exactly and every stone stays
@@ -359,23 +369,45 @@ export const STONE_TINTS: Record<string, Drawer> = {
       rows: 6, minW: 0.22, maxW: 0.34, gap: 2,
       joint: ASHLAR_JOINT, tones: ASHLAR_TONES, radius: 0.04, jitter: 0,
     }),
+  // Civic (city palette): larger dressed blocks in pale stone — fewer, wider
+  // courses than the residences' ashlar so a palazzo reads finer, not busier.
+  civic: (ctx, size) =>
+    drawCourses(ctx, size, 505, {
+      rows: 5, minW: 0.26, maxW: 0.4, gap: 2,
+      joint: CIVIC_JOINT, tones: CIVIC_TONES, radius: 0.03, jitter: 0,
+    }),
   patchy: drawPatchy,
   plaster: drawPlaster,
 };
 
 const stoneTextures = new Map<string, DynamicTexture>();
 
-export function getStoneTexture(tintId: string, scene: Scene) {
-  let tex = stoneTextures.get(tintId);
+/** `desat` returns the inactive twin — same pattern, pixels run through the
+ * same luminance lerp as assetLibrary's `desaturate()` — needed since the
+ * stone tints spread beyond housing to buildings that do render inactive
+ * (workshops, suppliers, services). */
+export function getStoneTexture(tintId: string, scene: Scene, desat = false) {
+  const key = desat ? `${tintId}~off` : tintId;
+  let tex = stoneTextures.get(key);
   if (!tex) {
-    tex = new DynamicTexture(`stone-${tintId}`, { width: SIZE, height: SIZE }, scene, true);
-    STONE_TINTS[tintId]!(tex.getContext() as CanvasRenderingContext2D, SIZE);
+    tex = new DynamicTexture(`stone-${key}`, { width: SIZE, height: SIZE }, scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    STONE_TINTS[tintId]!(ctx, SIZE);
+    if (desat) {
+      const img = ctx.getImageData(0, 0, SIZE, SIZE);
+      const d = img.data;
+      for (let i = 0; i < d.length; i += 4) {
+        const l = d[i]! * 0.299 + d[i + 1]! * 0.587 + d[i + 2]! * 0.114;
+        for (const c of [0, 1, 2]) d[i + c] = (d[i + c]! + (l - d[i + c]!) * 0.75) * 0.85;
+      }
+      ctx.putImageData(img, 0, 0);
+    }
     tex.update();
     // Tile in v as well as u: the townhouse's 2-storey block maps v 0..2, so the
     // course canvas must repeat once per storey instead of clamping the top row
     // up the upper floor (which read as a smooth, different-looking second storey).
     tex.wrapU = tex.wrapV = DynamicTexture.WRAP_ADDRESSMODE;
-    stoneTextures.set(tintId, tex);
+    stoneTextures.set(key, tex);
   }
   return tex;
 }

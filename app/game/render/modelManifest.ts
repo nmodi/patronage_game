@@ -229,11 +229,9 @@ const MATERIAL_TINTS: Record<string, Record<string, string>> = {
 // Florence-style stucco variation: subtle diffuse multiplies over the shared
 // colormap (town pieces load with a white diffuse, so these are pure tints).
 const TINT_COLORS: Record<string, string> = {
-  cream: "#eae5d8",
-  sand: "#e0d5bf",
-  white: "#f5efe2",
-  ochre: "#d9c187", // warm workshop stucco (see FACADE_PALETTES.artist)
-  stone: "#ddd8ca", // pale stone — marks civic/monumental buildings
+  // (cream/sand/white/ochre stucco retired with the texture pass — every
+  // facade palette entry is a STONE_TINTS pattern now)
+  stone: "#ddd8ca", // pale stone — trim-scale parts (pilasters, lantern, plastered gables)
   verde: "#58634c", // verde di Prato marble — the Duomo's green banding
   // The roof colour itself is TILE_BASE (proceduralPieces.ts) — every roof is a
   // generated piece now, so this only varies it: a slight cool-grey wash, ~8%
@@ -252,16 +250,9 @@ const TINT_COLORS: Record<string, string> = {
 };
 // Texture-swap tints: a colormap variant instead of a diffuse multiply, for
 // accents baked into the atlas that a whole-material multiply can't isolate.
+// ("mint" retired July 2026 — the kit's atlas-textured facade panels are gone,
+// every fitting is generated; religious verde is Part.tint on proc pieces now.)
 const TEXTURE_TINTS: Record<string, { file: string; diffuse?: string }> = {
-  // "mint" recolors the atlas's terracotta quoin swatch (see make-mint-quoins.py)
-  // to verde di Prato — the Duomo's green trim. Still needed: the generated
-  // pieces have no quoins to recolor, but the kit's door/window/arch panels are
-  // still atlas-textured, and they are where the chapel's green now comes from
-  // (the cathedral and bell tower are panel-free since the marble pass).
-  // Retires only when those panels are generated too.
-  // stone diffuse so the plaster matches the civic "stone" walls beside it;
-  // the olive quoin swatch is pre-divided by stone so it lands on target.
-  mint: { file: "colormap-mint", diffuse: "stone" },
   // Market-stall awning fabrics: the retint left both fabric-red and roof-red as
   // the same terracotta, so awnings read as rooftops. These variants recolor
   // only the two awning swatch columns (see make-stall-cloth.py) — stall-red.glb
@@ -271,46 +262,23 @@ const TEXTURE_TINTS: Record<string, { file: string; diffuse?: string }> = {
   cloth2: { file: "colormap-cloth2" },
 };
 // Facade palette per build-menu category; a building's pick is position-hashed.
+// Every entry is a STONE_TINTS pattern id (render/wallTexture.ts) since the
+// texture pass took the whole roster to drawn masonry — routed down the
+// texture path in getTintedPair rather than through TINT_COLORS. Repeats
+// weight the position-hashed pick; category identity rides the mix (houses
+// patchy-through-rubble, workshops brick-forward, suppliers rough rubble,
+// services smooth plaster, civic its own pale dressed ashlar).
 const FACADE_PALETTES: Record<string, string[]> = {
-  // Residences read as sandstone, not stucco: these are STONE_TINTS pattern
-  // ids (render/wallTexture.ts), routed down the texture path in
-  // getTintedPair rather than through TINT_COLORS. Repeats weight the
-  // position-hashed pick — patchy (bare stone through broken plaster) is the
-  // loudest pattern, so it lands on one house in six.
+  // patchy (bare stone through broken plaster) is the loudest pattern, so it
+  // lands on one house in six.
   residential: ["rubble", "ashlar", "brick", "plaster", "rubble", "ashlar", "plaster", "patchy"],
-  service: ["cream", "sand"],
-  artist: ["ochre", "sand"],
-  materials: ["sand", "white"],
-  city: ["stone"],
+  service: ["plaster", "ashlar", "plaster", "brick"],
+  artist: ["brick", "plaster", "brick", "ashlar"],
+  materials: ["rubble", "plaster", "rubble", "brick"],
+  city: ["civic"],
 };
 // Minor city-wide roof variation: ~1 in 3 roofs is slightly sun-faded.
 const ROOF_PALETTE: (string | undefined)[] = [undefined, undefined, "roofFaded"];
-
-// Long workshop hall: two bays, 3x2 footprint. Walls/openings are shared by
-// both workshop types; roofs are per-workshop (the painter runs the full
-// gable with a dormer, the sculptor crosses a head-house over the +X bay) so
-// the two silhouettes differ. Props stay within x ±1.04 / z ≤ 0.84 so
-// scaleZ ≥ scaleX still holds and the hall's fitted height is unchanged —
-// the yard just borrows footprint depth from the hall.
-const WORKSHOP_WALLS: Part[] = [
-  { file: "proc:block", position: [-0.5, 0, 0], tint: "facade" },
-  { file: "proc:block", position: [0.5, 0, 0], tint: "facade" },
-  // door on the front bay, windows on the other faces (wall-doorway-square-wide
-  // is an open hole showing the blank block behind it — reads as a gray smear)
-  { file: TOWN + "wall-door.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
-  { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
-  { file: TOWN + "wall-window-shutters.glb", position: [-0.5, 0, -0.02], rotationY: Math.PI / 2, tint: "facade" },
-  { file: TOWN + "wall-window-shutters.glb", position: [0.5, 0, -0.02], rotationY: Math.PI / 2, tint: "facade" },
-  { file: TOWN + "wall-window-shutters.glb", position: [0.52, 0, 0], tint: "facade" },
-  { file: TOWN + "wall-window-shutters.glb", position: [-0.52, 0, 0], rotationY: Math.PI, tint: "facade" },
-];
-// One gable over both bays. The kit had no piece this long, so the hall was two
-// half-gables meeting at x=0 (caps outward); a generated roof just spans it. The
-// x-scale is what keeps the houses' 0.05 verge over the ±1 walls.
-const WORKSHOP_HALL_ROOF = gableRoof([0, 1, 0], [1.05 / 0.55, 0.6, 1]);
-// The sculptor roofs only the -X bay: its head-house takes the +X bay and buries
-// this roof's inner gable end in its wall.
-const WORKSHOP_BAY_ROOF = gableRoof([-0.5, 1, 0]);
 
 // A window = a generated pietra-serena surround (proc:surround-rect, the
 // batch-1 fitting the brief asked an artist for) around a dark reveal plate,
@@ -425,6 +393,51 @@ function archWindow(
   return [reveal, surround, leaf];
 }
 
+/** Stone doorway + planked leaf on any local face (the batch-1 door fittings,
+ * generalized from houseFront's +X-only stack). `wall` is the face plane's
+ * distance from the origin; `scale` narrows/shortens like HOUSE_DOOR_SCALE
+ * (keep its x at 1 so the frame/leaf depth stack holds). */
+function doorOn(
+  face: LocalSide,
+  along: number,
+  wall = 0.5,
+  scale: number | [number, number, number] = 1
+): Part[] {
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const at = (out: number): [number, number, number] =>
+    onX ? [sign * out, 0, along] : [along, 0, sign * out];
+  return [
+    { file: "proc:door-frame", position: at(wall + (SURROUND_OUT - 0.5)), rotationY, scale },
+    { file: "proc:door-leaf", position: at(wall + 0.008), rotationY, scale },
+  ];
+}
+
+/** Round window (proc:oculus): faceted stone ring with its own recessed dark
+ * disc — like the portal, no reveal part. Center-origin piece, so `y` is the
+ * circle center's height. `tint` is how the chapel gets its verde trim. */
+function oculusOn(
+  face: LocalSide,
+  y: number,
+  along: number,
+  wall = 0.5,
+  s = 1,
+  tint?: string
+): Part {
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const out = wall + 0.004 + 0.0175 * s; // 0.0175 = the ring's half-depth (FIT_T/2); back face kisses the wall
+  return {
+    file: "proc:oculus",
+    position: onX ? [sign * out, y, along] : [along, y, sign * out],
+    rotationY,
+    scale: s,
+    tint,
+  };
+}
+
 /** Landmark portal (proc:portal-frame + proc:portal-leaf): voussoir-arched
  * stone frame + double bronze-panel doors with a dark tympanum filling the
  * lunette — self-contained, no reveal part. Same depth stack as the house
@@ -454,8 +467,7 @@ const HOUSE_DOOR_SCALE: [number, number, number] = [1, 0.9, 0.72];
 const houseFront = (upper: number | null): Part[] => [
   // Stone doorway + planked leaf recessed in it (batch-1 fittings — the kit's
   // extracted leaf alone never quite read as a door).
-  { file: "proc:door-frame", position: [SURROUND_OUT, 0, DOOR_COL], scale: HOUSE_DOOR_SCALE },
-  { file: "proc:door-leaf", position: [0.508, 0, DOOR_COL], scale: HOUSE_DOOR_SCALE },
+  ...doorOn("posX", DOOR_COL, 0.5, HOUSE_DOOR_SCALE),
   ...windowOn("posX", 0, WIN_COL),
   ...(upper == null
     ? []
@@ -468,6 +480,33 @@ const houseSides = (floors: number[]): Part[] =>
 // Back gable: no door, so the columns sit symmetrically.
 const houseBack = (floors: number[]): Part[] =>
   floors.flatMap((y) => [...windowOn("negX", y, -0.22), ...windowOn("negX", y, 0.22)]);
+
+// Long workshop hall: two bays, 3x2 footprint. Walls/openings are shared by
+// both workshop types; roofs are per-workshop (the painter runs the full
+// gable with a dormer, the sculptor crosses a head-house over the +X bay) so
+// the two silhouettes differ. Props stay within x ±1.04 / z ≤ 0.84 so
+// scaleZ ≥ scaleX still holds and the hall's fitted height is unchanged —
+// the yard just borrows footprint depth from the hall.
+// The +X bay block is per-workshop (painter: plain unit; sculptor: one @1x2
+// column spanning bay + head-house, so no stacked-ramp seam at y=1).
+const WORKSHOP_WALLS: Part[] = [
+  { file: "proc:block", position: [-0.5, 0, 0], tint: "facade" },
+  // stone door on the front bay, surround-framed windows on the other faces
+  // (same generated fittings as the houses; the hall spans x ±1, faces z ±0.5)
+  ...doorOn("posZ", -0.5),
+  ...windowOn("posZ", 0, 0.5),
+  ...windowOn("negZ", 0, -0.5),
+  ...windowOn("negZ", 0, 0.5),
+  ...windowOn("posX", 0, 0, 1),
+  ...windowOn("negX", 0, 0, 1),
+];
+// One gable over both bays. The kit had no piece this long, so the hall was two
+// half-gables meeting at x=0 (caps outward); a generated roof just spans it. The
+// x-scale is what keeps the houses' 0.05 verge over the ±1 walls.
+const WORKSHOP_HALL_ROOF = gableRoof([0, 1, 0], [1.05 / 0.55, 0.6, 1]);
+// The sculptor roofs only the -X bay: its head-house takes the +X bay and buries
+// this roof's inner gable end in its wall.
+const WORKSHOP_BAY_ROOF = gableRoof([-0.5, 1, 0]);
 
 // Bell tower shaft: slimmer than its unit cell so the crown and cap (which set
 // the footprint fit) overhang it and the tower reads slender, Giotto-style.
@@ -525,6 +564,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     front: [0, 1],
     parts: [
       ...WORKSHOP_WALLS,
+      { file: "proc:block", position: [0.5, 0, 0], tint: "facade" },
       ...WORKSHOP_HALL_ROOF,
       // Dormer (north light for the painter): a mini block + cross-ridge gable
       // buried into the front slope of the -X bay (chapel-lantern trick —
@@ -553,10 +593,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     parts: [
       ...WORKSHOP_WALLS,
       ...WORKSHOP_BAY_ROOF,
-      // Head-house over the +X bay: a half-story under its own cross-ridge
-      // gable rising above the hall ridge (apex 1.84 vs 1.34) — T-silhouette
-      // vs the painter's long hall. It buries the +X gable half entirely.
-      { file: "proc:block", position: [0.5, 1, 0], scale: [1, 0.55, 1], tint: "facade" },
+      // Head-house over the +X bay: bay + half-story as ONE @1x2 column (top
+      // 1.55, one continuous ramp — stacked blocks drew a dark seam at y=1)
+      // under its own cross-ridge gable rising above the hall ridge (apex
+      // 1.84 vs 1.34) — T-silhouette vs the painter's long hall. It buries
+      // the +X gable half entirely.
+      { file: "proc:block@1x2", position: [0.5, 0, 0], scale: [1, 0.775, 1], tint: "facade" },
       ...gableRoof([0.5, 1.55, 0], [1, 0.5, 1], { rotationY: Math.PI / 2 }),
       { file: TOWN + "chimney.glb", position: [0.5, 1.3, 0] },
       // Stone yard: the Phase-9 display plinth stands here, front-right of this
@@ -572,10 +614,6 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.65,
     stretch: true,
   },
-  // Facade panels (wall-arch, wall-door, wall-window-*) are thin pieces on the
-  // +X face of a unit cell: rotationY 0/π/±π/2 picks the face, and the cell is
-  // offset 0.02 outward so the panel sits proud of the block wall (no z-fight).
-  //
   // Palazzo, front facing +Z (toward the default camera). Three-story main
   // block under a low hip roof, two-story wing on +X under its own gable,
   // one-story annex on −X. Ground floor is recessed 0.5 behind the upper
@@ -583,21 +621,39 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   palazzo: {
     front: [0, 1],
     parts: [
-      // recessed ground floor (loggia interior wall)
-      { file: "proc:block", position: [0, 0, -0.25], scale: [3, 1, 1.5], tint: "facade" },
-      { file: TOWN + "wall-doorway-square-wide.glb", position: [-0.5, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
-      // main block upper stories, overhanging the loggia
-      { file: "proc:block", position: [-0.5, 1, 0], scale: [2, 1, 2], tint: "facade" },
-      { file: "proc:block", position: [-0.5, 2, 0], scale: [2, 1, 2], tint: "facade" },
+      // recessed ground floor (loggia interior wall); the entrance behind the
+      // arcade is a quiet stone door — a portal there fought the arcade
+      // (arch-in-arch, and at loggia height it filled the bays with stone);
+      // portals stay landmark language (cathedral, bell tower, Town Hall).
+      // Since the texture pass every textured wall is UNIT columns (the
+      // cathedral rule): u stays 1:1 so the ashlar courses don't stretch, and
+      // a multi-storey wall is ONE @1xN block — one continuous AO ramp, no
+      // dark seam per storey.
+      ...[-1, 0, 1].map(
+        (x): Part => ({ file: "proc:block", position: [x, 0, -0.25], scale: [1, 1, 1.5], tint: "facade" })
+      ),
+      ...doorOn("posZ", -0.5, 0.5, [1, 1.05, 1.1]),
+      // main block upper stories overhanging the loggia: four unit @1x2 columns
+      ...[-1, 0].flatMap((x) =>
+        [-0.5, 0.5].map(
+          (z): Part => ({ file: "proc:block@1x2", position: [x, 1, z], tint: "facade" })
+        )
+      ),
       hipRoof([-0.5, 3, 0], [2, 1, 2]),
-      // wing on +X, one story lower
-      { file: "proc:block", position: [1, 1, 0], scale: [1, 1, 2], tint: "facade" },
-      ...gableRoof([1, 2, 0], [1, 1, 2]),
+      // wing on +X, one story lower — two unit columns, nudged +x so its wall
+      // never shares a plane with the main block's differently-ramped face
+      // (the 0.01 slit at the junction reads as the architectural joint);
+      // gables go flat stone: the gable end's planar UVs bake the 0.6 roof
+      // squash, so textured courses would jump size at the eave
+      ...[-0.5, 0.5].map(
+        (z): Part => ({ file: "proc:block", position: [1.005, 1, z], scale: [0.99, 1, 1], tint: "facade" })
+      ),
+      ...gableRoof([1, 2, 0], [1, 1, 2], { tint: "stone" }),
       { file: TOWN + "chimney.glb", position: [0.5, 2.3, 0] },
       // one-story annex on −X, set slightly behind the colonnade line
       { file: "proc:block", position: [-2, 0, 0.25], tint: "facade" },
-      ...gableRoof([-2, 1, 0.25], [1, 1, 1]),
-      { file: TOWN + "wall-door.glb", position: [-2, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
+      ...gableRoof([-2, 1, 0.25], [1, 1, 1], { tint: "stone" }),
+      ...doorOn("posZ", -2, 0.75),
       // loggia colonnade — generated pietra-serena arcade (proc:arch-bay), five
       // bays tiling the front (shared piers) and opening ±Z; untinted STONE
       // matches the piano-nobile archWindows above. Full unit tall so the solid
@@ -613,22 +669,23 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...archWindow("posZ", 1, 1.28, -1),
       ...archWindow("posZ", 1, 1.28, 0),
       ...archWindow("posZ", 1, 1.28, 1),
-      // top floor (main block only): round windows flanking the banner
-      { file: TOWN + "wall-window-round.glb", position: [-1, 2, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-round.glb", position: [0, 2, 0.52], rotationY: -Math.PI / 2, tint: "facade" },
+      // top floor (main block only): stone oculi flanking the banner — the
+      // generated ring over the kit's salmon-framed panel (mixed language gone)
+      oculusOn("posZ", 2.5, -1, 1, 1.1),
+      oculusOn("posZ", 2.5, 0, 1, 1.1),
       { file: TOWN + "banner-red.glb", position: [-0.5, 2, 0.66], rotationY: -Math.PI / 2 },
       // side windows: main block −X face (above the annex) and wing +X face
       ...archWindow("negX", 1.5, 1.28, -0.5),
-      { file: TOWN + "wall-window-round.glb", position: [-1.02, 2, -0.5], rotationY: Math.PI, tint: "facade" },
-      { file: TOWN + "wall-window-round.glb", position: [-1.02, 2, 0.5], rotationY: Math.PI, tint: "facade" },
+      oculusOn("negX", 2.5, -0.5, 1.5, 1.1),
+      oculusOn("negX", 2.5, 0.5, 1.5, 1.1),
       ...archWindow("posX", 1.5, 1.28, -0.5),
       ...archWindow("posX", 1.5, 1.28, 0.5),
       // back windows
       ...archWindow("negZ", 1, 1.28, -1),
       ...archWindow("negZ", 1, 1.28, 0),
       ...archWindow("negZ", 1, 1.28, 1),
-      { file: TOWN + "wall-window-round.glb", position: [-1, 2, -0.52], rotationY: Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-round.glb", position: [0, 2, -0.52], rotationY: Math.PI / 2, tint: "facade" },
+      oculusOn("negZ", 2.5, -1, 1, 1.1),
+      oculusOn("negZ", 2.5, 0, 1, 1.1),
     ],
     fit: 0.9,
     scaleY: 0.7,
@@ -718,25 +775,32 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     stretch: true,
   },
   // Small parish chapel, front facing +Z: single 1.5-story nave under a gable
-  // (rotated so the ridge runs along Z), door + rose window on the facade
-  // (the rose panel rides up onto the gable end like a tall church front),
-  // and a little bell lantern straddling the ridge toward the facade.
+  // (rotated so the ridge runs along Z), stone portal + verde oculus on the
+  // facade (the oculus rides up onto the gable end like a tall church front),
+  // and a little bell lantern straddling the ridge toward the facade. The
+  // verde-tinted oculi are the chapel's green trim now that the mint panels
+  // are gone — the landmark portal language at parish scale.
   chapel: {
     front: [0, 1],
     parts: [
-      { file: "proc:block", position: [0, 0, 0], scale: [1.3, 1.2, 2], tint: "stone" },
+      // nave as two unit-depth columns so the civic ashlar's u stays 1:1 on
+      // the long flanks (a single z-scaled block stretched the courses 2x)
+      ...[-0.5, 0.5].map(
+        (z): Part => ({ file: "proc:block", position: [0, 0, z], scale: [1.3, 1.2, 1], tint: "civic" })
+      ),
       // High gable at y-scale 0.75: apex 2.03 vs the old 1.89 — a steeper,
-      // taller nave; civic breaks the skyline.
-      ...gableRoof([0, 1.2, 0], [2, 0.75 * HIGH_GABLE, 1.3], { rotationY: Math.PI / 2 }),
-      // facade
-      { file: TOWN + "wall-door.glb", position: [0, 0, 0.52], rotationY: -Math.PI / 2, tint: "mint" },
-      // half-size oculus, scaled to fit inside the gable triangle
-      { file: TOWN + "wall-window-round.glb", position: [0, 1.05, 0.52], rotationY: -Math.PI / 2, scale: [1, 0.5, 0.5], tint: "mint" },
-      // side windows
-      { file: TOWN + "wall-window-round.glb", position: [0.17, 0.1, -0.45], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [0.17, 0.1, 0.45], tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [-0.17, 0.1, -0.45], rotationY: Math.PI, tint: "mint" },
-      { file: TOWN + "wall-window-round.glb", position: [-0.17, 0.1, 0.45], rotationY: Math.PI, tint: "mint" },
+      // taller nave; civic breaks the skyline. Gable ends flat stone (their
+      // planar UVs bake the 0.6 roof squash — textured courses would jump)
+      ...gableRoof([0, 1.2, 0], [2, 0.75 * HIGH_GABLE, 1.3], { rotationY: Math.PI / 2, tint: "stone" }),
+      // facade: portal ring tops at 0.96, under the wall top at 1.2; the gable
+      // end's outer face sits at z 1.03 (0.03 thick at scale 2 over the ±1 ends)
+      ...portalOn("posZ", 1, 0, 0.85),
+      oculusOn("posZ", 1.35, 0, 1.03, 0.9, "verde"),
+      // side oculi (walls at x ±0.65)
+      oculusOn("posX", 0.62, -0.45, 0.65, 0.8, "verde"),
+      oculusOn("posX", 0.62, 0.45, 0.65, 0.8, "verde"),
+      oculusOn("negX", 0.62, -0.45, 0.65, 0.8, "verde"),
+      oculusOn("negX", 0.62, 0.45, 0.65, 0.8, "verde"),
       // bell lantern on the ridge, raised to straddle the taller high-gable
       // ridge (apex 2.03)
       { file: "proc:block", position: [0, 1.75, 0.35], scale: [0.32, 0.6, 0.32], tint: "stone" },
@@ -746,46 +810,52 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.63,
     stretch: true,
   },
+  // Pigment trader: a proper shop house — the 1.25-unit block (up from the old
+  // 1-unit shed that read cottage-annex small) under the supplier-grammar low
+  // hip, banner + stone door on the street, delivery yard tucked behind. Keep
+  // every part within ±0.95 kit so the shop, not the yard, drives the fit.
   pigment_trader: {
     front: [1, 0],
     parts: [
-      { file: "proc:block", position: [0, 0, 0], tint: "facade" },
-      { file: TOWN + "banner-green.glb", position: [0, 0.25, 0] },
+      { file: "proc:block", position: [0, 0, 0], scale: [1.25, 1.25, 1.25], tint: "facade" },
+      { file: TOWN + "banner-green.glb", position: [0.125, 0.45, 0] },
       // low hip, not a spire — spires read civic now
-      hipRoof([0, 1, 0], [1, 0.45, 1]),
-      // shop door under the banner, windows on the long sides
-      { file: TOWN + "wall-door.glb", position: [0.02, 0, 0], tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, tint: "facade" },
+      hipRoof([0, 1.25, 0], [1.25, 0.5, 1.25]),
+      // shop door under the banner, windows on the long sides (faces at ±0.625)
+      ...doorOn("posX", 0, 0.625),
+      ...windowOn("posZ", 0.3, 0, 0.625),
+      ...windowOn("negZ", 0.3, 0, 0.625),
       // delivery yard along the back side: cart + pigment crates
-      { file: TOWN + "cart.glb", position: [-0.15, 0, -0.85], rotationY: Math.PI / 2, scale: 0.5 },
-      { file: "proc:block", position: [0.45, 0, -0.7], scale: 0.18 },
-      { file: "proc:block", position: [0.66, 0, -0.68], scale: 0.14, rotationY: 0.5 },
+      { file: TOWN + "cart.glb", position: [-0.15, 0, -0.85], rotationY: Math.PI / 2, scale: 0.55 },
+      { file: "proc:block", position: [0.42, 0, -0.8], scale: 0.2 },
+      { file: "proc:block", position: [0.65, 0, -0.78], scale: 0.15, rotationY: 0.5 },
     ],
-    fit: 0.8,
-    scaleY: 0.68,
+    fit: 0.95,
+    scaleY: 0.75,
     randomRotate: "quarter",
   },
   // Marble yard: low cutting shed under a squat hip roof (supplier grammar —
   // gables belong to houses), rough blocks, a finished column, cut-slab
   // stacks, and a hauling cart. The yard is the building; the shed serves it.
+  // Shed grown to 1.35 kit (the old 1-unit shed read cottage-annex small) with
+  // the yard pulled inside ±0.95, so the shed drives the fit.
   marble_supplier: {
     front: [1, 0],
     parts: [
-      { file: "proc:block", position: [-0.4, 0, -0.3], tint: "facade" },
-      hipRoof([-0.4, 1, -0.3], [1, 0.35, 1]),
-      // shed door opening onto the yard, window on the side
-      { file: TOWN + "wall-door.glb", position: [-0.38, 0, -0.3], tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.4, 0, -0.28], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "rock-large.glb", position: [0.5, 0, 0.5], scale: 0.55 },
-      { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.7], scale: 0.7 },
-      { file: TOWN + "pillar-stone.glb", position: [0.65, 0, -0.35], scale: 0.6 },
+      { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
+      hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
+      // shed door opening onto the yard (+X face at 0.395), window on the side
+      ...doorOn("posX", -0.28, 0.395),
+      ...windowOn("posZ", 0.15, -0.28, 0.395),
+      { file: TOWN + "rock-large.glb", position: [0.55, 0, 0.55], scale: 0.6 },
+      { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.8], scale: 0.8 },
+      { file: TOWN + "pillar-stone.glb", position: [0.72, 0, -0.55], scale: 0.65 },
       // cut marble stock: stacked slabs + a cart
-      { file: "proc:block", position: [0.15, 0, 0.72], scale: [0.3, 0.14, 0.22] },
-      { file: "proc:block", position: [0.17, 0.14, 0.72], scale: [0.22, 0.11, 0.17], rotationY: 0.35 },
-      { file: TOWN + "cart.glb", position: [0.95, 0, 0.15], rotationY: 0.5, scale: 0.6 },
+      { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.34, 0.16, 0.25] },
+      { file: "proc:block", position: [0.17, 0.16, 0.8], scale: [0.25, 0.12, 0.19], rotationY: 0.35 },
+      { file: TOWN + "cart.glb", position: [0.62, 0, 0.08], rotationY: 0.5, scale: 0.6 },
     ],
-    fit: 0.88,
+    fit: 0.95,
     randomRotate: "quarter",
   },
   // Bronze foundry: same supplier grammar as the marble yard (low shed, squat
@@ -795,17 +865,17 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   bronze_foundry: {
     front: [1, 0],
     parts: [
-      { file: "proc:block", position: [-0.4, 0, -0.3], tint: "facade" },
-      hipRoof([-0.4, 1, -0.3], [1, 0.35, 1]),
-      { file: TOWN + "wall-door.glb", position: [-0.38, 0, -0.3], tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [-0.4, 0, -0.28], rotationY: -Math.PI / 2, tint: "facade" },
+      { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
+      hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
+      ...doorOn("posX", -0.28, 0.395),
+      ...windowOn("posZ", 0.15, -0.28, 0.395),
       // yard: a stout stone furnace + warm bronze ingot stacks + a hauling cart
-      { file: "proc:block", position: [0.55, 0, 0.5], scale: [0.35, 0.5, 0.35], tint: "stone" },
-      { file: "proc:block", position: [0.15, 0, 0.72], scale: [0.3, 0.12, 0.2], tint: "bronze" },
-      { file: "proc:block", position: [0.18, 0.12, 0.7], scale: [0.2, 0.1, 0.16], rotationY: 0.4, tint: "bronze" },
-      { file: TOWN + "cart.glb", position: [0.95, 0, 0.15], rotationY: 0.5, scale: 0.6 },
+      { file: "proc:block", position: [0.58, 0, 0.55], scale: [0.4, 0.6, 0.4], tint: "stone" },
+      { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.34, 0.14, 0.22], tint: "bronze" },
+      { file: "proc:block", position: [0.18, 0.14, 0.78], scale: [0.24, 0.11, 0.18], rotationY: 0.4, tint: "bronze" },
+      { file: TOWN + "cart.glb", position: [0.62, 0, 0.08], rotationY: 0.5, scale: 0.6 },
     ],
-    fit: 0.88,
+    fit: 0.95,
     randomRotate: "quarter",
   },
   // Long tavern hall: three bays under one continuous gable roof, with a
@@ -826,13 +896,14 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...gableRoof([0, 1, 0], [1.575 / 0.55, 0.6, 1.5]),
       { file: TOWN + "banner-red.glb", position: [1, 0.25, 0] },
       // door + windows on the front, windows on the back and far gable end
-      { file: TOWN + "wall-door.glb", position: [-1, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [1, 0, 0.27], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [-1, 0, -0.27], rotationY: Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.27], rotationY: Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [1, 0, -0.27], rotationY: Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [-1.02, 0, 0], rotationY: Math.PI, tint: "facade" },
+      // (walls at z ±0.75, far gable end at x −1.5)
+      ...doorOn("posZ", -1, 0.75, [1, 1, 0.8]),
+      ...windowOn("posZ", 0, 0, 0.75),
+      ...windowOn("posZ", 0, 1, 0.75),
+      ...windowOn("negZ", 0, -1, 0.75),
+      ...windowOn("negZ", 0, 0, 0.75),
+      ...windowOn("negZ", 0, 1, 0.75),
+      ...windowOn("negX", 0, 0, 1.5),
       // terrace: shallow tiled awning (ridge sunk into the wall, cathedral
       // lean-to trick) over benches and potted shrubs. Prop scales counter the
       // global stretch (~1.36x / 1.84z) so they render roughly square.
@@ -864,11 +935,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // apex 0.98 tucks under the main eave line
       { file: "proc:block", position: [0.45, 0, 0], scale: [0.4, 0.75, 0.5], tint: "facade" },
       ...gableRoof([0.45, 0.75, 0], [0.4, 0.4, 0.55]),
-      // shop door on the bay front, sign banner on the street-side wall
-      { file: TOWN + "wall-door.glb", position: [0.29, 0, 0], scale: 0.75, tint: "facade" },
+      // shop door on the bay front (face at 0.65, frame top 0.69 under the
+      // bay's 0.75 wall), sign banner on the street-side wall
+      ...doorOn("posX", 0, 0.65, [1, 0.85, 0.8]),
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0.02], rotationY: -Math.PI / 2 },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, 0.02], rotationY: -Math.PI / 2, tint: "facade" },
-      { file: TOWN + "wall-window-shutters.glb", position: [0, 0, -0.02], rotationY: Math.PI / 2, tint: "facade" },
+      ...windowOn("posZ", 0, 0),
+      ...windowOn("negZ", 0, 0),
     ],
     fit: 0.88,
     scaleY: 0.56, // ridge matches the cottage; chimney tips out at ~16 ft
@@ -955,14 +1027,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   bell_tower: {
     front: [1, 0],
     parts: [
-      ...[0, 1, 2, 3, 4].map(
-        (y): Part => ({
-          file: "proc:block",
-          position: [0, y, 0],
-          scale: [BT_W, 1, BT_W],
-          tint: "campanile",
-        })
-      ),
+      // one @1x5 shaft, not five stacked storeys: a single continuous AO ramp
+      // (stacked blocks banded the marble with a dark line per storey) while
+      // the campanile texture still wraps v once per storey
+      { file: "proc:block@1x5", position: [0, 0, 0], scale: [BT_W, 1, BT_W], tint: "campanile" },
       // arched bronze-door portal at the base (wall face at BT_WALL); 0.75
       // keeps it ~60% of the 0.72 face and under the first window at 1.35
       ...portalOn("posX", BT_WALL, 0, 0.75),

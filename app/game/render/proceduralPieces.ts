@@ -774,6 +774,50 @@ function buildPortalLeaf(scene: Scene) {
   return { mesh, material: "bronze", color: BRONZE };
 }
 
+/** Round window (oculus): a full circular voussoir ring + a recessed dark disc
+ * plugging the opening (the portal-tympanum precedent — so an oculus needs no
+ * separate reveal part, and a Part.tint recolors ring and disc together, the
+ * disc staying dark via its vertex shade). Origin at the circle CENTER — the
+ * one fitting not base-mounted, because it sits mid-wall like a porthole and
+ * center height is how the manifest naturally places it. */
+export const OCULUS_R = 0.11; // opening radius; ring runs to OCULUS_R + border
+const OCULUS_BORDER = 0.05;
+const OCULUS_SEGS = 12; // even, so the alternating voussoir shades close cleanly
+
+function buildOculus(scene: Scene) {
+  const t = FIT_T / 2;
+  const parts: Mesh[] = [];
+  for (let i = 0; i < OCULUS_SEGS; i++) {
+    const a0 = (2 * Math.PI * i) / OCULUS_SEGS;
+    const a1 = (2 * Math.PI * (i + 1)) / OCULUS_SEGS;
+    parts.push(
+      wedge(
+        `ring-${i}`,
+        [
+          arcPt(OCULUS_R, a0, 0),
+          arcPt(OCULUS_R, a1, 0),
+          arcPt(OCULUS_R + OCULUS_BORDER, a1, 0),
+          arcPt(OCULUS_R + OCULUS_BORDER, a0, 0),
+        ],
+        t,
+        i % 2 ? 0.88 : 1,
+        scene
+      )
+    );
+  }
+  // Dark disc plugging the opening: rim overruns the opening by 0.01 to bury
+  // inside the ring, and it sits between the ring's back and front faces so
+  // nothing is coplanar. Shade 0.3 lands it near TINT_COLORS.reveal.
+  const disc: [number, number][] = [];
+  for (let i = 0; i < OCULUS_SEGS; i++) {
+    disc.push(arcPt(OCULUS_R + 0.01, (2 * Math.PI * i) / OCULUS_SEGS, 0));
+  }
+  parts.push(prism("oculus-disc", disc, -t + 0.004, -t + 0.012, true, 0.3, scene));
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-oculus";
+  return { mesh, material: "stone", color: SURROUND };
+}
+
 /** One arcade bay: half a pier at each end + a fan head, 1x1 in plan face-on.
  * Rows tile by offsetting copies one unit: neighbors complete each other's
  * piers, and the fan runs out to the bay's own rim (top edge AND corners), so
@@ -848,6 +892,7 @@ const BUILDERS: Record<string, Builder> = {
   "portal-frame": buildPortalFrame,
   "portal-leaf": buildPortalLeaf,
   "arch-bay": buildArchBay,
+  oculus: buildOculus,
 };
 
 export const PROC_FILES = Object.keys(BUILDERS).map((id) => PROC_PREFIX + id);

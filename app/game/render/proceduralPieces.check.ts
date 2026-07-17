@@ -56,12 +56,15 @@ function assertEnvelope(file: string, want: { min: readonly number[]; max: reado
 }
 
 // Every piece centers on x/z — that is what lets the manifest pick a face by
-// rotationY. Only the roof leaves its base, and only by a tile lap (below).
+// rotationY. Only the roof leaves its base, and only by a tile lap (below);
+// the oculus is deliberately CENTER-origin (a porthole placed by center height).
 for (const file of PROC_FILES) {
   const { min, max } = bounds(file);
   assert.ok(Math.abs(min[0] + max[0]) < EPS, `${file}: not centered on x`);
   assert.ok(Math.abs(min[2] + max[2]) < EPS, `${file}: not centered on z`);
-  if (!file.startsWith("proc:roof-")) {
+  if (file === "proc:oculus") {
+    assert.ok(Math.abs(min[1] + max[1]) < EPS, `${file}: not centered on y (center origin)`);
+  } else if (!file.startsWith("proc:roof-")) {
     assert.ok(Math.abs(min[1]) < EPS, `${file}: min.y = ${min[1]}, must be 0 (base-center origin)`);
   }
 }
@@ -134,8 +137,12 @@ assertEnvelope("proc:portal-frame", { min: [-0.03, 0, -0.29], max: [0.03, 1.13, 
   assert.ok(Math.abs(leaf.max[1] - 0.84) < EPS, `portal-leaf height ${leaf.max[1]}, want 0.84 (rectangular doors stop at the spring; the frame's tympanum fills the lunette)`);
   assert.ok(leaf.max[0] - leaf.min[0] < 0.05, `portal-leaf depth ${leaf.max[0] - leaf.min[0]}, must stay under the frame's`);
 }
+// Oculus: ring runs to OCULUS_R + border = 0.16; manifest oculusOn depth
+// offsets are tuned to the ring's FIT_T half-depth (0.0175).
+assertEnvelope("proc:oculus", { min: [-0.0175, -0.16, -0.16], max: [0.0175, 0.16, 0.16] });
 assert.equal(bounds("proc:surround-rect").material, "stone");
 assert.equal(bounds("proc:surround-arch").material, "stone");
+assert.equal(bounds("proc:oculus").material, "stone");
 assert.equal(bounds("proc:door-frame").material, "stone");
 assert.equal(bounds("proc:portal-frame").material, "stone");
 assert.equal(bounds("proc:arch-bay").material, "stone");
