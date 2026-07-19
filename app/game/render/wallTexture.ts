@@ -426,6 +426,12 @@ export const STONE_TINTS: Record<string, Drawer> = {
 
 const stoneTextures = new Map<string, DynamicTexture>();
 
+// The marble patterns are hard-edged geometry (arch strokes, circles, panel
+// frames) and show their texels at 256 — the organic course/blob patterns
+// hide theirs. Those drawers are fully size-relative, so they render at 2x;
+// the course drawers stay at SIZE (their px-tuned joints/gaps would thin).
+const TINT_SIZE: Record<string, number> = { campanile: 512, screen: 512, marble: 512 };
+
 /** `desat` returns the inactive twin — same pattern, pixels run through the
  * same luminance lerp as assetLibrary's `desaturate()` — needed since the
  * stone tints spread beyond housing to buildings that do render inactive
@@ -434,11 +440,12 @@ export function getStoneTexture(tintId: string, scene: Scene, desat = false) {
   const key = desat ? `${tintId}~off` : tintId;
   let tex = stoneTextures.get(key);
   if (!tex) {
-    tex = new DynamicTexture(`stone-${key}`, { width: SIZE, height: SIZE }, scene, true);
+    const size = TINT_SIZE[tintId] ?? SIZE;
+    tex = new DynamicTexture(`stone-${key}`, { width: size, height: size }, scene, true);
     const ctx = tex.getContext() as CanvasRenderingContext2D;
-    STONE_TINTS[tintId]!(ctx, SIZE);
+    STONE_TINTS[tintId]!(ctx, size);
     if (desat) {
-      const img = ctx.getImageData(0, 0, SIZE, SIZE);
+      const img = ctx.getImageData(0, 0, size, size);
       const d = img.data;
       for (let i = 0; i < d.length; i += 4) {
         const l = d[i]! * 0.299 + d[i + 1]! * 0.587 + d[i + 2]! * 0.114;
