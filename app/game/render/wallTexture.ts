@@ -33,7 +33,7 @@ const BRICK_JOINT = "#c4b189";
 const ASHLAR_TONES = ["#d9c8a2", "#dccca8", "#d6c49d", "#dac9a4", "#d7c6a0"];
 const ASHLAR_JOINT = "#c6b48d";
 // The cathedral's flanks: the residences' rubble courses shifted decidedly
-// brown — Santa Croce's medieval walls behind the white marble screen front.
+// brown — Santa Croce's medieval walls behind the light-brick screen front.
 const FLANK_TONES = ["#c9ab80", "#bf9f74", "#d1b48c", "#b39367", "#c5a87c", "#aa8a5e"];
 const FLANK_MORTAR = "#b69c73";
 // Civic dressed ashlar: the flat pale-stone tint (#ddd8ca) become masonry —
@@ -194,202 +194,28 @@ function drawPlaster(ctx: CanvasRenderingContext2D, size: number) {
   ctx.globalAlpha = 1;
 }
 
-// Marble inlay colours, shared by the campanile and screen-facade patterns —
-// authored in final colour like the rest of the file: verde near the tinted
-// pieces' rendered green, rose a muted terracotta-pink.
-const VERDE = "#57604a";
-const ROSE = "#b08a76";
-
-/** Warm-white marble field with faint mottle, wrapped 3x3 so the sheet tiles.
- * Warm like drawPlaster's field, a step paler so it reads as marble beside the
- * stucco — a neutral near-white here rendered grey against the cream town. */
-function marbleField(ctx: CanvasRenderingContext2D, size: number, seed: number) {
-  const rand = mulberry32(seed);
-  ctx.fillStyle = "#e6dcba";
-  ctx.fillRect(0, 0, size, size);
-  const tones = ["#ebe2c4", "#dfd3ac", "#e8dfc0"];
-  for (let i = 0; i < 16; i++) {
-    const cx = rand() * size;
-    const cy = rand() * size;
-    const rx = size * (0.05 + rand() * 0.12);
-    const ry = rx * (0.3 + rand() * 0.5);
-    const angle = rand() * Math.PI;
-    ctx.fillStyle = tones[i % tones.length]!;
-    ctx.globalAlpha = 0.12 + rand() * 0.12;
-    for (const dx of [-size, 0, size]) {
-      for (const dy of [-size, 0, size]) {
-        ctx.beginPath();
-        ctx.ellipse(cx + dx, cy + dy, rx, ry, angle, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
-  ctx.globalAlpha = 1;
-}
-
-/** The inlaid diamond motif; fills with the current fillStyle. */
-function lozenge(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  ctx.beginPath();
-  ctx.moveTo(cx, cy - r);
-  ctx.lineTo(cx + r * 0.7, cy);
-  ctx.lineTo(cx, cy + r);
-  ctx.lineTo(cx - r * 0.7, cy);
-  ctx.closePath();
-  ctx.fill();
-}
-
-/** Hexagon path (Giotto's relief-cycle medallions); caller fills. */
-function hexagon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
-  ctx.beginPath();
-  for (let k = 0; k < 6; k++) {
-    const a = Math.PI / 6 + (k * Math.PI) / 3;
-    const x = cx + r * Math.cos(a);
-    const y = cy + r * Math.sin(a);
-    if (k) ctx.lineTo(x, y);
-    else ctx.moveTo(x, y);
-  }
-  ctx.closePath();
-}
-
-/** Storey courses at the v edges — half-bands each side so a full string
- * course lands on every storey seam; optional rose accent lines inside. */
-function storeyCourses(ctx: CanvasRenderingContext2D, size: number, course: number, line: number) {
-  ctx.fillStyle = VERDE;
-  ctx.fillRect(0, 0, size, course);
-  ctx.fillRect(0, size - course, size, course);
-  if (line) {
-    ctx.fillStyle = ROSE;
-    ctx.fillRect(0, course, size, line);
-    ctx.fillRect(0, size - course - line, size, line);
-  }
-}
-
-/** Giotto's campanile, polychrome register (July 2026 — replacing the
- * hairline-linework pattern, which averaged into a grey-green wash at the
- * ~40px a storey face fills at gameplay zoom): the real tower is pinker than
- * people remember — three tall panel bays per storey, rose fields framed in
- * verde with a white hexagon medallion (the relief cycle) floating in each.
- * The centre bay flips to a verde field so green stays in charge at distance
- * (the all-rose version smeared toward dusty salmon). Solid fields survive
- * the downscale where lines could not. Drawn once per storey (proc:block
- * wraps v per storey); u edges carry half corner posts so a full post
- * assembles where two faces meet, v edges half-courses (storeyCourses). */
-function drawCampanile(ctx: CanvasRenderingContext2D, size: number) {
-  marbleField(ctx, size, 7405);
-  const course = size * 0.014;
-  const line = size * 0.01;
-  storeyCourses(ctx, size, course, line);
-  const corner = size * 0.025;
-  ctx.fillStyle = VERDE;
-  ctx.fillRect(0, 0, corner, size);
-  ctx.fillRect(size - corner, 0, corner, size);
-  // three panel bays: verde / rose / verde, each framed and carrying a white
-  // hexagon. The bifora sits over the CENTRE bay on every storey, so the
-  // centre carries the rose (mostly hidden, peeking around the window) and
-  // the two always-visible outer bays carry the verde — the first cut had it
-  // the other way round and the tower read pink because its green was behind
-  // glass. Outer hexagons get a small rose diamond as the polychrome accent.
-  [size / 6, size / 2, (5 * size) / 6].forEach((cx, i) => {
-    const pw = size * 0.2;
-    const x0 = cx - pw / 2;
-    const y0 = size * 0.16;
-    const y1 = size * 0.84;
-    ctx.fillStyle = i === 1 ? ROSE : VERDE;
-    ctx.globalAlpha = i === 1 ? 0.82 : 0.72;
-    ctx.fillRect(x0, y0, pw, y1 - y0);
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = VERDE;
-    ctx.lineWidth = size * 0.011;
-    ctx.strokeRect(x0, y0, pw, y1 - y0);
-    hexagon(ctx, cx, size / 2, size * 0.058);
-    ctx.fillStyle = "#ece3c6";
-    ctx.fill();
-    if (i !== 1) {
-      ctx.fillStyle = ROSE;
-      lozenge(ctx, cx, size / 2, size * 0.026);
-    }
+// Light brick for the cathedral + bell tower (July 2026 — the verde/rose
+// marble inlay retired on request): the housing Roman-brick recipe a few
+// steps paler, so the landmarks read a shade finer than the houses with no
+// green anywhere.
+const LIGHT_BRICK_TONES = ["#e4d6ae", "#e7dbb7", "#e0d1a5", "#e5d8b2", "#e2d4aa"];
+const LIGHT_BRICK_JOINT = "#d3c49a";
+const drawLightBrick: Drawer = (ctx, size) =>
+  drawCourses(ctx, size, 606, {
+    rows: 16, minW: 0.18, maxW: 0.4, gap: 2,
+    joint: LIGHT_BRICK_JOINT, tones: LIGHT_BRICK_TONES, radius: 0.08, jitter: 0,
   });
-}
-
-/** The cathedral's screen facade, San Miniato language (July 2026 — replacing
- * the SMN panel grid, whose 1.5px linework dissolved at the 60–90px the front
- * fills at gameplay zoom): few shapes, big ones. A five-arch blind arcade with
- * alternating SOLID verde tympana on the street register, under a row of
- * circle-in-square intarsia — roughly 4x the old line weight, a tenth the
- * element count. Shares the campanile's field, corner strips, and storey
- * courses so tower and front stay one marble family. Canvas y=0 is the storey
- * TOP (DynamicTexture invertY), so the arcade draws at y≈size. */
-function drawScreen(ctx: CanvasRenderingContext2D, size: number) {
-  marbleField(ctx, size, 8511);
-  const course = size * 0.016;
-  storeyCourses(ctx, size, course, 0);
-  ctx.fillStyle = VERDE;
-  const corner = size * 0.02;
-  ctx.fillRect(0, 0, corner, size);
-  ctx.fillRect(size - corner, 0, corner, size);
-  // mid string course splitting the two registers
-  ctx.fillRect(0, size / 2 - size * 0.008, size, size * 0.016);
-  const lw = size * 0.018;
-  ctx.strokeStyle = VERDE;
-  ctx.lineWidth = lw;
-  // upper register: three circle-in-square intarsia, centre lozenge rose
-  for (let col = 0; col < 3; col++) {
-    const cx = ((col + 0.5) * size) / 3;
-    const cy = size * 0.27;
-    const r = size * 0.082;
-    ctx.strokeRect(cx - r * 1.4, cy - r * 1.4, r * 2.8, r * 2.8);
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.stroke();
-    ctx.fillStyle = col === 1 ? ROSE : VERDE;
-    lozenge(ctx, cx, cy, r * 0.62);
-  }
-  // street register: five arches, every other tympanum filled solid — the
-  // one figure on this front that still reads at gameplay distance
-  const n = 5;
-  const w = size / n;
-  const yBase = size - course;
-  const inset = size * 0.02;
-  for (let i = 0; i < n; i++) {
-    const cx = i * w + w / 2;
-    const half = w / 2 - inset;
-    const ySpring = size * 0.74;
-    ctx.strokeStyle = VERDE;
-    ctx.beginPath();
-    ctx.moveTo(cx - half, yBase);
-    ctx.lineTo(cx - half, ySpring);
-    ctx.arc(cx, ySpring, half, Math.PI, 0);
-    ctx.lineTo(cx + half, yBase);
-    ctx.stroke();
-    if (i % 2 === 0) {
-      ctx.fillStyle = VERDE;
-      ctx.globalAlpha = 0.88;
-      ctx.beginPath();
-      ctx.arc(cx, ySpring, half - lw, Math.PI, 0);
-      ctx.closePath();
-      ctx.fill();
-      ctx.globalAlpha = 1;
-    }
-  }
-}
 
 /** Facade texture ids the residential palette picks from (modelManifest's
  * FACADE_PALETTES.residential). Membership here is what routes a tint id down
  * the texture path in getTintedPair — campanile is in no palette; the bell
  * tower names it directly (tint: "campanile"). */
 export const STONE_TINTS: Record<string, Drawer> = {
-  campanile: drawCampanile,
-  // Direct part tint like campanile (no palette): the cathedral's marble front.
-  screen: drawScreen,
-  // Direct part tint: plain white marble for the cathedral's pediment + aisle
-  // shoulder wedges — field + hairline courses only. No vertical figure: the
-  // gable's planar UVs tile u per unit (4x across the pediment), so anything
-  // vertical repeats as stripes, and the wedge slope cuts figures badly (why
-  // these parts left the campanile pattern when it went polychrome).
-  marble: (ctx, size) => {
-    marbleField(ctx, size, 7405);
-    storeyCourses(ctx, size, size * 0.012, 0);
-  },
+  // Direct part tints (no palette): the bell tower shaft, the cathedral's
+  // front slabs, and its pediment + aisle wedges all share the light brick.
+  campanile: drawLightBrick,
+  screen: drawLightBrick,
+  marble: drawLightBrick,
   // Direct part tint like campanile (no palette): the cathedral's brown flanks.
   flank: (ctx, size) =>
     drawCourses(ctx, size, 404, {
@@ -426,12 +252,6 @@ export const STONE_TINTS: Record<string, Drawer> = {
 
 const stoneTextures = new Map<string, DynamicTexture>();
 
-// The marble patterns are hard-edged geometry (arch strokes, circles, panel
-// frames) and show their texels at 256 — the organic course/blob patterns
-// hide theirs. Those drawers are fully size-relative, so they render at 2x;
-// the course drawers stay at SIZE (their px-tuned joints/gaps would thin).
-const TINT_SIZE: Record<string, number> = { campanile: 512, screen: 512, marble: 512 };
-
 /** `desat` returns the inactive twin — same pattern, pixels run through the
  * same luminance lerp as assetLibrary's `desaturate()` — needed since the
  * stone tints spread beyond housing to buildings that do render inactive
@@ -440,7 +260,7 @@ export function getStoneTexture(tintId: string, scene: Scene, desat = false) {
   const key = desat ? `${tintId}~off` : tintId;
   let tex = stoneTextures.get(key);
   if (!tex) {
-    const size = TINT_SIZE[tintId] ?? SIZE;
+    const size = SIZE;
     tex = new DynamicTexture(`stone-${key}`, { width: size, height: size }, scene, true);
     const ctx = tex.getContext() as CanvasRenderingContext2D;
     STONE_TINTS[tintId]!(ctx, size);
