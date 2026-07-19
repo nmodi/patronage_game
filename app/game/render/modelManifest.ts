@@ -814,6 +814,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [2.045, 0, 0.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
       { file: "proc:block", position: [2.045, 0, -1.45], scale: [0.05, 1.75, 0.1], tint: "stone" },
       { file: "proc:block", position: [2.045, 0, 1.45], scale: [0.05, 1.75, 0.1], tint: "stone" },
+      // sagrato podium: two low steps across the three portals (risers kept
+      // shallow so the door leaves aren't visibly buried in the platform)
+      { file: "proc:block", position: [2.12, 0, 0], scale: [0.24, 0.06, 3.1], tint: "stone" },
+      { file: "proc:block", position: [2.07, 0, 0], scale: [0.14, 0.12, 3.0], tint: "stone" },
       // three-portal facade, the center one grander — arched stone portals
       // with double bronze-panel doors (proc:portal-*). Center tops out at
       // 1.30, under the rose slot at 1.5; sides clear the seam pilasters.
