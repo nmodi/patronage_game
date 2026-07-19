@@ -21,7 +21,7 @@ The scarcity that drives decisions: supplier capacity. A Pigment Trader serves a
 
 ![Managing commissions and the artist roster](docs/screenshot-ui.png)
 
-**Status:** playable and in active development. Core systems are in — placement, the tick loop, worker allocation, artists with a seven-rank career ladder, supplier gating, the commission pipeline, plaza connectivity, and procedurally generated water maps. The roadmap (masterwork display, teaching, the Renaissance celebration itself) is tracked in the design doc's development phases.
+**Status:** playable and in active development. Core systems are in — placement, the tick loop, worker allocation, artists with a seven-rank career ladder, supplier gating, the commission pipeline, plaza connectivity, procedurally generated water maps, and the Renaissance milestone itself (prestige, a Master, a Wonder on display, and patron breadth bring on the celebration; play continues into the Golden Age). The roadmap (factions, zoning, architects) is tracked in the design doc's development phases.
 
 ## How it's built
 

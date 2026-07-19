@@ -51,6 +51,10 @@ export type GameState = {
   addFlorins: (amount: number) => void;
   setFlorins: (value: number) => void;
   setPopulation: (value: number) => void;
+  // One-shot celebration flag: the Renaissance card was shown and dismissed.
+  // The milestone itself is derived live from state (renaissance.ts).
+  renaissanceReached: boolean;
+  dismissRenaissance: () => void;
   hoveredTileKey: string | null;
   setHoveredTile: (key: string | null) => void;
   // Origin key awaiting raze confirmation (building houses artists or a
@@ -107,6 +111,7 @@ const createInitialState = (runSeed?: string) => {
     artists: [] as Artist[],
     artworks: [] as Artwork[],
     commissions: [] as Commission[],
+    renaissanceReached: false,
     hoveredTileKey: null as string | null,
     razeTarget: null as string | null,
     inspectTarget: null as { key: string; slot?: number } | null,
@@ -123,6 +128,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   addFlorins: (amount: number) => set((s) => ({ florins: s.florins + amount })),
   setFlorins: (value: number) => set(() => ({ florins: value })),
   setPopulation: (value: number) => set(() => ({ population: value })),
+  dismissRenaissance: () => set(() => ({ renaissanceReached: true })),
   setHoveredTile: (key) => set(() => ({ hoveredTileKey: key })),
   setRazeTarget: (key) => set(() => ({ razeTarget: key })),
   setInspectTarget: (target) => set(() => ({ inspectTarget: target })),
@@ -337,6 +343,8 @@ export const useGameStore = create<GameState>()(
       artists: s.artists,
       artworks: s.artworks,
       commissions: s.commissions,
+      // Absent on old saves reads falsy = not yet celebrated — no migration.
+      renaissanceReached: s.renaissanceReached,
       map: { tiles: s.map.tiles, selectedBuilding: null },
       time: s.time,
       tickInterval: s.tickInterval,

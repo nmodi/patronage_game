@@ -100,6 +100,16 @@ export const FLORIN_RANK_COMPRESSION = 0.25; // share of the prestige rank curve
 export const INCOME_DIMINISHING_RETURNS = 0.85; // geometric decay per duplicate florin-generator of the same building, oldest first
 export const COST_ESCALATION = 1.15; // per-duplicate build-cost growth for workshops/suppliers/services
 
+// --- Renaissance milestone (renaissance.ts) ---
+// The soft ending's gates. Prestige comes almost entirely from commissions
+// (~1–20 each; cathedral +25 once), so 500 ≈ dozens of completed works — a
+// full mid/late-game arc. A Wonder is a displayed work at WONDER_PRESTIGE
+// quality: max is 20 (ARTWORK_PRESTIGE 10 × the 2x prestige-requester skew),
+// so 15 demands a top-rank artist on a noble commission.
+export const RENAISSANCE_PRESTIGE = 500;
+export const WONDER_PRESTIGE = 15;
+export const RENAISSANCE_NOBLE_HOUSES = 2; // distinct houses with a completed work (plus the Church)
+
 // --- Raze (raze.ts) ---
 export const RAZE_SALVAGE_FRACTION = 0.5; // half the build cost, salvaged
 

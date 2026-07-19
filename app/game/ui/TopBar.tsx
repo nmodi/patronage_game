@@ -3,9 +3,16 @@ import { Check, Coins, Copy, Crown, Feather, Home, Info, Pause, Pencil, Play, Ro
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { getWater, type WaterArchetype } from "~/game/water";
-import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
+import {
+  BASE_TICK_INTERVAL,
+  GAME_SPEED_MULTIPLIERS,
+  RENAISSANCE_NOBLE_HOUSES,
+  RENAISSANCE_PRESTIGE,
+} from "~/game/constants";
 import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
+import { renaissanceProgress } from "~/game/renaissance";
+import type { Artwork } from "~/game/types";
 
 // Also the main menu's map-picker options (MainMenu.tsx).
 export const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
@@ -128,7 +135,7 @@ export function TopBar() {
           <div className="flex items-center gap-6 border-l border-wood/50 pl-4">
             <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} iconClassName="text-prestige-gold" />
             <ResourceStat icon={Feather} label="Inspiration" value={inspiration} iconClassName="text-sienna" />
-            <ResourceStat icon={Crown} label="Prestige" value={Math.floor(prestige)} iconClassName="text-prestige-gold" />
+            <PrestigeStat prestige={prestige} artworks={artworks} />
             <PopulationStat population={population} housing={housing} amenities={amenities} />
           </div>
         </div>
@@ -238,6 +245,75 @@ function PopulationStat({
           )}
         </Panel>
       </div>
+    </div>
+  );
+}
+
+// Prestige chip + the Renaissance milestone checklist on hover (Phase 12) —
+// the multi-gate goal stays visible instead of being a hidden wall.
+function PrestigeStat({ prestige, artworks }: { prestige: number; artworks: Artwork[] }) {
+  const artists = useGameStore((s) => s.artists);
+  const reached = useGameStore((s) => s.renaissanceReached);
+  const progress = useMemo(
+    () => renaissanceProgress(prestige, artists, artworks),
+    [prestige, artists, artworks]
+  );
+
+  return (
+    <div className="group relative flex items-center gap-2.5">
+      <Crown className="h-6 w-6 text-prestige-gold" strokeWidth={2} />
+      <div className="flex flex-col leading-tight">
+        <span className="text-xl font-semibold text-ink">{Math.floor(prestige)}</span>
+        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-faint">
+          Prestige
+          <Info className="h-3 w-3" />
+        </span>
+      </div>
+      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
+        <Panel className="w-64 text-sm">
+          <div className="font-display font-semibold text-ink">
+            {reached ? "The Golden Age" : "The Renaissance"}
+          </div>
+          <div className="mt-1.5 flex flex-col gap-1.5 normal-case">
+            <CheckRow
+              label="Prestige"
+              met={progress.prestige}
+              detail={`${Math.floor(prestige)} / ${RENAISSANCE_PRESTIGE}`}
+            />
+            <CheckRow label="A Master among your artists" met={progress.master} />
+            <CheckRow
+              label="A Wonder on display"
+              met={progress.wonder != null}
+              detail={progress.wonder ? `“${progress.wonder.name}”` : undefined}
+            />
+            <CheckRow label="A work for the Church" met={progress.church} />
+            <CheckRow
+              label="Works for noble houses"
+              met={progress.nobleHouses >= RENAISSANCE_NOBLE_HOUSES}
+              detail={`${Math.min(progress.nobleHouses, RENAISSANCE_NOBLE_HOUSES)} / ${RENAISSANCE_NOBLE_HOUSES}`}
+            />
+          </div>
+          {reached && (
+            <div className="mt-2.5 border-t border-wood/50 pt-2.5 text-xs italic text-ink-faint">
+              The city lives its Golden Age.
+            </div>
+          )}
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
+function CheckRow({ label, met, detail }: { label: string; met: boolean; detail?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <span className="shrink-0 text-ink-faint">{label}</span>
+      <span
+        className={`flex min-w-0 items-baseline gap-1 font-semibold ${met ? "text-ink" : "text-ink-faint"}`}
+      >
+        {detail && <span className="truncate">{detail}</span>}
+        {met && <Check className="h-3.5 w-3.5 shrink-0 self-center text-sienna" />}
+      </span>
     </div>
   );
 }

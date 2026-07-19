@@ -7,6 +7,7 @@ import { CommissionsPanel } from "./CommissionsPanel";
 import { DisplayPanel } from "./DisplayPanel";
 import { GalleryPanel } from "./GalleryPanel";
 import { RazeConfirm } from "./RazeConfirm";
+import { RenaissanceCard } from "./RenaissanceCard";
 import { TopBar } from "./TopBar";
 
 export function GameHUD() {
@@ -27,6 +28,7 @@ export function GameHUD() {
       <BuildingTooltip />
       <RazeConfirm />
       <DisplayPanel />
+      <RenaissanceCard />
     </>
   );
 }

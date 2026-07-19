@@ -261,14 +261,16 @@ When a building cannot function it desaturates, activity animations stop, and th
 
 ---
 
-## The Goal: the Renaissance Milestone
+## The Goal: the Renaissance Milestone *(built — July 2026)*
 
-Reaching a **prestige threshold** triggers the Renaissance — a soft ending, not a game-over screen:
+The Renaissance arrives when the city meets **four gates** — a soft ending, not a game-over screen. (Earlier drafts said "start simple: one number"; the option to grow extra conditions was taken up when this was built.)
 
-- A title card: *"The Renaissance has come to your city."* *(An earlier draft added a festival event — cut; the title card is the celebration.)*
-- Play continues into a Golden Age — the city you keep living in
+- **Prestige** at the threshold (`RENAISSANCE_PRESTIGE`, 500 — dozens of completed commissions plus the cathedral's lump; a full mid/late-game arc)
+- **A Master** — any artist ranked Master or above
+- **A Wonder on display** — a displayed work of `WONDER_PRESTIGE` (15) quality: an extraordinary work people travel to see. A designation, not a system — the max mintable quality is 20 (`ARTWORK_PRESTIGE` 10 × the 2x prestige-requester skew), so a Wonder takes a top-rank artist on a noble commission, then a display slot. The richer version (signature-chain capstones minting Wonders) arrives with factions ([factions.md](factions.md))
+- **Patrons** — a completed work for the Church **and** for 2+ distinct noble houses (`RENAISSANCE_NOBLE_HOUSES`): the stand-in for "favor with each faction" until favor ladders exist — per-requester completed works *is* factions.md's favor count, so this upgrades naturally when that phase lands
 
-Start simple: one number, one celebration. If a single milestone later proves too thin, it can grow extra conditions (works across art forms, master artists in multiple disciplines, sustained inspiration) — but that's a future decision, not current scope.
+All four are derived live from persisted state (`renaissanceProgress` in `app/game/renaissance.ts` — no tracking, no save migration); the only stored bit is the one-shot `renaissanceReached` celebration flag. Crossing shows a title card once — *"The Renaissance has come to your city."*, honoring the Wonder by name *(an earlier draft added a festival event — cut; the card is the celebration)* — and play continues into a Golden Age, the city you keep living in. The prestige chip's hover tooltip carries the four-gate checklist all game (a visible goal, never a hidden wall) and reads "The Golden Age" after.
 
 ---
 
@@ -308,8 +310,10 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 - **10 Plaza connectivity (soft spatial inspiration)** — DONE, reframed from radius to network distance: the bonus radiates from the Main Plaza (Town Center Plaza) through roads with linear falloff (zero at 15 tiles), refreshed to full by secondary plazas on the network (`app/game/connectivity.ts` 0-1 BFS). Up to +25% by connection strength: generator output + service amenities (tick), commission progress (`progressArtworks`), housing capacity (`getHousing`); tooltip shows the current % or the "Link to a plaza with roads" hint. Gives roads a purpose; never a requirement or penalty. *Still open: enforce a single Town Center Plaza per city.*
 - **11 Artist training & light teaching** — DONE. XP is now continuous instead of purely completion-driven: every artist in a staffed, active workshop gains small passive practice XP each month, multiplied when a strictly higher-ranked workshop-mate shares the space (generalizes "Master teaches apprentices" to any rank gap), and completing a work still grants its one-time bonus on top. Rank-up thresholds are unchanged. All rates live in `XP_RATES` (`app/game/artists.ts`, next to `RANK_XP`) for easy tuning. No UI or save changes — rank labels already surfaced rank-ups, and `Artist.xp` was already a fractional-friendly optional field.
 
+- **12 Renaissance milestone** — DONE (July 2026). Four derived gates — prestige threshold, a Master-rank artist, a Wonder on display, Church + noble-house patrons (see The Goal) — checked live by `renaissanceProgress` (`app/game/renaissance.ts`, knobs in `constants.ts`); a one-shot celebration card (`RenaissanceCard.tsx`) dismissed into the persisted `renaissanceReached` flag (no migration — absent reads falsy), and the milestone checklist rides the prestige chip's hover tooltip. Play continues.
+
 ### Next
-- **12 — Renaissance milestone**: prestige threshold → title card; play continues.
+- All numbered phases are done — next work draws from Later / stretch (factions, map resources, zoning, architects & building commissions, …).
 
 ### Later / stretch
 - Richer economy system (replaces the Market as the primary florin source; Market repurposed as overflow material supply, bought with florins when suppliers are maxed)
