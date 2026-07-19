@@ -238,104 +238,139 @@ function lozenge(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: numbe
   ctx.fill();
 }
 
-/** Giotto's campanile: white marble panelled with verde di Prato strips and
- * dusty-rose inlay lines — the Duomo's green-and-white banding at street zoom.
- * Drawn once per storey (proc:block wraps v per storey); the u edges carry
- * half-width strips so a full corner post assembles where two faces meet, and
- * the v edges half-bands so a full string course lands on every storey seam. */
-function drawCampanile(ctx: CanvasRenderingContext2D, size: number) {
-  marbleField(ctx, size, 7405);
-  // The real tower is overwhelmingly white and its green runs VERTICALLY —
-  // corner pilasters and panel edges — with only hairline horizontal courses.
-  // Keep verde to ~10% of the face, nearly all of it in the verticals.
-  const course = size * 0.014;
-  const line = size * 0.01;
-  // hairline storey course (v edges) with a rose accent inside it
+/** Hexagon path (Giotto's relief-cycle medallions); caller fills. */
+function hexagon(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.beginPath();
+  for (let k = 0; k < 6; k++) {
+    const a = Math.PI / 6 + (k * Math.PI) / 3;
+    const x = cx + r * Math.cos(a);
+    const y = cy + r * Math.sin(a);
+    if (k) ctx.lineTo(x, y);
+    else ctx.moveTo(x, y);
+  }
+  ctx.closePath();
+}
+
+/** Storey courses at the v edges — half-bands each side so a full string
+ * course lands on every storey seam; optional rose accent lines inside. */
+function storeyCourses(ctx: CanvasRenderingContext2D, size: number, course: number, line: number) {
   ctx.fillStyle = VERDE;
   ctx.fillRect(0, 0, size, course);
   ctx.fillRect(0, size - course, size, course);
-  ctx.fillStyle = ROSE;
-  ctx.fillRect(0, course, size, line);
-  ctx.fillRect(0, size - course - line, size, line);
-  // corner posts (u edges, half each side of the seam) …
+  if (line) {
+    ctx.fillStyle = ROSE;
+    ctx.fillRect(0, course, size, line);
+    ctx.fillRect(0, size - course - line, size, line);
+  }
+}
+
+/** Giotto's campanile, polychrome register (July 2026 — replacing the
+ * hairline-linework pattern, which averaged into a grey-green wash at the
+ * ~40px a storey face fills at gameplay zoom): the real tower is pinker than
+ * people remember — three tall panel bays per storey, rose fields framed in
+ * verde with a white hexagon medallion (the relief cycle) floating in each.
+ * The centre bay flips to a verde field so green stays in charge at distance
+ * (the all-rose version smeared toward dusty salmon). Solid fields survive
+ * the downscale where lines could not. Drawn once per storey (proc:block
+ * wraps v per storey); u edges carry half corner posts so a full post
+ * assembles where two faces meet, v edges half-courses (storeyCourses). */
+function drawCampanile(ctx: CanvasRenderingContext2D, size: number) {
+  marbleField(ctx, size, 7405);
+  const course = size * 0.014;
+  const line = size * 0.01;
+  storeyCourses(ctx, size, course, line);
   const corner = size * 0.025;
   ctx.fillStyle = VERDE;
   ctx.fillRect(0, 0, corner, size);
   ctx.fillRect(size - corner, 0, corner, size);
-  // … paired pilaster lines at the thirds (a white pilaster edged in green)
-  const pl = size * 0.009;
-  const gap = size * 0.016;
-  for (const cx of [size / 3, (2 * size) / 3]) {
-    ctx.fillRect(cx - gap - pl, 0, pl, size);
-    ctx.fillRect(cx + gap, 0, pl, size);
-  }
-  // a rose sliver up the middle of each bay (the inlaid panel strips)
-  ctx.fillStyle = ROSE;
-  ctx.globalAlpha = 0.75;
-  for (const cx of [size / 6, size / 2, (5 * size) / 6]) {
-    ctx.fillRect(cx - pl / 2, course + line + 6, pl, size - 2 * (course + line + 6));
-  }
-  ctx.globalAlpha = 1;
-  // a small verde lozenge in the centre bay (the inlaid diamond motif)
-  ctx.fillStyle = VERDE;
-  lozenge(ctx, size / 2, size / 2, size * 0.055);
+  // three panel bays: verde / rose / verde, each framed and carrying a white
+  // hexagon. The bifora sits over the CENTRE bay on every storey, so the
+  // centre carries the rose (mostly hidden, peeking around the window) and
+  // the two always-visible outer bays carry the verde — the first cut had it
+  // the other way round and the tower read pink because its green was behind
+  // glass. Outer hexagons get a small rose diamond as the polychrome accent.
+  [size / 6, size / 2, (5 * size) / 6].forEach((cx, i) => {
+    const pw = size * 0.2;
+    const x0 = cx - pw / 2;
+    const y0 = size * 0.16;
+    const y1 = size * 0.84;
+    ctx.fillStyle = i === 1 ? ROSE : VERDE;
+    ctx.globalAlpha = i === 1 ? 0.82 : 0.72;
+    ctx.fillRect(x0, y0, pw, y1 - y0);
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = VERDE;
+    ctx.lineWidth = size * 0.011;
+    ctx.strokeRect(x0, y0, pw, y1 - y0);
+    hexagon(ctx, cx, size / 2, size * 0.058);
+    ctx.fillStyle = "#ece3c6";
+    ctx.fill();
+    if (i !== 1) {
+      ctx.fillStyle = ROSE;
+      lozenge(ctx, cx, size / 2, size * 0.026);
+    }
+  });
 }
 
-/** The cathedral's screen facade: the campanile language densified into the
- * Santa Maria Novella front — an upper row of verde-framed square panels with
- * alternating verde/rose lozenges over a lower **blind arcade** of round
- * arches (SMN's street register). Shares the campanile's corner strips and
- * hairline courses so tower and front read as one marble family. Canvas y=0
- * is the storey TOP (DynamicTexture invertY), so the arcade draws at y≈size. */
+/** The cathedral's screen facade, San Miniato language (July 2026 — replacing
+ * the SMN panel grid, whose 1.5px linework dissolved at the 60–90px the front
+ * fills at gameplay zoom): few shapes, big ones. A five-arch blind arcade with
+ * alternating SOLID verde tympana on the street register, under a row of
+ * circle-in-square intarsia — roughly 4x the old line weight, a tenth the
+ * element count. Shares the campanile's field, corner strips, and storey
+ * courses so tower and front stay one marble family. Canvas y=0 is the storey
+ * TOP (DynamicTexture invertY), so the arcade draws at y≈size. */
 function drawScreen(ctx: CanvasRenderingContext2D, size: number) {
   marbleField(ctx, size, 8511);
-  const course = size * 0.014;
-  const line = size * 0.01;
-  // storey courses + rose accents, as the campanile
+  const course = size * 0.016;
+  storeyCourses(ctx, size, course, 0);
   ctx.fillStyle = VERDE;
-  ctx.fillRect(0, 0, size, course);
-  ctx.fillRect(0, size - course, size, course);
-  ctx.fillStyle = ROSE;
-  ctx.fillRect(0, course, size, line);
-  ctx.fillRect(0, size - course - line, size, line);
-  // panel grid: verde lines splitting the tile into 3 columns x 2 rows
-  ctx.fillStyle = VERDE;
-  const corner = size * 0.012;
+  const corner = size * 0.02;
   ctx.fillRect(0, 0, corner, size);
   ctx.fillRect(size - corner, 0, corner, size);
-  ctx.fillRect(size / 3 - line / 2, 0, line, size);
-  ctx.fillRect((2 * size) / 3 - line / 2, 0, line, size);
-  ctx.fillRect(0, size / 2 - line / 2, size, line);
-  const inset = size * 0.03;
-  ctx.lineWidth = 1.5;
+  // mid string course splitting the two registers
+  ctx.fillRect(0, size / 2 - size * 0.008, size, size * 0.016);
+  const lw = size * 0.018;
   ctx.strokeStyle = VERDE;
-  // upper row: framed square panels with alternating lozenges
+  ctx.lineWidth = lw;
+  // upper register: three circle-in-square intarsia, centre lozenge rose
   for (let col = 0; col < 3; col++) {
-    const x0 = (col * size) / 3;
-    const y0 = course + line;
-    const y1 = size / 2;
-    ctx.globalAlpha = 0.8;
-    ctx.strokeRect(x0 + inset, y0 + inset, size / 3 - 2 * inset, y1 - y0 - 2 * inset);
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = col % 2 === 0 ? VERDE : ROSE;
-    lozenge(ctx, x0 + size / 6, (y0 + y1) / 2, size * 0.05);
+    const cx = ((col + 0.5) * size) / 3;
+    const cy = size * 0.27;
+    const r = size * 0.082;
+    ctx.strokeRect(cx - r * 1.4, cy - r * 1.4, r * 2.8, r * 2.8);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = col === 1 ? ROSE : VERDE;
+    lozenge(ctx, cx, cy, r * 0.62);
   }
-  // lower row: the blind arcade — six round arches with legs to the base course
-  ctx.globalAlpha = 0.8;
-  const w = size / 6;
-  const yBase = size - course - line;
-  for (let i = 0; i < 6; i++) {
+  // street register: five arches, every other tympanum filled solid — the
+  // one figure on this front that still reads at gameplay distance
+  const n = 5;
+  const w = size / n;
+  const yBase = size - course;
+  const inset = size * 0.02;
+  for (let i = 0; i < n; i++) {
     const cx = i * w + w / 2;
     const half = w / 2 - inset;
-    const ySpring = size / 2 + inset + half;
+    const ySpring = size * 0.74;
+    ctx.strokeStyle = VERDE;
     ctx.beginPath();
     ctx.moveTo(cx - half, yBase);
     ctx.lineTo(cx - half, ySpring);
     ctx.arc(cx, ySpring, half, Math.PI, 0);
     ctx.lineTo(cx + half, yBase);
     ctx.stroke();
+    if (i % 2 === 0) {
+      ctx.fillStyle = VERDE;
+      ctx.globalAlpha = 0.88;
+      ctx.beginPath();
+      ctx.arc(cx, ySpring, half - lw, Math.PI, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
   }
-  ctx.globalAlpha = 1;
 }
 
 /** Facade texture ids the residential palette picks from (modelManifest's
@@ -346,6 +381,15 @@ export const STONE_TINTS: Record<string, Drawer> = {
   campanile: drawCampanile,
   // Direct part tint like campanile (no palette): the cathedral's marble front.
   screen: drawScreen,
+  // Direct part tint: plain white marble for the cathedral's pediment + aisle
+  // shoulder wedges — field + hairline courses only. No vertical figure: the
+  // gable's planar UVs tile u per unit (4x across the pediment), so anything
+  // vertical repeats as stripes, and the wedge slope cuts figures badly (why
+  // these parts left the campanile pattern when it went polychrome).
+  marble: (ctx, size) => {
+    marbleField(ctx, size, 7405);
+    storeyCourses(ctx, size, size * 0.012, 0);
+  },
   // Direct part tint like campanile (no palette): the cathedral's brown flanks.
   flank: (ctx, size) =>
     drawCourses(ctx, size, 404, {

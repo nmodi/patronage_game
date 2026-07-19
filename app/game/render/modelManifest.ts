@@ -783,9 +783,10 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
         { file: "proc:block@1x2", position: [x, 0, -1], scale: [1, 0.875, 1], tint: "flank" },
         { file: "proc:block@1x2", position: [x, 0, 1], scale: [1, 0.875, 1], tint: "flank" },
       ]),
-      // pediment in the campanile (vertical) pattern — the gable's planar UVs
-      // (v = y*0.6) cut the screen grid mid-panel; verticals rise cleanly
-      ...gableRoof([0, 2.5, 0], [4, HIGH_GABLE, 1], { tint: "campanile" }),
+      // pediment in plain marble (field + hairline courses) — the campanile's
+      // polychrome panels would repeat as stripes across the gable's per-unit
+      // u tiling, and the screen's figures get cut by the rake
+      ...gableRoof([0, 2.5, 0], [4, HIGH_GABLE, 1], { tint: "marble" }),
       // lean-to aisle roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it
       // just inside the ±2 facades (no ledge poking past the front); ridge cap
       // sits 0.02 behind the nave wall face (z-fight)
@@ -802,9 +803,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // lean-to profile, so the marble climbs the aisle slope and closes the
       // open slot between slab top and roof underside (SMN's sloped shoulder
       // sections). 0.005 proud of the slab plane so nothing coplanar fights.
-      // Campanile (vertical) pattern — the slope cuts the screen grid badly.
-      { file: "proc:gable-end", position: [2.015, 1.75, -0.48], scale: [0.06, 0.4, 2.1], tint: "campanile" },
-      { file: "proc:gable-end", position: [2.015, 1.75, 0.48], scale: [0.06, 0.4, 2.1], tint: "campanile" },
+      // Plain marble — the slope cuts any figured pattern badly.
+      { file: "proc:gable-end", position: [2.015, 1.75, -0.48], scale: [0.06, 0.4, 2.1], tint: "marble" },
+      { file: "proc:gable-end", position: [2.015, 1.75, 0.48], scale: [0.06, 0.4, 2.1], tint: "marble" },
       // giant-order pilasters proud of the screen, covering the section joints
       // (nave/aisle seams full height, outer corners to the aisle top) — the
       // grid mismatch between slab wraps hides behind them, SMN-style
