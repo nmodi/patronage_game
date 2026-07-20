@@ -5,6 +5,7 @@ import type { WaterArchetype } from "~/game/water";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { ARCHETYPE_LABELS } from "./TopBar";
 import { Panel } from "./Panel";
+import { GameTitle, NIGHT_SKY_BG, NightStars } from "./nightSky";
 
 interface SavePeek {
   cityName: string;
@@ -53,19 +54,12 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
 
   return (
     <div
-      className="flex h-screen w-full flex-col items-center justify-center gap-8"
-      style={{
-        background:
-          "radial-gradient(circle at 50% 35%, var(--color-parchment) 0%, var(--color-parchment-deep) 60%, #ddc9a1 100%)",
-      }}
+      className="relative flex h-screen w-full flex-col items-center justify-center gap-8"
+      style={{ background: NIGHT_SKY_BG }}
     >
-      <div className="text-center">
-        <h1 className="font-display text-6xl font-bold tracking-wide text-ink">Patronage</h1>
-        <p className="mt-3 font-display text-lg italic text-ink-faint">
-          A cozy city of art, in the Italian Renaissance
-        </p>
-      </div>
-      <Panel className="flex w-80 flex-col gap-2">
+      <NightStars />
+      <GameTitle />
+      <Panel frameClassName="relative rounded-lg" className="flex w-80 flex-col gap-2">
         {save && (
           <MenuButton primary onClick={continueGame}>
             Continue

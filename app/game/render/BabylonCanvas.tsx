@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import type { BuildingId } from "~/game/buildings";
+import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
 import { getWater } from "~/game/water";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
@@ -296,22 +297,24 @@ export function BabylonCanvas() {
       <canvas
         ref={canvasRef}
         className="w-full h-full outline-none touch-none"
-        style={{ backgroundColor: "#e9c98f" }}
+        style={{ backgroundColor: "var(--color-crest-blue-deep)" }}
       />
       {loadPhase !== "hidden" && (
         <div
-          className={`absolute inset-0 z-[70] flex flex-col items-center justify-center gap-5 bg-[#e9c98f] transition-opacity duration-500 ${
+          className={`absolute inset-0 z-[70] flex flex-col items-center justify-center gap-6 transition-opacity duration-500 ${
             loadPhase === "fading" ? "opacity-0 pointer-events-none" : ""
           }`}
+          style={{ background: NIGHT_SKY_BG }}
         >
-          <h1 className="font-serif text-5xl tracking-wide text-[#6b3f22]">Patronage</h1>
-          <div className="h-2 w-64 overflow-hidden rounded-full bg-[#c9a06a]">
+          <NightStars />
+          <GameTitle />
+          <div className="relative h-1.5 w-64 overflow-hidden rounded-full bg-parchment-deep">
             <div
-              className="h-full rounded-full bg-[#b3542e] transition-[width] duration-300"
+              className="h-full rounded-full bg-sienna transition-[width] duration-300"
               style={{ width: `${Math.round(loadProgress * 100)}%` }}
             />
           </div>
-          <p className="text-sm text-[#8a6a45]">Preparing the city…</p>
+          <p className="relative text-sm italic text-parchment/55">Preparing the city…</p>
         </div>
       )}
     </div>
