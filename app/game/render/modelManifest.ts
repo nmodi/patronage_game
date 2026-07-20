@@ -783,29 +783,26 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
         { file: "proc:block@1x2", position: [x, 0, -1], scale: [1, 0.875, 1], tint: "flank" },
         { file: "proc:block@1x2", position: [x, 0, 1], scale: [1, 0.875, 1], tint: "flank" },
       ]),
-      // pediment in plain marble (field + hairline courses) — the campanile's
-      // polychrome panels would repeat as stripes across the gable's per-unit
-      // u tiling, and the screen's figures get cut by the rake
-      ...gableRoof([0, 2.5, 0], [4, HIGH_GABLE, 1], { tint: "marble" }),
+      // pediment in the same light brick via gableRoof's tint override
+      ...gableRoof([0, 2.5, 0], [4, HIGH_GABLE, 1], { tint: "lightbrick" }),
       // lean-to aisle roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it
       // just inside the ±2 facades (no ledge poking past the front); ridge cap
       // sits 0.02 behind the nave wall face (z-fight)
       ...gableRoof([0, 1.75, -0.48], [3.62, 0.4, 2.1]),
       ...gableRoof([0, 1.75, 0.48], [3.62, 0.4, 2.1]),
-      // the marble screen: one slab per front (nave + both aisles), faces at
+      // the screen front: one slab per front (nave + both aisles), faces at
       // CATH_FRONT. Storey-fitted UV wraps (@1x3 / @1x2, like the flanks) so
-      // the panel grid completes exactly at each slab's top — a raw-height
-      // slab cut the pattern mid-panel and the sections read as patchwork
-      { file: "proc:block@1x3", position: [2.02, 0, 0], scale: [0.06, 2.5 / 3, 1], tint: "screen" },
-      { file: "proc:block@1x2", position: [2.01, 0, -1], scale: [0.06, 0.875, 1], tint: "screen" },
-      { file: "proc:block@1x2", position: [2.01, 0, 1], scale: [0.06, 0.875, 1], tint: "screen" },
+      // the brick courses land whole at each slab's top — a raw-height slab
+      // cut the pattern mid-course and the sections read as patchwork
+      { file: "proc:block@1x3", position: [2.02, 0, 0], scale: [0.06, 2.5 / 3, 1], tint: "lightbrick" },
+      { file: "proc:block@1x2", position: [2.01, 0, -1], scale: [0.06, 0.875, 1], tint: "lightbrick" },
+      { file: "proc:block@1x2", position: [2.01, 0, 1], scale: [0.06, 0.875, 1], tint: "lightbrick" },
       // marble wedges over the aisle slabs: gable-end triangles at the exact
       // lean-to profile, so the marble climbs the aisle slope and closes the
       // open slot between slab top and roof underside (SMN's sloped shoulder
       // sections). 0.005 proud of the slab plane so nothing coplanar fights.
-      // Plain marble — the slope cuts any figured pattern badly.
-      { file: "proc:gable-end", position: [2.015, 1.75, -0.48], scale: [0.06, 0.4, 2.1], tint: "marble" },
-      { file: "proc:gable-end", position: [2.015, 1.75, 0.48], scale: [0.06, 0.4, 2.1], tint: "marble" },
+      { file: "proc:gable-end", position: [2.015, 1.75, -0.48], scale: [0.06, 0.4, 2.1], tint: "lightbrick" },
+      { file: "proc:gable-end", position: [2.015, 1.75, 0.48], scale: [0.06, 0.4, 2.1], tint: "lightbrick" },
       // giant-order pilasters proud of the screen, covering the section joints
       // (nave/aisle seams full height, outer corners to the aisle top) — the
       // grid mismatch between slab wraps hides behind them, SMN-style
@@ -860,25 +857,34 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   chapel: {
     front: [0, 1],
     parts: [
-      // nave as two unit-depth columns so the civic ashlar's u stays 1:1 on
-      // the long flanks (a single z-scaled block stretched the courses 2x)
+      // nave as two unit-depth columns so the brick's u stays 1:1 on the
+      // long flanks (a single z-scaled block stretched the courses 2x).
+      // Light brick, not civic ashlar: religious = pale brick (cathedral
+      // front, campanile, chapel), civic = pale ashlar (palazzo) — the two
+      // pale families split by pattern since the verde retired.
       ...[-0.5, 0.5].map(
-        (z): Part => ({ file: "proc:block", position: [0, 0, z], scale: [1.3, 1.2, 1], tint: "civic" })
+        (z): Part => ({ file: "proc:block", position: [0, 0, z], scale: [1.3, 1.2, 1], tint: "lightbrick" })
       ),
       // High gable at y-scale 0.75: apex 2.03 vs the old 1.89 — a steeper,
       // taller nave; civic breaks the skyline. Gable ends flat stone (their
       // planar UVs bake the 0.6 roof squash — textured courses would jump)
       ...gableRoof([0, 1.2, 0], [2, 0.75 * HIGH_GABLE, 1.3], { rotationY: Math.PI / 2, tint: "stone" }),
       // facade: portal ring tops at 0.96, under the wall top at 1.2; a small
-      // verde lancet on the gable end above it (outer face at z 1.03 — 0.03
-      // thick at scale 2 over the ±1 ends), sized to clear the gable slopes
+      // rose on the gable end above it — the cathedral's west-front language
+      // at parish scale (it replaced a lancet, July 2026). The gable-end is
+      // ±0.03 CENTERED on the wall plane and its thickness rides the ridge
+      // scale, so at roof scale 2 the outer face is (0.5+0.03)×2 = 1.06, not
+      // 1.03 — the lancet was authored at 1.03 and sat buried inside the
+      // gable, invisible. sy is the plain reciprocal like the cathedral's:
+      // the fit's min axis here is x, which is also this face's horizontal
+      // (measured root scaling 1.613/1.016/1.726).
       ...portalOn("posZ", 1, 0, 0.85),
-      ...archWindow("posZ", 1.03, 1.24, 0, 0.5),
-      // arched side windows (walls at x ±0.65)
-      ...archWindow("posX", 0.65, 0.4, -0.45, 0.7),
-      ...archWindow("posX", 0.65, 0.4, 0.45, 0.7),
-      ...archWindow("negX", 0.65, 0.4, -0.45, 0.7),
-      ...archWindow("negX", 0.65, 0.4, 0.45, 0.7),
+      ...roseWindow("posZ", 1.06, 1.58, 0, 0.4, undefined, 1 / 0.63),
+      // arched side windows, three per flank (walls at x ±0.65; nave z ±1)
+      ...[-0.6, 0, 0.6].flatMap((z) => [
+        ...archWindow("posX", 0.65, 0.4, z, 0.9),
+        ...archWindow("negX", 0.65, 0.4, z, 0.9),
+      ]),
       // bell lantern on the ridge, raised to straddle the taller high-gable
       // ridge (apex 2.03)
       { file: "proc:block", position: [0, 1.75, 0.35], scale: [0.32, 0.6, 0.32], tint: "stone" },
@@ -1121,7 +1127,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // one @1x5 shaft, not five stacked storeys: a single continuous AO ramp
       // (stacked blocks banded the marble with a dark line per storey) while
       // the campanile texture still wraps v once per storey
-      { file: "proc:block@1x5", position: [0, 0, 0], scale: [BT_W, 1, BT_W], tint: "campanile" },
+      { file: "proc:block@1x5", position: [0, 0, 0], scale: [BT_W, 1, BT_W], tint: "lightbrick" },
       // arched bronze-door portal at the base (wall face at BT_WALL); 0.75
       // keeps it ~60% of the 0.72 face and under the first window at 1.35
       ...portalOn("posX", BT_WALL, 0, 0.75),

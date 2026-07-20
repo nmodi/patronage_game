@@ -208,14 +208,12 @@ const drawLightBrick: Drawer = (ctx, size) =>
 
 /** Facade texture ids the residential palette picks from (modelManifest's
  * FACADE_PALETTES.residential). Membership here is what routes a tint id down
- * the texture path in getTintedPair — campanile is in no palette; the bell
- * tower names it directly (tint: "campanile"). */
+ * the texture path in getTintedPair — lightbrick is in no palette; the
+ * religious buildings name it directly (tint: "lightbrick"). */
 export const STONE_TINTS: Record<string, Drawer> = {
-  // Direct part tints (no palette): the bell tower shaft, the cathedral's
-  // front slabs, and its pediment + aisle wedges all share the light brick.
-  campanile: drawLightBrick,
-  screen: drawLightBrick,
-  marble: drawLightBrick,
+  // Direct part tint (no palette): the religious family — bell tower shaft,
+  // cathedral front slabs + pediment + aisle wedges, chapel nave.
+  lightbrick: drawLightBrick,
   // Direct part tint like campanile (no palette): the cathedral's brown flanks.
   flank: (ctx, size) =>
     drawCourses(ctx, size, 404, {
