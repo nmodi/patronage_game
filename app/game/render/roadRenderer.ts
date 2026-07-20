@@ -2,14 +2,21 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import "@babylonjs/core/Meshes/thinInstanceMesh";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE } from "~/game/constants";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/roadStretch";
-import { getDirtRibbonMaterial, getRoadMaterial } from "./paths";
+import {
+  getApronMaterial,
+  getDirtPadMaterial,
+  getDirtRibbonMaterial,
+  getPavedRibbonMaterial,
+  getRoadMaterial,
+} from "./paths";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 
 type RoadBatch = { mesh: Mesh; tiles: Map<string, Tile>; dirty: boolean };
@@ -25,9 +32,69 @@ export function createRoadRenderer(scene: Scene) {
   }
 
   const pavedRoads = createRoadBatch("paved-road-batch");
+  const pavedRibbons = createRoadBatch("paved-ribbon-batch");
+  pavedRibbons.mesh.material = getPavedRibbonMaterial(scene);
   const dirtRibbons = createRoadBatch("dirt-ribbon-batch");
   dirtRibbons.mesh.material = getDirtRibbonMaterial(scene);
   const bridges = createRoadBatch("bridge-deck-batch");
+
+  // Junction pads: where a diagonal ribbon meets a cardinal street, the ribbon
+  // cell renders as mottled stone (or packed earth for dirt lanes) instead of
+  // 45° slabs overlapping straight ones. Two shapes (see junctionKind): a
+  // convex hexagonal plate — the 45° ribbon strip through the cell, with
+  // perpendicular end cuts exactly flush with the neighbor ribbons' brick
+  // ends, widened to take in the two cell corners the strip misses, which
+  // cover a crossing street's bare corners — for cells a street passes
+  // through, and a plain strip (the ribbon quad's own transform) everywhere
+  // else, so lane-side junctions keep the lane's silhouette. The hexagon is
+  // modeled along the NE diagonal; NW instances take a 90° yaw.
+  type RoadPads = { hex: Mesh; strip: Mesh };
+  function createPadHexHost(name: string, material: StandardMaterial): Mesh {
+    const c = CELL_SIZE / 2;
+    const e = c * (Math.SQRT2 / 2);
+    // Counter-clockwise in the xz plane (CreateGround's visible-from-above
+    // winding): strip end corners at ±(c±e), the two kept cell corners between.
+    const pts: Array<[number, number]> = [
+      [c - e, c + e],
+      [-c, c],
+      [-(c + e), -(c - e)],
+      [e - c, -(c + e)],
+      [c, -c],
+      [c + e, c - e],
+    ];
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const uvs: number[] = [];
+    for (const [px, pz] of pts) {
+      positions.push(px, 0, pz);
+      normals.push(0, 1, 0);
+      uvs.push((px + c + e) / (2 * (c + e)), (pz + c + e) / (2 * (c + e)));
+    }
+    const mesh = new Mesh(name, scene);
+    const data = new VertexData();
+    data.positions = positions;
+    data.normals = normals;
+    data.uvs = uvs;
+    data.indices = [0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5];
+    data.applyToMesh(mesh);
+    mesh.material = material;
+    prepareThinInstanceHost(mesh);
+    mesh.setEnabled(false);
+    return mesh;
+  }
+  function createPadHosts(name: string, material: StandardMaterial): RoadPads {
+    const strip = MeshBuilder.CreateGround(
+      `${name}-strip`,
+      { width: CELL_SIZE, height: CELL_SIZE },
+      scene
+    );
+    strip.material = material;
+    prepareThinInstanceHost(strip);
+    strip.setEnabled(false);
+    return { hex: createPadHexHost(`${name}-hex`, material), strip };
+  }
+  const stonePads = createPadHosts("junction-pad-batch", getApronMaterial(1, 1, scene));
+  const dirtPads = createPadHosts("dirt-junction-pad-batch", getDirtPadMaterial(scene));
   const bridgeDeckY = 0.025;
   const parapetHeight = 0.09;
   const parapetMaterial = new StandardMaterial("bridge-parapet-mat", scene);
@@ -44,7 +111,8 @@ export function createRoadRenderer(scene: Scene) {
 
   // Cardinal dirt (rotation null) has no thin-instance batch — it renders through
   // the raster overlay. Diagonal dirt can't (the raster is grid-axis-aligned), so
-  // it gets its own ribbon batch, mirroring the paved diagonal path.
+  // it gets its own ribbon batch; paved diagonals likewise split off so their
+  // ribbon texture can carry √2-corrected slab courses.
   const batchFor = (t: Tile): RoadBatch | null =>
     t.buildingId === "dirt_path"
       ? t.rotation != null
@@ -52,7 +120,9 @@ export function createRoadRenderer(scene: Scene) {
         : null
       : t.buildingId === "bridge"
         ? bridges
-        : pavedRoads;
+        : t.rotation != null
+          ? pavedRibbons
+          : pavedRoads;
 
   function update(key: string, previous?: Tile, next?: Tile) {
     if (previous?.type === "road") {
@@ -66,39 +136,81 @@ export function createRoadRenderer(scene: Scene) {
         batch.dirty = true;
       }
     }
+    // Junction pads depend on neighbors outside a ribbon's own batch (a cardinal
+    // dirt path can flip a paved ribbon cell into a junction and vice versa), so
+    // any road edit re-flushes both ribbon batches.
+    if (previous?.type === "road" || next?.type === "road") {
+      pavedRibbons.dirty = true;
+      dirtRibbons.dirty = true;
+    }
   }
 
   const opposite = (r: number | undefined) =>
     r === ROAD_DIAG_NE ? ROAD_DIAG_NW : r === ROAD_DIAG_NW ? ROAD_DIAG_NE : undefined;
 
-  // A diagonal-owned cell renders only its rotated √2×1 quad, so where a cardinal
-  // street crosses it the shared square's corners stay bare. Emit an unrotated
-  // cell-square plate under such a cell — but only at a real crossing: a cardinal
-  // 4-neighbor (rotation null) or the opposite-diagonal 8-neighbor (NE×NW bowtie).
-  // Same-rotation lane-mates and staircase steps match neither, so no false plate.
-  function needsPlate(batch: RoadBatch, tile: Tile) {
+  // Classify a diagonal ribbon cell's junction state. "hex" when a cardinal
+  // street passes THROUGH the cell (road 4-neighbors on opposite sides of one
+  // axis — the cell must cover the street's full width, bare corners included).
+  // "strip" for every other contact — a road on one side (terminal mouth, a
+  // street-end elbow), or an opposite-diagonal neighbor at either parity
+  // (bowties) — where the pad keeps the lane's own ribbon silhouette instead
+  // of paving the whole cell. Same-rotation lane-mates and staircase steps
+  // match neither, so no false pad.
+  function junctionKind(tiles: TileMap, tile: Tile): "none" | "strip" | "hex" {
     const { x, y } = tile.position;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
-      const n = batch.tiles.get(`${x + dx},${y + dy}`);
-      if (n && n.rotation == null) return true;
-    }
+    const road = (dx: number, dy: number) => {
+      const n = tiles[`${x + dx},${y + dy}`];
+      return n?.type === "road" && n.rotation == null;
+    };
+    const e = road(1, 0);
+    const w = road(-1, 0);
+    const n = road(0, 1);
+    const s = road(0, -1);
+    if ((e && w) || (n && s)) return "hex";
+    if (e || w || n || s) return "strip";
     const opp = opposite(tile.rotation);
-    for (const [dx, dy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
-      if (batch.tiles.get(`${x + dx},${y + dy}`)?.rotation === opp) return true;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
+      const t = tiles[`${x + dx},${y + dy}`];
+      if (t?.type === "road" && t.rotation === opp) return "strip";
     }
-    return false;
+    return "none";
   }
 
-  function flushRoadBatch(batch: RoadBatch, diagY: number, withPlates: boolean) {
+  // Pads sit above every street surface (bricks and ribbon overhangs terminate
+  // under their edges). Same-line pads abut exactly, but lane-mate and bowtie
+  // pads overlap, so a 3×3 grid parity staggers y — injective on any
+  // neighborhood that can overlap — instead of z-fighting at one height.
+  const padY = (gx: number, gy: number) => 0.0125 + ((gx % 3) + (gy % 3) * 3) * 0.0002;
+  const padQuatNE = Quaternion.Identity();
+  const padQuatNW = Quaternion.RotationYawPitchRoll(Math.PI / 2, 0, 0);
+  const padScale = Vector3.One();
+
+  function setInstances(mesh: Mesh, list: number[]) {
+    if (list.length > 0) {
+      mesh.thinInstanceSetBuffer("matrix", new Float32Array(list), 16, true);
+      mesh.setEnabled(true);
+    } else {
+      mesh.thinInstanceSetBuffer("matrix", null);
+      mesh.setEnabled(false);
+    }
+  }
+
+  function flushRoadBatch(batch: RoadBatch, diagY: number, tiles: TileMap, pads: RoadPads | null) {
     if (!batch.dirty) return;
     if (batch.tiles.size === 0) {
       batch.mesh.thinInstanceSetBuffer("matrix", null);
       batch.mesh.setEnabled(false);
+      if (pads) {
+        setInstances(pads.hex, []);
+        setInstances(pads.strip, []);
+      }
       batch.dirty = false;
       return;
     }
-    // Plate count varies, so accumulate into a list rather than a pre-sized array.
+    // Pad counts vary, so accumulate into lists rather than pre-sized arrays.
     const matrices: number[] = [];
+    const hexMatrices: number[] = [];
+    const stripMatrices: number[] = [];
     const scratch: number[] = new Array(16);
     const matrix = Matrix.Identity();
     // Diagonal ribbon pieces: consecutive staircase centers are √2·CELL_SIZE
@@ -114,23 +226,38 @@ export function createRoadRenderer(scene: Scene) {
         // convention (+X → (cos θ, 0, −sin θ)); NW mirrors to +π/4.
         const theta = tile.rotation === ROAD_DIAG_NE ? -Math.PI / 4 : Math.PI / 4;
         Quaternion.RotationYawPitchRollToRef(theta, 0, 0, diagQuat);
+        const kind = pads ? junctionKind(tiles, tile) : "none";
+        if (kind !== "none") {
+          diagPos.set(x, padY(tile.position.x, tile.position.y), z);
+          if (kind === "hex") {
+            const quat = tile.rotation === ROAD_DIAG_NE ? padQuatNE : padQuatNW;
+            Matrix.ComposeToRef(padScale, quat, diagPos, matrix);
+            matrix.copyToArray(scratch, 0);
+            hexMatrices.push(...scratch);
+          } else {
+            // The strip pad: the suppressed ribbon's own transform, in mottle —
+            // hugs the lane silhouette, ends flush with the neighbor bricks.
+            Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
+            matrix.copyToArray(scratch, 0);
+            stripMatrices.push(...scratch);
+          }
+          continue;
+        }
         diagPos.set(x, diagY, z);
         Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
         matrix.copyToArray(scratch, 0);
         matrices.push(...scratch);
-        if (withPlates && needsPlate(batch, tile)) {
-          Matrix.TranslationToRef(x, 0.01, z, matrix);
-          matrix.copyToArray(scratch, 0);
-          matrices.push(...scratch);
-        }
       } else {
         Matrix.TranslationToRef(x, 0.01, z, matrix);
         matrix.copyToArray(scratch, 0);
         matrices.push(...scratch);
       }
     }
-    batch.mesh.thinInstanceSetBuffer("matrix", new Float32Array(matrices), 16, true);
-    batch.mesh.setEnabled(true);
+    setInstances(batch.mesh, matrices);
+    if (pads) {
+      setInstances(pads.hex, hexMatrices);
+      setInstances(pads.strip, stripMatrices);
+    }
     batch.dirty = false;
   }
 
@@ -231,15 +358,21 @@ export function createRoadRenderer(scene: Scene) {
 
   /** Flush after any map edit because adjacent civic/road cells affect bridge rails. */
   function flush(tiles: TileMap) {
-    flushRoadBatch(pavedRoads, 0.0115, true);
-    flushRoadBatch(dirtRibbons, 0.009, false);
+    flushRoadBatch(pavedRoads, 0.0115, tiles, null);
+    flushRoadBatch(pavedRibbons, 0.0115, tiles, stonePads);
+    flushRoadBatch(dirtRibbons, 0.009, tiles, dirtPads);
     if (bridges.tiles.size > 0) bridges.dirty = true;
     flushBridges(tiles);
   }
 
   function dispose() {
     pavedRoads.mesh.dispose();
+    pavedRibbons.mesh.dispose();
     dirtRibbons.mesh.dispose();
+    stonePads.hex.dispose();
+    stonePads.strip.dispose();
+    dirtPads.hex.dispose();
+    dirtPads.strip.dispose();
     bridges.mesh.dispose();
     parapets.dispose();
     parapetMaterial.dispose();

@@ -236,6 +236,37 @@ export const LAYOUT: Array<[number, number, BuildingId, number?]> = [
   // terraces and the workshop block.
   ...diagRoad(49, 68, 6, 1, -1, "path"),
 
+  // — Junction sampler (east bank, far south): every diagonal/cardinal crossing
+  //   configuration for the junction-pad render path. Permanent regression
+  //   targets, like the diagonal buildings below. —
+  // X-crossing, diagonal-owned: the diag run keeps the shared cell (100,100),
+  // the cardinal row omits it (per-cell seeding can't overlap).
+  ...diagRoad(96, 96, 8, 1, 1),
+  ...road(96, 100, 99, 100),
+  ...road(101, 100, 106, 100),
+  // X-crossing, cardinal-owned: full cardinal row keeps (102,110); the NW diag
+  // runs stop either side of it (bricks stay visible between the two pads).
+  ...road(96, 110, 106, 110),
+  ...diagRoad(98, 114, 3, 1, -1),
+  ...diagRoad(103, 109, 3, 1, -1),
+  // Bowtie, off-parity: NE × NW crossing between cell centers (x−y=14 ∧
+  // x+y=213 has no integer solution) — the opposite-rotation cells meet as
+  // 4-neighbors, no shared cell.
+  ...diagRoad(110, 96, 4, 1, 1),
+  ...diagRoad(110, 103, 4, 1, -1),
+  // Bowtie, on-parity: NW crossing at the NE run's shared cell (114,111); the
+  // NW run omits it (first placer wins), leaving 8-adjacent opposite cells.
+  ...diagRoad(112, 109, 4, 1, 1),
+  ...diagRoad(112, 113, 1, 1, -1),
+  ...diagRoad(115, 110, 1, 1, -1),
+  // Dirt × dirt: diagonal dirt lane owns the shared cell (105,116).
+  ...diagRoad(102, 113, 5, 1, 1, "dirt_path"),
+  ...road(100, 116, 104, 116, "dirt_path"),
+  ...road(106, 116, 110, 116, "dirt_path"),
+  // Dirt × paved: dirt lane T-ing into a paved road (junction cell (111,107)).
+  ...road(108, 106, 116, 106),
+  ...diagRoad(108, 110, 3, 1, -1, "dirt_path"),
+
   // — Diagonal buildings (rotation 4-7 = quarter + 45°, diamond cell masks):
   //   flanking the NE road flush, doors toward it. Front direction at 45°:
   //   local +X faces (1,-1)/(-1,-1)/(-1,1)/(1,1) for r=4-7; local +Z faces

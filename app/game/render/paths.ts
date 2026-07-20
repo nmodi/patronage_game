@@ -247,6 +247,33 @@ export function getRoadMaterial(scene: Scene) {
   return roadMaterial;
 }
 
+let pavedRibbonMaterial: StandardMaterial | null = null;
+
+/** Diagonal paved ribbon: 3 slab courses across U so the quad's √2 X-scale
+ * yields near-cardinal slab length (0.236 vs 0.25 wu) while quad seams still
+ * land on grout — a plain uScale of √2 would cut slabs mid-brick at every
+ * staircase seam. */
+export function getPavedRibbonMaterial(scene: Scene) {
+  pavedRibbonMaterial ??= pavingMaterial("paved-ribbon", 192, 128, 3, ROAD_GROUT, ROAD_TONES, scene);
+  return pavedRibbonMaterial;
+}
+
+let dirtPadMaterial: StandardMaterial | null = null;
+
+/** Rimless packed earth for dirt-ribbon junction pads (the ribbon texture minus
+ * its grass rim — a rim across a crossing would fence it off). */
+export function getDirtPadMaterial(scene: Scene) {
+  if (dirtPadMaterial) return dirtPadMaterial;
+  const size = 128;
+  const tex = new DynamicTexture("dirt-pad-tex", { width: size, height: size }, scene, true);
+  drawDirtTexture(tex.getContext() as CanvasRenderingContext2D, size);
+  tex.update();
+  dirtPadMaterial = new StandardMaterial("dirt-pad-mat", scene);
+  dirtPadMaterial.specularColor = Color3.Black();
+  dirtPadMaterial.diffuseTexture = tex;
+  return dirtPadMaterial;
+}
+
 let dirtRibbonMaterial: StandardMaterial | null = null;
 
 /** Packed earth for diagonal dirt ribbons. Cardinal dirt paths draw through the
@@ -281,6 +308,12 @@ export function disposePathMaterials() {
   roadMaterial?.diffuseTexture?.dispose();
   roadMaterial?.dispose();
   roadMaterial = null;
+  pavedRibbonMaterial?.diffuseTexture?.dispose();
+  pavedRibbonMaterial?.dispose();
+  pavedRibbonMaterial = null;
+  dirtPadMaterial?.diffuseTexture?.dispose();
+  dirtPadMaterial?.dispose();
+  dirtPadMaterial = null;
   dirtRibbonMaterial?.diffuseTexture?.dispose();
   dirtRibbonMaterial?.dispose();
   dirtRibbonMaterial = null;
