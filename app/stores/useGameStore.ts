@@ -6,6 +6,12 @@ import type { Artist, Artwork, Commission } from "~/game/types";
 import type { BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { planPlacement } from "~/game/placementRules";
+import { deriveSimTiles } from "~/game/roadRaster";
+import type { RoadSegment, WorldPoint } from "~/game/roadSegment";
+import { pointToSegmentDistance, segmentLength } from "~/game/roadSegment";
+import { planSegmentPlacement } from "~/game/roadSegmentPlan";
+import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
+import { RAZE_SALVAGE_FRACTION } from "~/game/constants";
 import { canAssignCommission } from "~/game/commissions";
 import { canDisplayWork } from "~/game/display";
 import { createArtist } from "~/game/artists";
@@ -25,6 +31,10 @@ export const RAZE_TOOL = "raze" as const;
 
 export interface MapState {
   tiles: TileMap;  // Key is "x,y"
+  // Freeform (any-angle) roads, laid as world-space segments. Persisted as the
+  // geometry/edit source of truth; the sim reads them rasterized into cells via
+  // deriveSimTiles (roadRaster.ts). Empty on grid-only and legacy saves.
+  roads: RoadSegment[];
   selectedBuilding: BuildingId | typeof RAZE_TOOL | null;
 }
 
@@ -79,6 +89,9 @@ export type GameState = {
   placeTile: (position: GridPos, buildingId: BuildingId, rotation?: number) => boolean;
   placeTiles: (positions: GridPos[], buildingId: BuildingId, rotation?: number) => boolean;
   removeTile: (position: GridPos) => void;
+  // Freeform roads: lay a world-space segment, or raze the one nearest a point.
+  placeRoadSegment: (segment: RoadSegment) => boolean;
+  removeRoadSegmentAt: (point: WorldPoint) => void;
   getTileAt: (position: GridPos) => Tile | undefined;
   getHousing: () => number;
   getCalendarLabel: () => string;
@@ -115,7 +128,7 @@ const createInitialState = (runSeed?: string) => {
     hoveredTileKey: null as string | null,
     razeTarget: null as string | null,
     inspectTarget: null as { key: string; slot?: number } | null,
-    map: { tiles: {}, selectedBuilding: null } as MapState,
+    map: { tiles: {}, roads: [], selectedBuilding: null } as MapState,
     time: { tickCount: 0 },
     paused: false,
     tickInterval: BASE_TICK_INTERVAL,
@@ -213,7 +226,14 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   placeTiles: (positions, buildingId, rotation) => {
     let placed = false;
     set((s) => {
-      const plan = planPlacement(s, positions, buildingId, rotation);
+      // Validate against the sim view so a building can't overwrite a freeform
+      // road cell (roads block placement, exactly like grid roads in `tiles`).
+      const plan = planPlacement(
+        { florins: s.florins, mapSeed: s.mapSeed, map: { tiles: deriveSimTiles(s.map.tiles, s.map.roads) } },
+        positions,
+        buildingId,
+        rotation
+      );
       if (!plan) return s;
       const { metadata, cells, freeCells, totalCost } = plan;
       const type = metadata.type;
@@ -285,15 +305,60 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       };
     }),
 
+  placeRoadSegment: (segment) => {
+    let placed = false;
+    set((s) => {
+      const plan = planSegmentPlacement(
+        { florins: s.florins, mapSeed: s.mapSeed, map: { tiles: s.map.tiles, roads: s.map.roads } },
+        segment
+      );
+      if (!plan || plan.newCells.length === 0) return s;
+      placed = true;
+      return {
+        florins: s.florins - plan.totalCost,
+        map: { ...s.map, roads: [...s.map.roads, segment] },
+      };
+    });
+    return placed;
+  },
+
+  removeRoadSegmentAt: (point) =>
+    set((s) => {
+      // Nearest segment whose ribbon the point falls within.
+      let bestIndex = -1;
+      let bestDist = Infinity;
+      for (let i = 0; i < s.map.roads.length; i += 1) {
+        const seg = s.map.roads[i];
+        const dist = pointToSegmentDistance(point.x, point.z, seg);
+        if (dist <= seg.width / 2 && dist < bestDist) {
+          bestIndex = i;
+          bestDist = dist;
+        }
+      }
+      if (bestIndex < 0) return s;
+      const seg = s.map.roads[bestIndex];
+      const roads = s.map.roads.filter((_, i) => i !== bestIndex);
+      // Flat-priced roads: salvage a fraction of the base per world-length cell.
+      const metadata = BUILDING_METADATA_BY_ID[seg.buildingId];
+      const cellLength = Math.max(1, Math.round(segmentLength(seg) / 0.5));
+      const salvage = metadata
+        ? Math.floor(metadata.baseCost * cellLength * RAZE_SALVAGE_FRACTION)
+        : 0;
+      return { florins: s.florins + salvage, map: { ...s.map, roads } };
+    }),
+
   getTileAt: (position) => {
     const state = get();
     return state.map.tiles[`${position.x},${position.y}`];
   },
 
   getHousing: () => {
-    const tiles = get().map.tiles;
+    const { tiles, roads } = get().map;
     const counts = computeDisplaySummary(tiles, get().artworks).counts;
-    return computeCityMetrics(tiles, undefined, counts, get().population).housing;
+    // Sim view so the housing plaza-connection bonus flows through freeform
+    // roads; display counts read canonical tiles (roads carry no displays).
+    const simTiles = deriveSimTiles(tiles, roads);
+    return computeCityMetrics(simTiles, undefined, counts, get().population).housing;
   },
 
   getCalendarLabel: () => formatMonth(get().time.tickCount),
@@ -345,7 +410,7 @@ export const useGameStore = create<GameState>()(
       commissions: s.commissions,
       // Absent on old saves reads falsy = not yet celebrated — no migration.
       renaissanceReached: s.renaissanceReached,
-      map: { tiles: s.map.tiles, selectedBuilding: null },
+      map: { tiles: s.map.tiles, roads: s.map.roads, selectedBuilding: null },
       time: s.time,
       tickInterval: s.tickInterval,
     }),

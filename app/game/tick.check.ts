@@ -20,7 +20,7 @@ function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapsh
     artworks: [],
     commissions: [],
     time: { tickCount: 10 },
-    map: { tiles },
+    map: { tiles, roads: [] },
     ...extra,
   };
 }

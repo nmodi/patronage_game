@@ -4,7 +4,7 @@ import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Plane } from "@babylonjs/core/Maths/math.plane";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import type { Mesh } from "@babylonjs/core/Meshes/mesh";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
@@ -20,6 +20,9 @@ import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game
 import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
 import { getRazeImpact } from "~/game/raze";
 import { findRoadSnap } from "~/game/roadSnap";
+import { pointToSegmentDistance, segmentLength, type RoadSegment } from "~/game/roadSegment";
+import { planSegmentPlacement } from "~/game/roadSegmentPlan";
+import { applySegmentGeometry } from "./roadRibbonRenderer";
 import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/roadStretch";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
@@ -65,6 +68,10 @@ export function createPlacementController(scene: Scene) {
   let downY = 0;
   let downOnHud = false;
   let roadAnchor: GridPos | null = null;
+  // Freeform road placement: the world-space start node of the current segment
+  // chain, and a single reused ghost-ribbon mesh.
+  let freeformAnchor: { x: number; z: number } | null = null;
+  let roadGhostMesh: Mesh | null = null;
   let roadPreviewMeshes: Mesh[] = [];
   let lastSelectedBuilding: BuildingId | typeof RAZE_TOOL | null = null;
   let shiftHeld = false; // Shift = snap the building ghost to a nearby road
@@ -115,6 +122,8 @@ export function createPlacementController(scene: Scene) {
   }
   function handleKeyDown(event: KeyboardEvent) {
     if (event.key === "Shift") shiftHeld = true;
+    // Escape ends a freeform road chain without dropping the tool.
+    if (event.key === "Escape") freeformAnchor = null;
     if (event.key.toLowerCase() === "r" && ghostModel) {
       // 8-step cycle, +45° per press: 0→4→1→5→2→6→3→7→0 (4-7 = quarter + 45°).
       // Recreated next frame by ensureGhost: footprints change with rotation,
@@ -240,6 +249,87 @@ export function createPlacementController(scene: Scene) {
     }
   }
 
+  function ensureRoadGhost() {
+    if (!roadGhostMesh) {
+      roadGhostMesh = new Mesh("road-ghost", scene);
+      roadGhostMesh.isPickable = false;
+    }
+    return roadGhostMesh;
+  }
+
+  function clearFreeformGhost() {
+    roadGhostMesh?.setEnabled(false);
+  }
+
+  /** Endpoint snapping: nearest cell center unless Shift frees it. Keeps roads
+   * meeting buildings/other roads predictably while leaving the angle free. */
+  function snapWorld(point: { x: number; z: number }): { x: number; z: number } {
+    if (shiftHeld) return point;
+    const cell = worldToGrid(point.x, point.z);
+    if (!cell) return point;
+    const w = gridToWorld(cell.x, cell.y);
+    return { x: w.x, z: w.z };
+  }
+
+  const MIN_SEGMENT = CELL_SIZE * 0.5;
+
+  /** Freeform (any-angle) road: click a start node, move to preview a straight
+   * ribbon at any angle, click to commit and chain the next segment. Escape (or
+   * reselecting the tool) ends the chain. The segment rasterizes into road
+   * cells the sim reads (roadRaster.ts); the ghost is the real ribbon geometry. */
+  function updateFreeformRoad(state: GameState, buildingId: BuildingId) {
+    const point = pickGroundPoint(scene);
+    if (!point) {
+      clearFreeformGhost();
+      pendingClick = false;
+      return;
+    }
+    const metadata = BUILDING_METADATA_BY_ID[buildingId];
+    const width = (metadata?.roadWidth ?? 1) * CELL_SIZE;
+    const snapped = snapWorld(point);
+
+    if (!freeformAnchor) {
+      clearFreeformGhost();
+      if (pendingClick) freeformAnchor = { ...snapped };
+      pendingClick = false;
+      return;
+    }
+
+    const seg: RoadSegment = { a: freeformAnchor, b: snapped, width, buildingId };
+    const plan =
+      segmentLength(seg) >= MIN_SEGMENT
+        ? planSegmentPlacement(
+            { florins: state.florins, mapSeed: state.mapSeed, map: { tiles: state.map.tiles, roads: state.map.roads } },
+            seg
+          )
+        : null;
+    const valid = !!plan && plan.newCells.length > 0;
+
+    const mesh = ensureRoadGhost();
+    applySegmentGeometry(mesh, seg);
+    mesh.material = valid ? validMat : invalidMat;
+    mesh.setEnabled(true);
+
+    if (pendingClick) {
+      pendingClick = false;
+      if (valid && state.placeRoadSegment(seg)) freeformAnchor = { ...snapped };
+    }
+  }
+
+  /** Nearest freeform segment whose ribbon covers the point (for raze). */
+  function nearestRoadSegment(roads: RoadSegment[], x: number, z: number): RoadSegment | null {
+    let best: RoadSegment | null = null;
+    let bestDist = Infinity;
+    for (const seg of roads) {
+      const d = pointToSegmentDistance(x, z, seg);
+      if (d <= seg.width / 2 && d < bestDist) {
+        best = seg;
+        bestDist = d;
+      }
+    }
+    return best;
+  }
+
   function updateRoadPlacement(state: GameState, buildingId: BuildingId, currentPosition: GridPos) {
     const metadata = BUILDING_METADATA_BY_ID[buildingId];
     const width = metadata?.roadWidth ?? 1;
@@ -279,6 +369,8 @@ export function createPlacementController(scene: Scene) {
 
     if (selectedBuilding !== lastSelectedBuilding) {
       roadAnchor = null;
+      freeformAnchor = null;
+      clearFreeformGhost();
       ghostRotation = null;
       clearRoadPreview();
       lastSelectedBuilding = selectedBuilding;
@@ -338,6 +430,22 @@ export function createPlacementController(scene: Scene) {
       }
       updateRoadPreview(cells, false);
 
+      // Freeform roads live only as segments (their cells are derived, never in
+      // `tiles`), so a cell lookup misses them — hit-test the segment list and
+      // highlight the whole ribbon red, razing the segment atomically on click.
+      const point = !tile ? pickGroundPoint(scene) : null;
+      const segHit = point ? nearestRoadSegment(state.map.roads, point.x, point.z) : null;
+      if (segHit) {
+        const mesh = ensureRoadGhost();
+        applySegmentGeometry(mesh, segHit, 0.04);
+        mesh.material = invalidMat;
+        mesh.setEnabled(true);
+        if ((pendingClick || mouseHeld) && point) state.removeRoadSegmentAt(point);
+        pendingClick = false;
+        return;
+      }
+      clearFreeformGhost();
+
       if (tile && (pendingClick || mouseHeld)) {
         const originKey = `${tile.origin.x},${tile.origin.y}`;
         const impact = getRazeImpact(state.artists, state.commissions, state.artworks, originKey);
@@ -361,16 +469,26 @@ export function createPlacementController(scene: Scene) {
     if (!currentPosition) {
       setGhostVisible(false);
       clearRoadPreview();
+      clearFreeformGhost();
       pendingClick = false;
       return;
     }
 
-    if (metadata.type === "road" || metadata.linear) {
+    if (metadata.type === "road") {
+      // Roads place freeform (any angle); linear decorations stay cell-drag.
       clearGhost();
+      clearRoadPreview();
+      updateFreeformRoad(state, selectedBuilding);
+      return;
+    }
+    if (metadata.linear) {
+      clearGhost();
+      clearFreeformGhost();
       updateRoadPlacement(state, selectedBuilding, currentPosition);
       return;
     }
 
+    clearFreeformGhost();
     roadAnchor = null;
     // Quarter-rotating buildings face a fixed default until the player presses
     // R; the shown rotation is stored on placement so the building matches.
@@ -463,6 +581,7 @@ export function createPlacementController(scene: Scene) {
     scene.onBeforeRenderObservable.remove(observer);
     clearGhost();
     clearRoadPreview();
+    roadGhostMesh?.dispose();
     arrow.dispose();
     arrowMat.dispose();
     validMat.dispose();

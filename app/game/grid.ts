@@ -21,6 +21,11 @@ export interface Tile {
   rotation?: number;
   workers: number;
   builtTick: number;
+  // True for road cells synthesized from a freeform RoadSegment (roadRaster.ts).
+  // These live only in the derived `simTiles` the sim reads — never in the
+  // persisted, canonical `tiles`, so they're never saved, razed, or drawn by
+  // the cell renderer. Absent on all real tiles.
+  derived?: boolean;
 }
 
 export type TileMap = Record<string, Tile>;

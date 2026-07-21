@@ -15,6 +15,7 @@ import {
   MATERIAL_USERS,
 } from "~/game/materials";
 import { getRazeSalvage } from "~/game/raze";
+import { deriveSimTiles } from "~/game/roadRaster";
 import { trafficFactor } from "~/game/traffic";
 import type { BuildingMetadata } from "~/game/types";
 import { staffingEfficiency } from "~/game/workers";
@@ -73,6 +74,7 @@ export function BuildingTooltip() {
   const artworks = useGameStore((s) => s.artworks);
   const commissions = useGameStore((s) => s.commissions);
   const tiles = useGameStore((s) => s.map.tiles);
+  const roads = useGameStore((s) => s.map.roads);
   const population = useGameStore((s) => s.population);
   const isRazing = useGameStore((s) => s.map.selectedBuilding === RAZE_TOOL);
   const mouse = useRef({ x: 0, y: 0 });
@@ -110,13 +112,13 @@ export function BuildingTooltip() {
       metadata.amenities != null);
   const originKey = `${tile.origin.x},${tile.origin.y}`;
   const plazaStrength = bonusEligible
-    ? computePlazaConnectivity(tiles).get(originKey) ?? 0
+    ? computePlazaConnectivity(deriveSimTiles(tiles, roads)).get(originKey) ?? 0
     : 0;
   const displayedCount = metadata.displaySlots
     ? artworks.filter((w) => w.displayedAt?.key === originKey).length
     : 0;
   const traffic = metadata.footTraffic
-    ? trafficFactor(metadata, originKey, tiles, population)
+    ? trafficFactor(metadata, originKey, deriveSimTiles(tiles, roads), population)
     : 1;
   const trafficPct = Math.round(connectionBonusOf(metadata) * plazaStrength * traffic * 100);
   const activeEffects = isActive

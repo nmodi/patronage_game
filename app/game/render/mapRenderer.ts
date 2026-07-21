@@ -17,6 +17,7 @@ import {
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { rotateSlotCell } from "~/game/display";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
+import type { RoadSegment } from "~/game/roadSegment";
 import type { Artwork, BuildingMetadata, BuildingType } from "~/game/types";
 import {
   createBuildingBatcher,
@@ -42,6 +43,7 @@ import {
 import { createDirtPathOverlay } from "./dirtPathOverlay";
 import { getApronMaterial } from "./paths";
 import { createRoadRenderer } from "./roadRenderer";
+import { createRoadRibbonRenderer } from "./roadRibbonRenderer";
 import { createSmokePlume, type SmokePlume } from "./smoke";
 
 const GRID_ALPHA_IDLE = 0;
@@ -157,6 +159,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   const gridLines = createGridLines(scene);
 
   const roadRenderer = createRoadRenderer(scene);
+  const roadRibbonRenderer = createRoadRibbonRenderer(scene);
   const dirtOverlay = createDirtPathOverlay(scene);
   const displayArt = createDisplayArt(scene);
   // Origin key → (slot index → the work displayed there). Fed by syncDisplay.
@@ -570,6 +573,11 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     gridLines.alpha = placing ? GRID_ALPHA_PLACING : GRID_ALPHA_IDLE;
   }
 
+  /** Redraw the freeform-road ribbons from the store's segment list. */
+  function syncRoads(roads: RoadSegment[]) {
+    roadRibbonRenderer.update(roads);
+  }
+
   function dispose() {
     for (const entry of active.values()) disposeEntry(entry);
     active.clear();
@@ -577,11 +585,12 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     materialCache.clear();
     markerMaterial.dispose();
     roadRenderer.dispose();
+    roadRibbonRenderer.dispose();
     batcher.dispose();
     dirtOverlay.dispose();
     displayArt.dispose();
     gridLines.dispose();
   }
 
-  return { queueSync, syncDisplay, processSync, upgradeModels, dispose, setGridVisible };
+  return { queueSync, syncDisplay, syncRoads, processSync, upgradeModels, dispose, setGridVisible };
 }

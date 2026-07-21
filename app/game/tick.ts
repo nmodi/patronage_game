@@ -3,6 +3,8 @@ import { computePlazaConnectivity, connectionBonusOf } from "./connectivity.ts";
 import { INCOME_DIMINISHING_RETURNS, POPULATION_DRIFT_PER_MONTH } from "./constants.ts";
 import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
+import { deriveSimTiles } from "./roadRaster.ts";
+import type { RoadSegment } from "./roadSegment.ts";
 import { assignedMaterials, getSupply, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts";
 import { computeCityMetrics } from "./metrics.ts";
 import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./artists.ts";
@@ -20,7 +22,7 @@ export interface TickSnapshot {
   artworks: Artwork[];
   commissions: Commission[];
   time: { tickCount: number };
-  map: { tiles: TileMap };
+  map: { tiles: TileMap; roads: RoadSegment[] };
 }
 
 export interface TickTransition {
@@ -92,14 +94,19 @@ export function advanceTick(
     }
   }
 
-  const connected = computePlazaConnectivity(updatedTiles);
+  // Freeform roads (roadRaster.ts) rasterize into road cells the network BFS
+  // reads; simTiles unions them under the worker-updated canonical tiles. Only
+  // the road-topology systems (connectivity, foot-traffic catchment) read it —
+  // the building loops above/below stay on canonical tiles.
+  const simTiles = deriveSimTiles(updatedTiles, state.map.roads);
+  const connected = computePlazaConnectivity(simTiles);
   // Start-of-month population feeds the foot-traffic factor — consistent with
   // the computeCityMetrics call below.
   const plazaBoost = (key: string, metadata: BuildingMetadata) =>
     1 +
     connectionBonusOf(metadata) *
       (connected.get(key) ?? 0) *
-      trafficFactor(metadata, key, updatedTiles, state.population);
+      trafficFactor(metadata, key, simTiles, state.population);
 
   // Displayed works: a per-tick trickle plus a per-host effectiveness boost.
   const display = computeDisplaySummary(updatedTiles, state.artworks);

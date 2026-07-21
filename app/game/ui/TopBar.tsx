@@ -11,6 +11,7 @@ import {
 } from "~/game/constants";
 import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
+import { deriveSimTiles } from "~/game/roadRaster";
 import { renaissanceProgress } from "~/game/renaissance";
 import type { Artwork } from "~/game/types";
 
@@ -37,11 +38,17 @@ export function TopBar() {
   const setTickInterval = useGameStore((s) => s.setTickInterval);
   const population = useGameStore((s) => s.population);
   const tiles = useGameStore((s) => s.map.tiles);
+  const roads = useGameStore((s) => s.map.roads);
   const artworks = useGameStore((s) => s.artworks);
   const { housing, amenities } = useMemo(
     () =>
-      computeCityMetrics(tiles, undefined, computeDisplaySummary(tiles, artworks).counts, population),
-    [tiles, artworks, population]
+      computeCityMetrics(
+        deriveSimTiles(tiles, roads),
+        undefined,
+        computeDisplaySummary(tiles, artworks).counts,
+        population
+      ),
+    [tiles, roads, artworks, population]
   );
   const resetGame = useGameStore((s) => s.resetGame);
   const cityName = useGameStore((s) => s.cityName);

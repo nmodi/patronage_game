@@ -4,6 +4,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import type { BuildingId } from "~/game/buildings";
 import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
 import { getWater } from "~/game/water";
+import { deriveSimTiles } from "~/game/roadRaster";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
   countModelFiles,
@@ -180,10 +181,13 @@ export function BabylonCanvas() {
       if (changedBuildingIds.size > 0) queueModels(changedBuildingIds);
     }
 
-    const initialTiles = useGameStore.getState().map.tiles;
-    queueMap(initialTiles);
+    const initialMap = useGameStore.getState().map;
+    queueMap(initialMap.tiles);
+    tileRenderer.syncRoads(initialMap.roads);
     tileRenderer.syncDisplay(useGameStore.getState().artworks);
-    citizens.sync(initialTiles);
+    // Citizens (and connectivity, via the store) walk the rasterized sim view,
+    // so decorative meeples traverse freeform roads too.
+    citizens.sync(deriveSimTiles(initialMap.tiles, initialMap.roads));
     citizens.setPopulation(useGameStore.getState().population);
 
     // The environment is intentionally non-blocking: it loads after the city
@@ -213,7 +217,10 @@ export function BabylonCanvas() {
     const unsubscribe = useGameStore.subscribe((state, prevState) => {
       if (state.map.tiles !== prevState.map.tiles) {
         queueMap(state.map.tiles);
-        citizens.sync(state.map.tiles);
+      }
+      if (state.map.tiles !== prevState.map.tiles || state.map.roads !== prevState.map.roads) {
+        tileRenderer.syncRoads(state.map.roads);
+        citizens.sync(deriveSimTiles(state.map.tiles, state.map.roads));
       }
       if (state.population !== prevState.population) {
         citizens.setPopulation(state.population);
