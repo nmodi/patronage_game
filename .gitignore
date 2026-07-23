@@ -6,3 +6,7 @@
 # React Router
 /.react-router/
 /build/
+
+# Storybook
+/storybook-static/
+*.storybook.log
