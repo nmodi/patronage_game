@@ -231,36 +231,37 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 - Palazzo `housing: 12`.
 - Work-display sites (Phase 9) as an effect slot.
 
+**Built post-audit (factions slice 1):**
+- **Requester-pool shaping** — Cathedral commission elevation (Church admission + upper favor rungs), Palazzo noble installs (`requesterPool` in `commissions.ts`).
+
 **Not built:**
-- **Requester-pool shaping** — the big remaining piece: Cathedral commission elevation, Palazzo noble installs. Waits on factions.
 - Effect-2/3/4/5 buildings not yet in the roster: Baptistery, Banking House, Wool Merchant, Glassblower, Monastery, Spice Trader, Library/Studiolo, School, Anatomical Theatre — none placeable.
 - All **slight-negative trade-offs** (Banking House ±, Market inspiration drag, Tavern −inspiration, bell-ringer worker draw, cathedral clergy staffing, forgone-plaza-bonus exclusions) — none implemented.
-- Palazzo requester install / open-offer-cap bump.
+- Open-offer-cap bump on Palazzo.
 
 ## `factions.md` — requesters grown into patrons
 
-**Status: not built (ideation only).** Nothing here exists in code. The current game uses flat flavor-string `REQUESTERS` with only a florin/prestige mix skew.
-- Not built: taste profiles, favor ladder, signature chains, seed-rolled roster, rivalry pairs, per-faction favor state.
-- The design-doc's Phase-12 patron gate (Church + 2 noble houses via completed works) is a *stand-in* for favor and **is** built — it reads per-requester completed works directly (`renaissance.ts`).
+**Status: slice 1 built (July 2026, post-audit).** Patron admission, the 0–100 favor ladder, rungs/tiers, and the banner UI landed via `archive/factions-slice-1.md`; the main doc's Commission Requesters section supersedes this doc where they conflict.
+- Still not built: taste profiles, seed-rolled roster, rivalry pairs, signature chains.
 
-## `plans/factions-slice-1.md` — faction slice 1 implementation plan
+## `archive/factions-slice-1.md` — faction slice 1 implementation plan
 
-**Status: not built (proposed, pending decision).** A detailed implementation plan (favor 0–100 meter, patron admission gating, faction banner UI, denunciation, pacing rebalance, `SAVE_VERSION = 8`). None of it is in code — current `SAVE_VERSION`, `COMMISSION_OFFER_CHANCE = 0.15`, `FLORINS_PER_PRESTIGE = 25` are all still the pre-slice values, and there is no `favor` state, `FactionBanner.tsx`, or `OfferAlert.tsx`. Note this plan deliberately *overturns* the "no relationship meters" non-negotiable — not yet decided/adopted.
+**Status: built (July 2026, post-audit) — archived.** The plan landed in full: favor 0–100 meter, patron admission gating, `FactionBanner.tsx`/`OfferAlert.tsx`, denunciation, rare-but-rich pacing (`COMMISSION_OFFER_CHANCE = 0.08`, `FLORINS_PER_PRESTIGE = 40`), `SAVE_VERSION = 8`. The "no relationship meters" rule was deliberately overturned (design-doc principle 4).
 
 ## `map-resources.md` — seed-determined supplier availability
 
 **Status: not built.** No seed-rolled resource flags; all suppliers (pigment/marble/bronze) are always placeable. Not built: per-run resource booleans, substitute pairs (marble↔clay, timber↔lime), Terracotta Kiln/Lime Kiln/Goldsmith/Timber Yard/Glassblower buildings, offer-generator resource weighting, greyed-out "not found in this region" build menu, Market escape valve. (Water power *is* implicitly rolled — the dry archetype is that resource absent.)
 
-## `artist-brief.md` — architectural fittings commission
+## `artifacts/artist-brief.md` — architectural fittings commission
 
 **Status: batch 1 built procedurally (not commissioned).** All four batch-1 pieces (rect window, arched window, door, arcade bay) are generated in `render/proceduralPieces.ts` to the brief's specs.
-- Not built / open: batch 2–3 commission pieces — the genuinely organic ones. Per `procedural-pieces.md`, bifora and rose window ended up built in code too; the remaining open commission pieces are the **dome** and **ivy**.
+- Not built / open: batch 2–3 commission pieces — the genuinely organic ones. Per `llm-context/procedural-pieces.md`, bifora and rose window ended up built in code too; the remaining open commission pieces are the **dome** and **ivy**.
 
-## `procedural-pieces.md` & `kitbashing.md` — generated-pieces state
+## `llm-context/procedural-pieces.md` & `llm-context/kitbashing.md` — generated-pieces state
 
 **Status: current, mostly built.** Eleven+ `proc:` pieces generated (blocks, gable/hip roofs, surrounds, door frame/leaf, arch bay, portals, bifora, arch-leaf, rose). Panel-free pass complete (kit door/window/arch panels at 0 refs). **Open:** the organic commission pieces (dome, ivy) — the one thing still flagged as wanting an artist.
 
-## `citizen-population-plan.md` — population-scaled crowds
+## `archive/citizen-population-plan.md` — population-scaled crowds
 
 **Status: fully implemented (July 2026).** Count curve (`crowd.ts`), thin-instance factory (`citizenFigures.ts`), `&crowd=` dev flag, population wiring all landed. One deviation noted in the doc itself: walk-network clamp shipped at 1 figure per 2 cells (not 3).
 
@@ -272,7 +273,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## Summary — the biggest unbuilt planned systems
 
-1. **Factions** (favor, taste profiles, signature chains) — the largest designed-but-unbuilt system; two competing designs on file (`factions.md` flavor-first vs `plans/factions-slice-1.md` meter-based). Blocks requester-pool shaping in `building-effects.md`.
+1. **Factions, later slices** (taste profiles, seed-rolled roster, rivalry pairs, signature chains) — slice 1 (favor meter, patron admission) landed post-audit; the rest of `factions.md` remains the largest designed-but-unbuilt system.
 2. **Architects & building commissions** — the entire third discipline and construction pipeline.
 3. **Map resources** — seed-rolled supplier availability + substitute pairs.
 4. **Expanded building roster** — most Civic/Religious/Trade/Social/Waterfront buildings; all the `building-effects.md` slight-negative trade-offs.

@@ -2,13 +2,13 @@
 
 *Status (July 2026): batch 1 was **built procedurally instead** — all four pieces are
 generated in `render/proceduralPieces.ts` to these exact specs (see
-[procedural-pieces.md](procedural-pieces.md) "What's built"). This brief stays as the
+[procedural-pieces.md](../llm-context/procedural-pieces.md) "What's built"). This brief stays as the
 dimensional spec those pieces trace back to, and as the template for the batch-2/3
 briefs (bifora/rose window, dome, ivy — the pieces that still need an artist).*
 
 *The send-ready request script. Paste into a Fiverr/ArtStation/email request, attach the
 reference files listed at the bottom. Maintainer notes for running the commission (who to
-filter for, what comes next) stay in [procedural-pieces.md](procedural-pieces.md) §2 —
+filter for, what comes next) stay in [procedural-pieces.md](../llm-context/procedural-pieces.md) §2 —
 everything below this line is written for the artist.*
 
 ---

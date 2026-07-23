@@ -1,5 +1,5 @@
 # Factions — Requesters Grown into Patrons
-*Supplemental doc to [design-doc.md](design-doc.md) (the main spec) — design for the faction system: the "faction archetypes / personality types" dimension of the seed system, plus what "factions" means in this game at all. July 2026. **Slice 1 is built** (patron admission, the 0–100 favor scale, rungs/tiers, banner UI — see [plans/factions-slice-1.md](plans/factions-slice-1.md) and the main doc's Commission Requesters section, which supersedes this doc where they conflict); taste profiles, seed-rolled roster, rivalry, and signature chains remain future slices.*
+*Supplemental doc to [design-doc.md](design-doc.md) (the main spec) — design for the faction system: the "faction archetypes / personality types" dimension of the seed system, plus what "factions" means in this game at all. July 2026. **Slice 1 is built** (patron admission, the 0–100 favor scale, rungs/tiers, banner UI — see [archive/factions-slice-1.md](archive/factions-slice-1.md) and the main doc's Commission Requesters section, which supersedes this doc where they conflict); taste profiles, seed-rolled roster, rivalry, and signature chains remain future slices.*
 
 ---
 

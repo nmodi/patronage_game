@@ -418,7 +418,7 @@ function buildGableEnd(scene: Scene) {
 }
 
 // ---------------------------------------------------------------------------
-// Batch-1 fittings: the artist-brief pieces (docs/artist-brief.md), generated.
+// Batch-1 fittings: the artist-brief pieces (docs/artifacts/artist-brief.md), generated.
 // Chunky flat-faceted stone — boxes plus low-count wedge fans, which covers the
 // brief's two curves: an arched head reads as voussoirs at 6 facets, an arcade
 // bay at 8. One material per piece so Part.tint recolors a whole fitting

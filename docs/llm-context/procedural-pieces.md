@@ -66,7 +66,7 @@ Cleanups that landed with it: the `mint` texture tint, `make-mint-quoins.py` and
 
 ### 2. The commission
 
-**Batch 1 is done in code** — see the fittings table in "What's built". The curve test the brief was designed around (arched head, arcade bay) turned out passable with 6–8 flat facets, which at this art style's play distance reads as intentional low-poly voussoirs. [artist-brief.md](artist-brief.md) stays as the spec that piece dimensions trace back to, and as the template if a later quality pass wants hand-modeled replacements — the generated pieces fill the same envelopes, so swaps are drop-in.
+**Batch 1 is done in code** — see the fittings table in "What's built". The curve test the brief was designed around (arched head, arcade bay) turned out passable with 6–8 flat facets, which at this art style's play distance reads as intentional low-poly voussoirs. [artist-brief.md](../artifacts/artist-brief.md) stays as the spec that piece dimensions trace back to, and as the template if a later quality pass wants hand-modeled replacements — the generated pieces fill the same envelopes, so swaps are drop-in.
 
 What still genuinely needs an artist — curved tracery and organic forms no box or wedge fan gets near:
 

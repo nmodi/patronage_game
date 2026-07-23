@@ -70,7 +70,7 @@ Dev flags (dev server only): `/?demo` loads a seeded showcase city, `&pause` fre
 - [Design doc](docs/design-doc.md) — the full spec: systems, principles, development phases
 - [Building effects](docs/building-effects.md) — effect design for the non-art roster
 - [Map resources](docs/map-resources.md) — seed-determined supplier availability (planned)
-- [Kitbashing notes](docs/kitbashing.md) — how the models are assembled from kit pieces
+- [Kitbashing notes](docs/llm-context/kitbashing.md) — how the models are assembled from kit pieces
 - [Performance backlog](docs/performance-backlog.md) — the rendering perf review and what it fixed
 
 ## Credits
