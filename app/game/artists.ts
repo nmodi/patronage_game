@@ -144,6 +144,28 @@ export const TITLES: Record<ArtistType, string[]> = {
   ],
 };
 
+// Church commissions draw devotional titles instead of TITLES (factions slice 1).
+export const CHURCH_TITLES: Record<ArtistType, string[]> = {
+  painter: [
+    "Fresco of the Last Judgment",
+    "Altarpiece of the Virgin",
+    "The Adoration of the Magi",
+    "Saint Jerome in His Study",
+  ],
+  sculptor: [
+    "Pietà",
+    "Saint George in Marble",
+    "Tomb of a Cardinal",
+    "Statue of the Baptist",
+  ],
+  architect: [
+    "Design for a Sacristy",
+    "Plan for a Chapter House",
+    "Facade of the Pieve",
+    "Design for a Family Chapel",
+  ],
+};
+
 // Titles for bronze-cast sculpture commissions (see BRONZE_COMMISSION_CHANCE).
 export const BRONZE_TITLES = [
   "The Bronze Horseman",

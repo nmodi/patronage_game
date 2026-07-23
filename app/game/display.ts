@@ -22,8 +22,9 @@ import type { TileMap } from "./grid.ts";
 import type { ArtistType, Artwork, DisplaySlotDef, DisplaySlotKind } from "./types.ts";
 
 // --- Tunables (one block) ---------------------------------------------------
-// Quality = the minting commission's prestige (roughly 1..20; see
-// maybeOfferCommission — ARTWORK_PRESTIGE 1..10, doubled by "prestige" requesters).
+// Quality = the minting commission's prestige (roughly 1..60 at max favor; see
+// maybeOfferCommission — ARTWORK_PRESTIGE 1..10 × COMMISSION_PRESTIGE_SCALE,
+// doubled by "prestige" requesters, × grandeur up to 2).
 // The numeric knobs themselves live in constants.ts; re-exported here so
 // existing import paths (display.check.ts etc.) keep working.
 export {

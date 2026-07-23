@@ -93,17 +93,18 @@ export function BabylonCanvas() {
     let modelLoadRunning = false;
 
     // Loading-screen bookkeeping. The bar tracks model files (the dominant wall
-    // time); tile geometry only gates the hide. The gate waits for store
-    // hydration because the effect's initial queueMap runs before game.tsx
-    // calls rehydrate() and may see a near-empty map that finishes instantly.
-    // Demo mode never rehydrates — its tiles are seeded before mount.
+    // time); tile geometry only gates the hide. The store is always settled by
+    // the time the canvas mounts — the main menu rehydrates on Continue (sync
+    // for localStorage), resets in-memory on New Game, and demo seeds before
+    // mount — so mount-time state is final. (An earlier hydration gate here
+    // predated the menu and left New Game's overlay stuck forever: nothing on
+    // that path ever calls rehydrate().) The listener below stays for any
+    // future async-storage hydration.
     let filesTotal = 0;
     let filesLoaded = 0;
     let loadFinished = false;
-    let hydrated =
-      new URLSearchParams(window.location.search).has("demo") ||
-      useGameStore.persist.hasHydrated();
-    if (hydrated) initWorld();
+    let hydrated = true;
+    initWorld();
 
     function updateLoadProgress() {
       if (loadFinished || disposed) return;

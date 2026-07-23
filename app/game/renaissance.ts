@@ -20,10 +20,9 @@ export interface RenaissanceProgress {
   all: boolean;
 }
 
-// ponytail: "positive favor with each faction" before factions exist — per-
-// requester completed works is exactly factions.md's favor count, so this
-// upgrades to real favor ladders when that phase lands. Guild requesters
-// (slated for removal) don't match either branch and are ignored.
+// ponytail: gates on completed works, not the favor meter — a work is earned
+// forever, favor wobbles. Guild requesters (removed from REQUESTERS; old saves
+// may still hold their works) don't match either branch and are ignored.
 export function renaissanceProgress(
   prestige: number,
   artists: Artist[],

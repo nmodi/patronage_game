@@ -26,7 +26,7 @@ Every effect below plugs into one of these existing anchor points — which is w
 
 ### 1. Unlock a commission lane
 
-The most important slot — landmarks widen the *input* to the core loop rather than adding parallel systems. The effect is felt entirely through the Phase 8 offer stream: new requesters, bigger rewards, new artwork types. The pool is never empty — the Church plus 1–2 seed-dealt starting noble houses offer from day one (see [factions.md](factions.md)) — so an unlock always widens grandeur or breadth, never switches the offer stream on. Concretely, gating is either requester-pool shaping (Palazzo installs the next noble house; Cathedral elevates the always-present Church) or a new commission *lane* the existing requesters draw from (everything else below).
+The most important slot — landmarks widen the *input* to the core loop rather than adding parallel systems. The effect is felt entirely through the Phase 8 offer stream: new requesters, bigger rewards, new artwork types. Concretely, gating is either requester-pool shaping *(built — factions slice 1: the pool starts empty; a Chapel/Cathedral admits the Church, each Palazzo installs the next noble house, and the Cathedral opens the Church's upper favor rungs — see the main doc's Commission Requesters)* or a new commission *lane* the existing requesters draw from (everything else below).
 
 | Building | Unlocks |
 |---|---|
@@ -86,7 +86,7 @@ School speeds apprentice XP; Anatomical Theatre gives a technique bump. Both plu
 
 The slots above say *what* each building does; these are the cheap levers that express them — each one line in an existing function. New buildings should pick from this list before inventing anything:
 
-1. **Requester-pool shaping** — building existence shapes a pool that is never empty (the Church + the seed-dealt starting houses offer from day one). Exactly two sources: Palazzo → the next noble house from the seed list (roster growth), and Cathedral → the Church's upper rungs (elevation of an always-present requester — see [factions.md](factions.md)).
+1. **Requester-pool shaping** *(built — factions slice 1: `requesterPool` in `app/game/commissions.ts`)* — building existence shapes the patron pool. Three sources: Chapel/Cathedral → the Church is admitted, Palazzo → the next noble house in table order (seed-shuffled order is a future slice), and Cathedral → the Church's upper favor rungs (see [factions.md](factions.md)).
 2. **Offer-stream shaping** — derive `COMMISSION_OFFER_CHANCE` / `MAX_OPEN_OFFERS` / `OFFER_EXPIRY_MONTHS` from buildings (Banking House: longer offer expiry — "the bank underwrites patience").
 3. **Payout skewing** — flat % on commission completion (Banking House +15% florins; Baptistery +15% prestige on Church works).
 4. **Arrival shaping** — terms in `maybeArriveArtist` (a Loggia or "Osteria degli Artisti" raises artist arrival chance).
@@ -122,7 +122,7 @@ A touch of downside makes a build a decision instead of a reflex. The rules: a n
 
 ## Palazzo: resolving the dual listing
 
-The main doc lists Palazzo as both a Civic landmark and Housing tier 4. **This doc collapses them:** a Palazzo is housing *(built — July 2026: `housing: 12`)* that also installs the next noble family from the seed-shuffled list as a commission requester *(pending factions)* — picking up after the 1–2 starting houses every run is dealt at game start (see [factions.md](factions.md)). One building, two effect slots (housing + commission unlock), and it makes the "named family palazzos" stretch item nearly free. Family offers skew prestige-heavy (the existing `mix: "prestige"` path). *Stretch: each palazzo also raises the open-offer cap by 1 — nobles keep the docket full.*
+The main doc lists Palazzo as both a Civic landmark and Housing tier 4. **This doc collapses them:** a Palazzo is housing *(built — July 2026: `housing: 12`)* that also installs the next noble family as a commission requester *(built — factions slice 1: table order Medici → Strozzi → Pazzi; the seed-shuffled list is a future slice)*. One building, two effect slots (housing + commission unlock), and it makes the "named family palazzos" stretch item nearly free. Family offers skew prestige-heavy (the existing `mix: "prestige"` path). *Stretch: each palazzo also raises the open-offer cap by 1 — nobles keep the docket full.*
 
 ---
 
@@ -139,4 +139,4 @@ The tension budget is already spent on supplier capacity and commission deadline
 
 ## Implementation note
 
-Most future buildings are ~10 lines each: a building def plus either a tag the commission offer generator checks or one term in an existing tick-loop sum. Specific yields (e.g. prestige per month) are balancing decisions made at implementation time — the numbers in this doc are starting points, not commitments. The July 2026 quick-win wave landed decoration trickles, chapel passive amenity, bell-tower hub, cathedral consecration lump, palazzo housing, and house rents; the big remaining piece is requester-pool shaping (cathedral elevation, palazzo noble installs), which waits on the factions phase.
+Most future buildings are ~10 lines each: a building def plus either a tag the commission offer generator checks or one term in an existing tick-loop sum. Specific yields (e.g. prestige per month) are balancing decisions made at implementation time — the numbers in this doc are starting points, not commitments. The July 2026 quick-win wave landed decoration trickles, chapel passive amenity, bell-tower hub, cathedral consecration lump, palazzo housing, and house rents; requester-pool shaping (chapel/cathedral church admission + elevation, palazzo noble installs) landed with factions slice 1.

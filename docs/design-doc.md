@@ -112,15 +112,20 @@ Below minimum: inactive (desaturated, tooltip explains). At minimum: base effici
 
 ---
 
-## Commission Requesters (formerly "Factions")
+## Commission Requesters — the Factions *(slice 1 built — July 2026)*
 
-Commissions arrive from flavorful requesters: **the Church** and **named noble families** (Medici, Strozzi, Pazzi…). Requesters shape a commission's flavor — what's asked for, the artwork's name, the reward mix (Church pays florins, nobles pay prestige).
+Commissions arrive from patrons: **the Church** and **named noble families** (Medici, Strozzi, Pazzi). Requesters shape a commission's flavor — what's asked for, the artwork's name (the Church draws devotional titles), the reward mix (Church pays florins, nobles pay prestige) — and, since factions slice 1, carry real standing:
 
-*(Earlier drafts included the Guilds as a third requester group. Cut — a tighter two-patron cast; tapestry and craft works are simply asked for by the Church and the families. The built `REQUESTERS` table still lists two guild entries, slated for removal whenever it's next touched.)*
+- **Patron admission gates the pool.** The pool starts empty — a **Chapel** (or Cathedral) admits the Church, each **Palazzo** installs the next noble house in table order, and the **Cathedral** additionally opens the Church's upper favor rungs. No offers flow before the first patron is seated (the commissions panel says to build a Chapel). *(This deliberately supersedes the earlier "the pool is never empty" sketch in [factions.md](factions.md).)*
+- **Favor, 0–100 per faction** (starts 50). Moves only on player decisions: **+8** per completed work, **−5** per declined or expired open offer. **No time decay, ever.**
+- **Rungs by current level** — favor ≥60 / ≥75 / ≥90 multiplies that faction's offer duration, florins, and prestige by up to **2×** (grandeur). The Church's top two rungs also need a standing Cathedral (the grander asks want somewhere to go); favor itself is never capped.
+- **Cooled (< 35)**: the faction's offers skip half the time and stay modest (rung 0). **Affronted (< 15)**: near-silence — offers skip 75% — and the first crossing fires a one-time **denunciation**: −15 city prestige and an alert card, the design's single sanctioned citywide consequence. Every rare offer that still lands is the recovery path.
+- **Pacing is rare-but-rich**: since missing an offer costs favor, arrivals are ~one a year (`COMMISSION_OFFER_CHANCE` 0.08), announced by an unmissable persistent arrival card, and rewards are buffed to compensate (`FLORINS_PER_PRESTIGE` 40, `COMMISSION_PRESTIGE_SCALE` 1.5).
+- **Faction banner UI**: one clickable crest per admitted patron, top-right — its card shows favor %, standing (Affronted/Cooled/Neutral/rung names), the next rung, and hints (cathedral gate, recovery). The offer card in the panel carries a Decline button and "— Nth work" cumulative flavor.
 
-**No relationship meters, no neglect consequences, no rivalry systems.** Requesters are narrative texture on commissions, not a management layer. (If the game needs more tension later, meters can return — but they must earn their UI panel.)
+*(Earlier drafts included the Guilds as a third requester group — cut, and the two built guild entries are now removed. Earlier drafts also banned relationship meters and a faction panel; both were deliberately overturned here — the meter earns its keep by moving only on decisions and staying faction-scoped.)*
 
-A fuller faction system — taste profiles, one-way favor ladders, signature commission chains, a seed-rolled roster — is designed in [factions.md](factions.md). Still flavor-first: no meter ever goes down, no neglect consequences, no faction panel — and the requester pool is never empty, so commissions flow from day one (landmarks gate grandeur and roster growth, never the offer stream).
+Future slices, still designed in [factions.md](factions.md): per-family taste jitter, seed-shuffled install order, rivalry pairs, signature commission chains.
 
 ---
 
@@ -198,10 +203,10 @@ The full roster below is the long-term target, implemented incrementally. *(buil
 
 ### Civic / Landmark
 - **Plaza** / **Small Plaza** / **Town Center Plaza** *(built)* — generates Inspiration, displays Works. The Town Center Plaza is the **Main Plaza** — the connectivity hub; Plazas and Small Plazas (a 5-cell piazzetta, chapel-width) are secondary hubs that refresh its reach
-- **Cathedral** *(model built; consecration prestige lump wired — July 2026; commission elevation designed in [building-effects.md](building-effects.md), pending factions)* — unlocks the Church's grander commissions (the Church itself offers from day one — see [factions.md](factions.md))
+- **Cathedral** *(built — July 2026: consecration prestige lump + church elevation — admits the Church and unlocks its upper favor rungs; see Commission Requesters)* — unlocks the Church's grander commissions
 - **Market** *(built)* — generates Florins for now. **Planned repurpose:** once a richer economy system takes over money-making, the Market becomes an overflow supply source — spend florins there for extra material capacity when your suppliers are at their limits.
 - **Town Hall (Palazzo Comunale)** — the seat of the player's government: a crenellated civic fortress with a tall off-center tower (Palazzo Vecchio / Bargello type). Effect open — candidates: unlocks civic commissions, or a flat prestige boost. Like the Cathedral, it may break the skyline; civic owns that privilege
-- **Palazzo** *(model built; housing wired — July 2026; requester install designed in [building-effects.md](building-effects.md), pending factions)* — installs the next noble family as a requester (housing + requester unlock — the dual listing is collapsed there)
+- **Palazzo** *(built — July 2026: housing 12 + requester install — each Palazzo seats the next noble house in table order; see Commission Requesters)* — installs the next noble family as a requester (housing + requester unlock)
 - **Banking House** — enables larger noble commissions, boosts florins
 
 ### Production / Artistic
@@ -228,7 +233,7 @@ Workshops are per-discipline: each hosts and spawns only its own artist type.
 
 ### Religious & Ceremonial
 - **Monastery** — illuminated manuscripts; quiet inspiration
-- **Chapel** *(built — July 2026: passive +10 amenity, workerless; see [building-effects.md](building-effects.md))* — neighborhood religious building
+- **Chapel** *(built — July 2026: passive +10 amenity, workerless; admits the Church as a patron — see Commission Requesters)* — neighborhood religious building
 - **Baptistery** — pure prestige; higher-tier Church commissions
 
 ### Trade & Economy
@@ -290,7 +295,7 @@ All four are derived live from persisted state (`renaissanceProgress` in `app/ga
                   [Housing] [Workshops] [Civic] [Materials] [Decorations]
 ```
 
-Left panel: artist roster (replaces the faction bars from earlier drafts). Right panel: active commissions.
+Left panel: artist roster (replaces the faction bars from earlier drafts). Right panel: active commissions. Top-right, under the settings button: the faction crest banner (one crest per admitted patron → standing card). Bottom-right: the persistent commission-arrival card and its darker denunciation sibling.
 
 ---
 
@@ -313,7 +318,7 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 - **12 Renaissance milestone** — DONE (July 2026). Four derived gates — prestige threshold, a Master-rank artist, a Wonder on display, Church + noble-house patrons (see The Goal) — checked live by `renaissanceProgress` (`app/game/renaissance.ts`, knobs in `constants.ts`); a one-shot celebration card (`RenaissanceCard.tsx`) dismissed into the persisted `renaissanceReached` flag (no migration — absent reads falsy), and the milestone checklist rides the prestige chip's hover tooltip. Play continues.
 
 ### Next
-- All numbered phases are done — next work draws from Later / stretch (factions, map resources, zoning, architects & building commissions, …).
+- All numbered phases are done — next work draws from Later / stretch (map resources, zoning, architects & building commissions, further faction slices, …). Factions slice 1 (patron admission, 0–100 favor, rungs/tiers, banner UI, rare-but-rich pacing) landed July 2026 — see Commission Requesters.
 
 ### Later / stretch
 - Richer economy system (replaces the Market as the primary florin source; Market repurposed as overflow material supply, bought with florins when suppliers are maxed)
@@ -364,7 +369,7 @@ Dev helpers: `/?demo` seeds a visual test city, `&pause` freezes the tick for st
 1. **No citizen pathfinding micromanagement.** Citizens are abstracted.
 2. **No granular supply chains.** Service buildings raise population thresholds — no food routing. Materials are supplier capacity, never a stockpile.
 3. **All art is commissioned.** Every artwork has a requester, a name, and stakes. No anonymous grind output.
-4. **Requesters are flavor, not a management layer.** No relationship meters unless they earn their way back in.
+4. **Favor is a decisions-only meter.** Each patron carries 0–100 favor moved solely by what the player does — completed works up, declined or expired offers down — never by time decay. Consequences stay faction-scoped (that patron's offer rate and grandeur), with one sanctioned exception: the first slide into Affronted costs a one-time denunciation prestige hit. Favor is never a top-bar resource. *(This deliberately overturned the original "no relationship meters" rule — the meter earned its way back in by these constraints.)*
 5. **Meaningful scarcity over complexity.** Supplier capacity is the primary constraint.
 6. **Soft spatial meaning.** Plaza connection is a nudge (graded bonus with gentle falloff), never a hard cliff. Players are never punished for building something that looks good to them.
 7. **Cozy but with real decisions.** Tension from commission deadlines and artist/material scarcity — not crisis management.

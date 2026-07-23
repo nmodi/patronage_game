@@ -1,12 +1,19 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
 import { computePlazaConnectivity, connectionBonusOf } from "./connectivity.ts";
-import { INCOME_DIMINISHING_RETURNS, POPULATION_DRIFT_PER_MONTH } from "./constants.ts";
+import {
+  DENOUNCE_PRESTIGE,
+  FAVOR_AFFRONTED,
+  FAVOR_PER_WORK,
+  FAVOR_SLIGHT,
+  INCOME_DIMINISHING_RETURNS,
+  POPULATION_DRIFT_PER_MONTH,
+} from "./constants.ts";
 import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
 import { assignedMaterials, getSupply, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts";
 import { computeCityMetrics } from "./metrics.ts";
 import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./artists.ts";
-import { maybeOfferCommission, reconcileCommissions } from "./commissions.ts";
+import { favorOf, maybeOfferCommission, reconcileCommissions } from "./commissions.ts";
 import { trafficFactor } from "./traffic.ts";
 import type { Artist, Artwork, BuildingMetadata, Commission } from "./types.ts";
 import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./workers.ts";
@@ -19,6 +26,7 @@ export interface TickSnapshot {
   artists: Artist[];
   artworks: Artwork[];
   commissions: Commission[];
+  favor: Record<string, number>;
   time: { tickCount: number };
   map: { tiles: TileMap };
 }
@@ -31,6 +39,8 @@ export interface TickTransition {
   artists: Artist[];
   artworks: Artwork[];
   commissions: Commission[];
+  favor: Record<string, number>;
+  denounced: string[]; // factions that crossed into affronted this tick
   tickCount: number;
   tiles: TileMap;
 }
@@ -197,7 +207,30 @@ export function advanceTick(
   );
   let commissions = reconciled.commissions;
   let commissionsChanged = reconciled.changed;
-  const offer = maybeOfferCommission(commissions, artists, state.time.tickCount, rng);
+
+  // Favor: expired offers slight, completions honor (clamped 0–100). Crossing
+  // down through FAVOR_AFFRONTED fires the one-time denunciation; it re-arms
+  // only by recovering above the line, since only a fresh crossing counts.
+  let favor = state.favor;
+  const denounced: string[] = [];
+  const moveFavor = (name: string, delta: number) => {
+    const before = favorOf(favor, name);
+    const after = Math.max(0, Math.min(100, before + delta));
+    if (after === before) return;
+    if (favor === state.favor) favor = { ...state.favor };
+    favor[name] = after;
+    if (before >= FAVOR_AFFRONTED && after < FAVOR_AFFRONTED) denounced.push(name);
+  };
+  for (const name of reconciled.expiredRequesters) moveFavor(name, -FAVOR_SLIGHT);
+
+  const offer = maybeOfferCommission(
+    commissions,
+    artists,
+    state.time.tickCount,
+    rng,
+    updatedTiles,
+    favor
+  );
   if (offer) {
     commissions = [...commissions, offer];
     commissionsChanged = true;
@@ -221,15 +254,23 @@ export function advanceTick(
     commissions = commissions.filter((commission) => !finished.has(commission.id));
     commissionsChanged = true;
   }
+  for (const w of work.completed) {
+    if (w.requester) moveFavor(w.requester, FAVOR_PER_WORK);
+  }
 
   return {
     florins: state.florins + Math.round(florinDelta) + work.florins,
     inspiration: state.inspiration + Math.round(inspirationDelta),
-    prestige: state.prestige + work.prestige + display.prestige,
+    prestige: Math.max(
+      0,
+      state.prestige + work.prestige + display.prestige - DENOUNCE_PRESTIGE * denounced.length
+    ),
     population,
     artists: artistsChanged ? artists : state.artists,
     artworks: work.completed.length ? [...state.artworks, ...work.completed] : state.artworks,
     commissions: commissionsChanged ? commissions : state.commissions,
+    favor,
+    denounced,
     tickCount: state.time.tickCount + 1,
     tiles: tilesChanged ? updatedTiles : tiles,
   };

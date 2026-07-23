@@ -2,22 +2,35 @@ import { Clock, Coins, Crown, Scroll } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { commissionMaterial, getSupply } from "~/game/materials";
-import { canAssignCommission } from "~/game/commissions";
+import { canAssignCommission, requesterPool } from "~/game/commissions";
 import { HudPanel } from "./Panel";
 import type { Commission } from "~/game/types";
 import { ArtworkThumbnail } from "./ArtworkThumbnail";
-import { capitalizeLabel } from "./format";
+import { capitalizeLabel, ordinal } from "./format";
 
 export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const commissions = useGameStore((s) => s.commissions);
   const artists = useGameStore((s) => s.artists);
+  const artworks = useGameStore((s) => s.artworks);
   const tiles = useGameStore((s) => s.map.tiles);
   const tickCount = useGameStore((s) => s.time.tickCount);
   const assignCommission = useGameStore((s) => s.assignCommission);
+  const declineCommission = useGameStore((s) => s.declineCommission);
 
   const supply = getSupply(tiles, artists, commissions);
   const active = commissions.filter((c) => c.workshopKey);
   const offers = commissions.filter((c) => !c.workshopKey);
+
+  // "— Nth work" flavor beside the requester: cumulative works, decoupled from
+  // the favor meter; shown once there's at least one prior work.
+  const worksBy = new Map<string, number>();
+  for (const w of artworks) {
+    if (w.requester) worksBy.set(w.requester, (worksBy.get(w.requester) ?? 0) + 1);
+  }
+  const nthWork = (requester: string) => {
+    const prior = worksBy.get(requester) ?? 0;
+    return prior >= 1 ? ` — ${ordinal(prior + 1)} work` : "";
+  };
 
   // Founder = first artist homed at each workshop key, same rule as the sim.
   const founders = new Map<string, (typeof artists)[number]>();
@@ -50,7 +63,9 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
     >
         {commissions.length === 0 && (
           <span className="text-sm text-ink-faint">
-            No commissions available right now — new offers arrive as your city grows.
+            {requesterPool(tiles).length === 0
+              ? "Build a Chapel — the Church will bring commissions."
+              : "No commissions available right now — new offers arrive as your city grows."}
           </span>
         )}
         {active.map((c) => {
@@ -63,7 +78,8 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
               <div className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">
                 <span className="font-display text-base font-semibold text-ink">{c.title}</span>
                 <span className="flex items-center gap-1 text-sm text-ink-faint">
-                  {c.requester} ·
+                  {c.requester}
+                  {nthWork(c.requester)} ·
                   <Clock className="h-4 w-4" /> {remaining} mo left
                 </span>
                 <div className="h-1.5 overflow-hidden rounded-full bg-parchment-deep">
@@ -86,7 +102,8 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
               <div className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">
                 <span className="font-display text-base font-semibold text-ink">{c.title}</span>
                 <span className="flex flex-wrap items-center gap-1 text-sm text-ink-faint">
-                  {c.requester} ·
+                  {c.requester}
+                  {nthWork(c.requester)} ·
                   <Coins className="h-4 w-4 text-prestige-gold" /> {c.florins}ƒ ·
                   <Crown className="h-4 w-4 text-prestige-gold" /> {c.prestige} ·
                   <Clock className="h-4 w-4" /> {c.durationMonths} mo
@@ -111,6 +128,12 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                     Not assigned — no idle {c.artistType} workshop
                   </span>
                 )}
+                <button
+                  className="self-start text-xs font-semibold text-ink-faint underline-offset-2 transition hover:text-ink hover:underline"
+                  onClick={() => declineCommission(c.id)}
+                >
+                  Decline
+                </button>
               </div>
             </div>
           );

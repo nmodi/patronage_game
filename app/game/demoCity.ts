@@ -1,5 +1,7 @@
 import { useGameStore } from "~/stores/useGameStore";
+import { favorFromWorks } from "./commissions";
 import { LAYOUT } from "./demoLayout";
+import type { Artwork } from "./types";
 
 export function seedDemoCity() {
   const state = useGameStore.getState();
@@ -25,8 +27,7 @@ export function seedDemoCity() {
   if (painter && sculptor) {
     const paint = painter.id;
     const carve = sculptor.id;
-    useGameStore.setState({
-      artworks: [
+    const artworks: Artwork[] = [
         // — Painter works, on facade easels (church hosts trickle prestige) —
         { id: "demo-art-1", name: "Madonna of the Lilies", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 14, prestige: 8, displayedAt: { key: "18,34", slot: 0 } },
         { id: "demo-art-4", name: "The Annunciation", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 33, prestige: 7, displayedAt: { key: "18,34", slot: 1 } },
@@ -42,7 +43,9 @@ export function seedDemoCity() {
         // — In storage — exercises the gallery's "Display at…" flow —
         { id: "demo-art-2", name: "Portrait of Contessina de' Bardi", requester: "House Medici", artistId: paint, artistType: "painter", completedTick: 43, prestige: 8 },
         { id: "demo-art-12", name: "Study of a Rearing Horse", requester: "The Guilds", artistId: paint, artistType: "painter", completedTick: 68, prestige: 5 },
-      ],
-    });
+    ];
+    // Favor mirrors the works, same formula as the v8 save migration — the
+    // demo banner shows earned standing (3 Church works → 74, rung 1).
+    useGameStore.setState({ artworks, favor: favorFromWorks(artworks) });
   }
 }

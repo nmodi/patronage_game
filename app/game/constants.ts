@@ -81,8 +81,9 @@ export const XP_RATES = {
 };
 
 // --- Work display (display.ts) ---
-// Quality = the minting commission's prestige (roughly 1..20; see
-// maybeOfferCommission — ARTWORK_PRESTIGE 1..10, doubled by "prestige" requesters).
+// Quality = the minting commission's prestige (roughly 1..60 at max favor; see
+// maybeOfferCommission — ARTWORK_PRESTIGE 1..10 × COMMISSION_PRESTIGE_SCALE,
+// doubled by "prestige" requesters, × grandeur up to 2).
 export const DEFAULT_ARTWORK_PRESTIGE = 2; // pre-Phase-9 works with no prestige field
 export const DISPLAY_HOST_BONUS = 0.05; // host effectiveness per displayed work
 export const DISPLAY_HOST_BONUS_MAX_WORKS = 5; // cap: +25%
@@ -90,22 +91,40 @@ export const DISPLAY_INSPIRATION_PER_PRESTIGE = 0.25; // inspiration/tick per wo
 export const DISPLAY_PRESTIGE_PER_PRESTIGE = 0.02; // prestige/tick, church hosts (q20 ≈ 4.8/yr — flavor)
 
 // --- Commissions & economy (commissions.ts) ---
-export const COMMISSION_OFFER_CHANCE = 0.15; // per month, when under the cap
+// Offers are rare-but-rich since factions slice 1: missing one costs favor, so
+// arrivals are ~one a year and rewards are buffed to compensate (the old pacing
+// was 0.15/month at FLORINS_PER_PRESTIGE 25, no prestige scale).
+export const COMMISSION_OFFER_CHANCE = 0.08; // per month, when under the cap
 export const MAX_OPEN_OFFERS = 3;
 export const OFFER_EXPIRY_MONTHS = 12;
 export const BRONZE_COMMISSION_CHANCE = 1 / 3; // share of sculpture offers cast in bronze (the pricier medium)
-export const FLORINS_PER_PRESTIGE = 25; // base commission reward conversion
+export const FLORINS_PER_PRESTIGE = 40; // base commission reward conversion
+export const COMMISSION_PRESTIGE_SCALE = 1.5; // on minted base prestige (rarer offers, richer each)
 export const REQUESTER_REWARD_SKEW = 2; // florins/prestige requesters' 2x/half split
 export const FLORIN_RANK_COMPRESSION = 0.25; // share of the prestige rank curve florins keep (prestige keeps it all — florins are the constraint, prestige is the number that goes up)
 export const INCOME_DIMINISHING_RETURNS = 0.85; // geometric decay per duplicate florin-generator of the same building, oldest first
 export const COST_ESCALATION = 1.15; // per-duplicate build-cost growth for workshops/suppliers/services
 
+// --- Factions (commissions.ts, tick.ts) ---
+// Per-faction favor, 0–100. Reads default to FAVOR_START; moves only on player
+// decisions (completions up, declined/expired offers down) — never time decay.
+export const FAVOR_START = 50;
+export const FAVOR_PER_WORK = 8; // per completed work for that faction
+export const FAVOR_SLIGHT = 5; // per declined or expired open offer
+export const FAVOR_RUNGS = [60, 75, 90]; // favor levels unlocking grander offers
+export const FAVOR_GRANDEUR = [1, 1.3, 1.6, 2]; // × duration/florins/prestige at rung 0–3
+export const FAVOR_COOLED = 35; // below: offers thin out, rung forced to 0
+export const FAVOR_AFFRONTED = 15; // below: near-silence + one-time denunciation
+export const COOLED_SKIP_CHANCE = 0.5;
+export const AFFRONTED_SKIP_CHANCE = 0.75;
+export const DENOUNCE_PRESTIGE = 15; // one-time city prestige hit on crossing into affronted
+
 // --- Renaissance milestone (renaissance.ts) ---
 // The soft ending's gates. Prestige comes almost entirely from commissions
-// (~1–20 each; cathedral +25 once), so 500 ≈ dozens of completed works — a
-// full mid/late-game arc. A Wonder is a displayed work at WONDER_PRESTIGE
-// quality: max is 20 (ARTWORK_PRESTIGE 10 × the 2x prestige-requester skew),
-// so 15 demands a top-rank artist on a noble commission.
+// (~1–30 each at neutral favor; cathedral +25 once), so 500 ≈ dozens of
+// completed works — a full mid/late-game arc. A Wonder is a displayed work at
+// WONDER_PRESTIGE quality: since the factions pacing rebalance a master's noble
+// work (6 × 1.5 × 2 = 18) clears it — a high-rank artist on a noble commission.
 export const RENAISSANCE_PRESTIGE = 500;
 export const WONDER_PRESTIGE = 15;
 export const RENAISSANCE_NOBLE_HOUSES = 2; // distinct houses with a completed work (plus the Church)

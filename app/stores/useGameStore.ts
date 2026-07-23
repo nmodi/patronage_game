@@ -6,7 +6,7 @@ import type { Artist, Artwork, Commission } from "~/game/types";
 import type { BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { planPlacement } from "~/game/placementRules";
-import { canAssignCommission } from "~/game/commissions";
+import { canAssignCommission, favorOf } from "~/game/commissions";
 import { canDisplayWork } from "~/game/display";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
@@ -17,7 +17,13 @@ import { computeCityMetrics } from "~/game/metrics";
 import { razeBuilding } from "~/game/raze";
 import { migrateSave, SAVE_VERSION } from "~/game/saveMigration";
 import { advanceTick } from "~/game/tick";
-import { BASE_TICK_INTERVAL, STARTING_FLORINS } from "~/game/constants";
+import {
+  BASE_TICK_INTERVAL,
+  DENOUNCE_PRESTIGE,
+  FAVOR_AFFRONTED,
+  FAVOR_SLIGHT,
+  STARTING_FLORINS,
+} from "~/game/constants";
 
 // The demolition tool rides the building-selection slot: camera-drag detach,
 // grid visibility, and the palette's cancel keys all treat it like placement.
@@ -47,7 +53,11 @@ export type GameState = {
   artists: Artist[];
   artworks: Artwork[];
   commissions: Commission[];
+  // Per-faction favor 0–100 (factions slice 1); unwritten entries read FAVOR_START.
+  favor: Record<string, number>;
   assignCommission: (commissionId: string, workshopKey: string) => void;
+  // Drop an open offer for a favor slight; no-op if assigned or missing.
+  declineCommission: (commissionId: string) => void;
   addFlorins: (amount: number) => void;
   setFlorins: (value: number) => void;
   setPopulation: (value: number) => void;
@@ -65,6 +75,12 @@ export type GameState = {
   // host); slot set when a filled plinth cell was clicked directly. Transient.
   inspectTarget: { key: string; slot?: number } | null;
   setInspectTarget: (target: { key: string; slot?: number } | null) => void;
+  // Latest unseen open-offer id (arrival card) and denouncing faction name
+  // (its darker sibling). Transient — never persisted, razeTarget pattern.
+  offerAlert: string | null;
+  setOfferAlert: (id: string | null) => void;
+  denounceAlert: string | null;
+  setDenounceAlert: (name: string | null) => void;
   displayArtwork: (artworkId: string, hostKey: string, slot: number) => void;
   recallArtwork: (artworkId: string) => void;
   tick: () => void;
@@ -111,9 +127,12 @@ const createInitialState = (runSeed?: string) => {
     artists: [] as Artist[],
     artworks: [] as Artwork[],
     commissions: [] as Commission[],
+    favor: {} as Record<string, number>,
     renaissanceReached: false,
     hoveredTileKey: null as string | null,
     razeTarget: null as string | null,
+    offerAlert: null as string | null,
+    denounceAlert: null as string | null,
     inspectTarget: null as { key: string; slot?: number } | null,
     map: { tiles: {}, selectedBuilding: null } as MapState,
     time: { tickCount: 0 },
@@ -132,6 +151,8 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setHoveredTile: (key) => set(() => ({ hoveredTileKey: key })),
   setRazeTarget: (key) => set(() => ({ razeTarget: key })),
   setInspectTarget: (target) => set(() => ({ inspectTarget: target })),
+  setOfferAlert: (id) => set(() => ({ offerAlert: id })),
+  setDenounceAlert: (name) => set(() => ({ denounceAlert: name })),
 
   displayArtwork: (artworkId, hostKey, slot) =>
     set((s) => {
@@ -156,6 +177,11 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   tick: () =>
     set((s) => {
       const next = advanceTick(s);
+      // Arrival card for a freshly offered commission (reopened ones keep
+      // their id, so they don't re-alert); overwrite on rare doubles.
+      const newOffer = next.commissions.find(
+        (c) => !c.workshopKey && !s.commissions.some((p) => p.id === c.id)
+      );
       return {
         florins: next.florins,
         inspiration: next.inspiration,
@@ -164,6 +190,9 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         artists: next.artists,
         artworks: next.artworks,
         commissions: next.commissions,
+        favor: next.favor,
+        offerAlert: newOffer ? newOffer.id : s.offerAlert,
+        denounceAlert: next.denounced[0] ?? s.denounceAlert,
         time: { tickCount: next.tickCount },
         map: next.tiles === s.map.tiles ? s.map : { ...s.map, tiles: next.tiles },
       };
@@ -187,6 +216,27 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       return {
         artists: s.artists.map((a) => (a === founder ? { ...a, workProgress: 0 } : a)),
         commissions: s.commissions.map((c) => (c === commission ? { ...c, workshopKey } : c)),
+      };
+    }),
+
+  declineCommission: (commissionId) =>
+    set((s) => {
+      const commission = s.commissions.find((c) => c.id === commissionId);
+      if (!commission || commission.workshopKey) return s;
+      const before = favorOf(s.favor, commission.requester);
+      const after = Math.max(0, before - FAVOR_SLIGHT);
+      // Same denunciation crossing as the tick's expiry slights.
+      const denounces = before >= FAVOR_AFFRONTED && after < FAVOR_AFFRONTED;
+      return {
+        commissions: s.commissions.filter((c) => c !== commission),
+        favor: { ...s.favor, [commission.requester]: after },
+        offerAlert: s.offerAlert === commissionId ? null : s.offerAlert,
+        ...(denounces
+          ? {
+              prestige: Math.max(0, s.prestige - DENOUNCE_PRESTIGE),
+              denounceAlert: commission.requester,
+            }
+          : {}),
       };
     }),
 
@@ -320,6 +370,7 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
+    // v8: per-faction favor added, seeded from completed works. v7: XP ×100.
     // v6: seeded map (water layer) added — the first *preserving* migration:
     // pre-water saves keep their city and get mapSeed: null (forever dry,
     // since a newly seeded river would collide with their buildings).
@@ -343,6 +394,7 @@ export const useGameStore = create<GameState>()(
       artists: s.artists,
       artworks: s.artworks,
       commissions: s.commissions,
+      favor: s.favor,
       // Absent on old saves reads falsy = not yet celebrated — no migration.
       renaissanceReached: s.renaissanceReached,
       map: { tiles: s.map.tiles, selectedBuilding: null },

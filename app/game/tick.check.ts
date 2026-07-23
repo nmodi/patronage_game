@@ -19,6 +19,7 @@ function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapsh
     artists: [],
     artworks: [],
     commissions: [],
+    favor: {},
     time: { tickCount: 10 },
     map: { tiles },
     ...extra,
@@ -194,6 +195,80 @@ const noRandomEvent = () => 1;
   assert.equal(out.artworks[0]?.name, "Fresco");
   assert.equal(out.artists[0]?.workProgress, undefined);
   assert.ok(Math.abs(out.artists[0]!.xp! - (XP_RATES.perCompletedWork + XP_RATES.practicePerMonth)) < 1e-9);
+  // Completion honors the requester: +8 favor from the default 50.
+  assert.deepEqual(out.favor, { "The Church": 58 });
+  assert.deepEqual(out.denounced, []);
+}
+
+// An expired open offer slights its requester's favor; identity is kept when
+// nothing moves.
+{
+  const stale: Commission = {
+    id: "c1",
+    title: "Fresco",
+    requester: "House Medici",
+    artistType: "painter",
+    durationMonths: 4,
+    florins: 50,
+    prestige: 2,
+    expiresTick: 10, // == tickCount → expires this tick
+  };
+  const out = advanceTick(snapshot({}, { commissions: [stale] }), noRandomEvent);
+  assert.equal(out.commissions.length, 0);
+  assert.deepEqual(out.favor, { "House Medici": 45 });
+  assert.deepEqual(out.denounced, []);
+
+  const calm = advanceTick(snapshot({}), noRandomEvent);
+  assert.deepEqual(calm.favor, {});
+}
+
+// Favor clamps at 0, and a slight already below the affronted line doesn't
+// re-fire the denunciation (no fresh crossing).
+{
+  const stale: Commission = {
+    id: "c1",
+    title: "Fresco",
+    requester: "House Medici",
+    artistType: "painter",
+    durationMonths: 4,
+    florins: 50,
+    prestige: 2,
+    expiresTick: 10,
+  };
+  const out = advanceTick(
+    snapshot({}, { commissions: [stale], favor: { "House Medici": 3 } }),
+    noRandomEvent
+  );
+  assert.deepEqual(out.favor, { "House Medici": 0 });
+  assert.deepEqual(out.denounced, []);
+}
+
+// Crossing down through FAVOR_AFFRONTED fires the one-time denunciation:
+// −15 prestige, clamped at 0.
+{
+  const stale: Commission = {
+    id: "c1",
+    title: "Fresco",
+    requester: "House Pazzi",
+    artistType: "painter",
+    durationMonths: 4,
+    florins: 50,
+    prestige: 2,
+    expiresTick: 10,
+  };
+  const poor = advanceTick(
+    snapshot({}, { commissions: [stale], favor: { "House Pazzi": 16 } }),
+    noRandomEvent
+  );
+  assert.deepEqual(poor.favor, { "House Pazzi": 11 });
+  assert.deepEqual(poor.denounced, ["House Pazzi"]);
+  assert.equal(poor.prestige, 0); // 0 − 15, clamped
+
+  const proud = advanceTick(
+    snapshot({}, { commissions: [stale], favor: { "House Pazzi": 16 }, prestige: 100 }),
+    noRandomEvent
+  );
+  assert.equal(proud.prestige, 85);
 }
 
 // A displayed work trickles inspiration city-wide and boosts its host (+5%).
