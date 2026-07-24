@@ -68,6 +68,7 @@ const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   pigment_trader: Palette,
   marble_supplier: Gem,
   bronze_foundry: Flame,
+  warehouse: Warehouse,
   market: Store,
   bakery: Wheat,
   tavern: Beer,

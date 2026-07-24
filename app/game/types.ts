@@ -62,6 +62,7 @@ export interface Commission {
   florins: number; // payout on completion
   prestige: number;
   material?: Material; // required supplier material; undefined (pre-bronze saves) = MATERIAL_BY_ARTIST_TYPE default
+  materialCost?: number; // stock deducted at assign; undefined (pre-stockpile saves) = free
   expiresTick: number; // open offer vanishes after this tick
   workshopKey?: string; // set on assignment; undefined = open offer
 }
@@ -100,6 +101,7 @@ export interface BuildingMetadata {
   roadWidth?: number; // roads only: cells stamped perpendicular to the drag axis
   linear?: boolean; // drag-placed like roads: each cell is an independent 1×1 segment tile
   paved?: boolean; // render a flagstone apron over the full footprint (joins plazas visually)
-  supplies?: { material: Material; capacity: number }; // supplier: N concurrently-working artists of this material
+  supplies?: { material: Material; rate: number; storage: number }; // supplier: units produced per month while staffed, plus the cap it adds to that material's pool
+  materialStorage?: number; // warehouse: cap added to *every* material pool, staffed or not
   displaySlots?: readonly DisplaySlotDef[]; // work display sites (Phase 9)
 }

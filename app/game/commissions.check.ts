@@ -21,6 +21,7 @@ import {
   AFFRONTED_SKIP_CHANCE,
   COOLED_SKIP_CHANCE,
   FAVOR_GRANDEUR,
+  MATERIAL_COST_SCALE,
 } from "./constants.ts";
 import {
   ARTWORK_PRESTIGE,
@@ -31,7 +32,6 @@ import {
 } from "./artists.ts";
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
-import type { MaterialSupply } from "./materials.ts";
 import type { Artist, Commission } from "./types.ts";
 
 const painter = (extra: Partial<Artist> = {}): Artist => ({
@@ -67,11 +67,8 @@ const offer = (extra: Partial<Commission> = {}): Commission => ({
 const homeTile = (buildingId: Parameters<typeof tile>[0], active = true) =>
   tile(buildingId, 5, 5, { workers: 2, isActive: active });
 
-const availableSupply: MaterialSupply = {
-  capacity: 3,
-  inUse: 0,
-  allowed: new Set(),
-};
+// Stock on hand when the check isn't about affordability.
+const availableSupply = 1000;
 
 // Assignment eligibility is shared by the UI and the authoritative store action.
 {
@@ -101,14 +98,11 @@ const availableSupply: MaterialSupply = {
     canAssignCommission(commission, founder, { "5,5": homeTile("cottage") }, availableSupply),
     false
   );
-  assert.equal(
-    canAssignCommission(commission, founder, tiles, {
-      capacity: 3,
-      inUse: 3,
-      allowed: new Set(),
-    }),
-    false
-  );
+  // Not enough stock for the commission's material cost.
+  assert.equal(canAssignCommission(offer({ materialCost: 30 }), founder, tiles, 29), false);
+  assert.equal(canAssignCommission(offer({ materialCost: 30 }), founder, tiles, 30), true);
+  // Pre-stockpile offers carry no cost, so an empty pool still assigns.
+  assert.equal(canAssignCommission(commission, founder, tiles, 0), true);
 }
 
 // --- Requester pool: patron admission by standing buildings ---
@@ -226,6 +220,7 @@ assert.equal(maybeOfferCommission([], [painter()], 10, explode, {}, {}), null);
   assert.equal(out.prestige, 1); // round(1×1.5 / 2)
   assert.equal(out.expiresTick, 10 + OFFER_EXPIRY_MONTHS);
   assert.equal(out.workshopKey, undefined);
+  assert.equal(out.materialCost, MATERIAL_COST_SCALE); // rank 1 × grandeur 1
 }
 
 // Noble offers skew prestige and keep the secular title pool.
@@ -307,7 +302,8 @@ assert.equal(maybeOfferCommission([], [painter()], 10, lose, chapelTiles, {}), n
   assert.ok(out!.florins < ARTWORK_PRESTIGE.grand_master * 40 * 2); // well under the naive 10x
 }
 
-// Grandeur: favor rungs multiply duration, florins, and prestige.
+// Grandeur: favor rungs multiply duration, florins, prestige — and the
+// material cost, so grander asks demand a bigger stockpile.
 {
   const favor = { "House Medici": 75 }; // rung 2 → ×1.6
   const out = maybeOfferCommission(
@@ -322,6 +318,7 @@ assert.equal(maybeOfferCommission([], [painter()], 10, lose, chapelTiles, {}), n
   assert.equal(out?.durationMonths, Math.round(WORK_DURATION_MONTHS.apprentice * 1.6));
   assert.equal(out?.florins, 32); // 20 × 1.6
   assert.equal(out?.prestige, 5); // round(3 × 1.6)
+  assert.equal(out?.materialCost, Math.round(MATERIAL_COST_SCALE * 1 * 1.6)); // rank 1 × 1.6
 }
 
 // The Church's upper rungs wait on a cathedral: favor 90 in a chapel-only city

@@ -10,12 +10,12 @@ import {
 } from "./constants.ts";
 import { computeDisplaySummary, displayBoost } from "./display.ts";
 import type { TileMap } from "./grid.ts";
-import { assignedMaterials, getSupply, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts";
+import { addProduction, materialCaps, type MaterialPools } from "./materials.ts";
 import { computeCityMetrics } from "./metrics.ts";
 import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./artists.ts";
 import { favorOf, maybeOfferCommission, reconcileCommissions } from "./commissions.ts";
 import { trafficFactor } from "./traffic.ts";
-import type { Artist, Artwork, BuildingMetadata, Commission } from "./types.ts";
+import type { Artist, Artwork, BuildingMetadata, Commission, Material } from "./types.ts";
 import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./workers.ts";
 
 export interface TickSnapshot {
@@ -27,6 +27,7 @@ export interface TickSnapshot {
   artworks: Artwork[];
   commissions: Commission[];
   favor: Record<string, number>;
+  materials: MaterialPools;
   time: { tickCount: number };
   map: { tiles: TileMap };
 }
@@ -40,6 +41,7 @@ export interface TickTransition {
   artworks: Artwork[];
   commissions: Commission[];
   favor: Record<string, number>;
+  materials: MaterialPools;
   denounced: string[]; // factions that crossed into affronted this tick
   tickCount: number;
   tiles: TileMap;
@@ -76,28 +78,6 @@ export function advanceTick(
       updatedTiles[key] = tile;
     } else {
       updatedTiles[key] = { ...tile, workers, isActive };
-      tilesChanged = true;
-    }
-  }
-
-  // Working workshops beyond supplier capacity stall; oldest workshops retain
-  // their slots. Material blocking shares the normal inactive feedback path.
-  const supply = getSupply(updatedTiles, state.artists, state.commissions);
-  const workshopMaterials = assignedMaterials(state.commissions);
-  const blockedOrigins = new Set<string>();
-  for (const artist of state.artists) {
-    if (artist.workProgress == null) continue;
-    const material =
-      workshopMaterials.get(artist.homeTileKey) ?? MATERIAL_BY_ARTIST_TYPE[artist.type];
-    const status = material ? supply[material] : undefined;
-    if (status && !status.allowed.has(artist.homeTileKey)) {
-      blockedOrigins.add(artist.homeTileKey);
-    }
-  }
-  if (blockedOrigins.size > 0) {
-    for (const [key, tile] of Object.entries(updatedTiles)) {
-      if (!tile.isActive || !blockedOrigins.has(`${tile.origin.x},${tile.origin.y}`)) continue;
-      updatedTiles[key] = { ...tile, isActive: false };
       tilesChanged = true;
     }
   }
@@ -148,16 +128,28 @@ export function advanceTick(
 
   let florinDelta = 0;
   let inspirationDelta = 0;
+  const produced: { material: Material; amount: number }[] = [];
   for (const [key, tile] of Object.entries(updatedTiles)) {
     if (!tile.isOrigin || !tile.isActive) continue;
     const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-    if (!metadata?.generates) continue;
+    if (!metadata) continue;
+    const staffing = staffingEfficiency(
+      metadata.workersRequired ?? 0,
+      metadata.maxWorkers ?? 0,
+      tile.workers
+    );
+    // Supplier output rides staffing and plaza connection like any generator,
+    // but takes no diminishing returns: more suppliers must never mean less
+    // stock (principle 6). Escalating build cost already prices duplicates.
+    if (metadata.supplies) {
+      produced.push({
+        material: metadata.supplies.material,
+        amount: metadata.supplies.rate * staffing * plazaBoost(key, metadata),
+      });
+    }
+    if (!metadata.generates) continue;
     const efficiency =
-      staffingEfficiency(
-        metadata.workersRequired ?? 0,
-        metadata.maxWorkers ?? 0,
-        tile.workers
-      ) * plazaBoost(key, metadata) * displayBoost(display.counts.get(key) ?? 0);
+      staffing * plazaBoost(key, metadata) * displayBoost(display.counts.get(key) ?? 0);
     const incomeScale = metadata.housing ? occupancy : (drByKey.get(key) ?? 1);
     florinDelta += (metadata.generates.income ?? 0) * efficiency * incomeScale;
     inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
@@ -270,6 +262,7 @@ export function advanceTick(
     artworks: work.completed.length ? [...state.artworks, ...work.completed] : state.artworks,
     commissions: commissionsChanged ? commissions : state.commissions,
     favor,
+    materials: addProduction(state.materials, produced, materialCaps(updatedTiles)),
     denounced,
     tickCount: state.time.tickCount + 1,
     tiles: tilesChanged ? updatedTiles : tiles,

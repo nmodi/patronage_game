@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
 import { XP_RATES } from "./artists.ts";
+import { materialCaps } from "./materials.ts";
 import { advanceTick, type TickSnapshot } from "./tick.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
 
@@ -20,6 +21,7 @@ function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapsh
     artworks: [],
     commissions: [],
     favor: {},
+    materials: { pigment: 0, marble: 0, bronze: 0 },
     time: { tickCount: 10 },
     map: { tiles },
     ...extra,
@@ -117,7 +119,9 @@ const noRandomEvent = () => 1;
   assert.equal(out.population, 63);
 }
 
-// A working painter without pigment capacity remains stalled after staffing.
+// Assigned work no longer stalls on materials: the stock was spent when the
+// commission was accepted, so a staffed workshop progresses with no supplier
+// standing at all. Staffing is the only thing that pauses a workshop now.
 {
   const founder: Artist = {
     id: "p1",
@@ -148,8 +152,8 @@ const noRandomEvent = () => 1;
     noRandomEvent
   );
   assert.equal(out.tiles["5,5"]?.workers, 2);
-  assert.equal(out.tiles["5,5"]?.isActive, false);
-  assert.equal(out.artists[0]?.workProgress, 0);
+  assert.equal(out.tiles["5,5"]?.isActive, true);
+  assert.ok((out.artists[0]?.workProgress ?? 0) > 0);
 }
 
 // A supplied, staffed workshop completes its commission and receives rewards.
@@ -301,6 +305,29 @@ const noRandomEvent = () => 1;
   const out = advanceTick(snapshot({ "3,3": tile("chapel", 3, 3) }, { artworks: [work] }), noRandomEvent);
   assert.equal(out.inspiration, 0); // chapel has no generator; church routes the trickle to prestige
   assert.ok(Math.abs(out.prestige - 0.2) < 1e-9); // 10 × 0.02
+}
+
+// Suppliers bank stock while staffed, and stop at the storage ceiling.
+{
+  const tiles = {
+    "0,0": tile("cottage", 0, 0),
+    "5,5": tile("marble_supplier", 5, 5),
+  };
+  const out = advanceTick(snapshot(tiles, { population: 2 }), noRandomEvent);
+  assert.ok(out.materials.marble > 0, "a staffed marble supplier should bank marble");
+  assert.equal(out.materials.pigment, 0, "suppliers feed only their own material");
+
+  // Unstaffed: no workers, no production.
+  const idle = advanceTick(snapshot(tiles, { population: 0 }), noRandomEvent);
+  assert.equal(idle.materials.marble, 0);
+
+  // At the ceiling, production stops rather than overflowing.
+  const caps = materialCaps(tiles);
+  const full = advanceTick(
+    snapshot(tiles, { population: 2, materials: { ...caps, pigment: 0, bronze: 0 } }),
+    noRandomEvent
+  );
+  assert.equal(full.materials.marble, caps.marble);
 }
 
 console.log("tick.check: all assertions passed");

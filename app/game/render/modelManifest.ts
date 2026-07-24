@@ -243,6 +243,7 @@ const TINT_COLORS: Record<string, string> = {
   // as one roofline.
   roofFaded: "#e9eef0",
   bronze: "#a3773e", // warm cast-metal brown for the foundry's ingot stock (diffuse-only — no metal sheen)
+  crate: "#b08c5c", // packing-timber tan for the warehouse's crate stacks (lighter than bronze, so the two yards don't read alike)
   // Unlit interior behind a window opening. Dark enough to survive the ~1.9x
   // sun on a lit face — at the old #6a5c4b the shutterless arched windows'
   // reveals blew out to pale tan and read as empty niches.
@@ -964,6 +965,29 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.34, 0.14, 0.22], tint: "bronze" },
       { file: "proc:block", position: [0.18, 0.14, 0.78], scale: [0.24, 0.11, 0.18], rotationY: 0.4, tint: "bronze" },
       { file: TOWN + "cart.glb", position: [0.62, 0, 0.08], rotationY: 0.5, scale: 0.6 },
+    ],
+    fit: 0.95,
+    randomRotate: "quarter",
+  },
+  // Warehouse: a plain storage barn — one long gable shed with wide cargo doors
+  // on the street face and crate stacks along the side. No yard activity and no
+  // side windows: it stores, it doesn't work (workerless), so it reads quieter
+  // than the three suppliers it sits beside on the Materials tab.
+  warehouse: {
+    front: [1, 0],
+    parts: [
+      { file: "proc:block", position: [0, 0, 0], scale: [1.3, 1.15, 1.6], tint: "facade" },
+      ...gableRoof([0, 1.15, 0], [1.3 / 0.55, 0.5, 1.6]),
+      // twin cargo doors on the +X gable end (wall at x 0.65)
+      ...doorOn("posX", -0.34, 0.65),
+      ...doorOn("posX", 0.34, 0.65),
+      ...windowOn("negX", 0.15, -0.3, 0.65),
+      ...windowOn("negX", 0.15, 0.3, 0.65),
+      // crate stacks along the long side (wall at z 0.8)
+      { file: "proc:block", position: [-0.35, 0, 0.95], scale: [0.26, 0.26, 0.26], tint: "crate" },
+      { file: "proc:block", position: [-0.05, 0, 0.98], scale: [0.3, 0.3, 0.26], tint: "crate" },
+      { file: "proc:block", position: [-0.06, 0.3, 0.98], scale: [0.22, 0.22, 0.2], rotationY: 0.3, tint: "crate" },
+      { file: TOWN + "cart.glb", position: [0.5, 0, 0.95], rotationY: 0.1, scale: 0.6 },
     ],
     fit: 0.95,
     randomRotate: "quarter",

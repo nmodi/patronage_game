@@ -2,6 +2,7 @@ import { Clock, Coins, Crown } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { DENOUNCE_PRESTIGE } from "~/game/constants";
+import { commissionMaterial, commissionMaterialCost } from "~/game/materials";
 import { Panel } from "./Panel";
 import { capitalizeLabel } from "./format";
 
@@ -20,6 +21,7 @@ export function OfferAlert({ onView }: { onView: () => void }) {
   // A meanwhile-assigned or expired offer renders nothing.
   const offer = commissions.find((c) => c.id === offerAlert && !c.workshopKey);
   if (!offer && !denounceAlert) return null;
+  const offerMaterial = offer ? commissionMaterial(offer) : undefined;
 
   return (
     <div className="pointer-events-none fixed bottom-24 right-3 z-40 flex w-72 flex-col gap-2">
@@ -48,6 +50,13 @@ export function OfferAlert({ onView }: { onView: () => void }) {
           </span>
           <span className="text-sm font-semibold text-sienna">
             Requires: {capitalizeLabel(offer.artistType)}
+            {offerMaterial && (
+              <span>
+                {" "}
+                · {capitalizeLabel(offerMaterial)}
+                {commissionMaterialCost(offer) > 0 && ` ${commissionMaterialCost(offer)}`}
+              </span>
+            )}
           </span>
           <div className="flex justify-end gap-2">
             <button

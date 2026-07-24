@@ -7,6 +7,7 @@ import { CommissionsPanel } from "./CommissionsPanel";
 import { DisplayPanel } from "./DisplayPanel";
 import { FactionBanner } from "./FactionBanner";
 import { GalleryPanel } from "./GalleryPanel";
+import { MaterialsPanel } from "./MaterialsPanel";
 import { OfferAlert } from "./OfferAlert";
 import { RazeConfirm } from "./RazeConfirm";
 import { RenaissanceCard } from "./RenaissanceCard";
@@ -26,7 +27,12 @@ export function GameHUD() {
         <CommissionsPanel open={openPanel === "commissions"} onToggle={toggle("commissions")} />
         <GalleryPanel />
       </div>
-      <FactionBanner />
+      {/* Right rail: patrons above (who's asking), stores below (what you can
+          answer with). Both are persistent status, so they share one column. */}
+      <div className="pointer-events-none fixed right-6 top-16 z-40 flex flex-col items-end gap-2">
+        <FactionBanner />
+        <MaterialsPanel />
+      </div>
       <OfferAlert onView={() => setOpenPanel("commissions")} />
       <BuildingPalette hasOpenPanel={openPanel != null} onClosePanel={() => setOpenPanel(null)} />
       <BuildingTooltip />

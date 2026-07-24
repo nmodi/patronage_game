@@ -11,7 +11,12 @@ import { canDisplayWork } from "~/game/display";
 import { createArtist } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
 import { DEMO_MAP_SEED } from "~/game/demoLayout";
-import { commissionMaterial, getSupply } from "~/game/materials";
+import {
+  commissionMaterial,
+  commissionMaterialCost,
+  EMPTY_POOLS,
+  type MaterialPools,
+} from "~/game/materials";
 import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
 import { razeBuilding } from "~/game/raze";
@@ -55,6 +60,7 @@ export type GameState = {
   commissions: Commission[];
   // Per-faction favor 0–100 (factions slice 1); unwritten entries read FAVOR_START.
   favor: Record<string, number>;
+  materials: MaterialPools;
   assignCommission: (commissionId: string, workshopKey: string) => void;
   // Drop an open offer for a favor slight; no-op if assigned or missing.
   declineCommission: (commissionId: string) => void;
@@ -128,6 +134,7 @@ const createInitialState = (runSeed?: string) => {
     artworks: [] as Artwork[],
     commissions: [] as Commission[],
     favor: {} as Record<string, number>,
+    materials: { ...EMPTY_POOLS } as MaterialPools,
     renaissanceReached: false,
     hoveredTileKey: null as string | null,
     razeTarget: null as string | null,
@@ -191,6 +198,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         artworks: next.artworks,
         commissions: next.commissions,
         favor: next.favor,
+        materials: next.materials,
         offerAlert: newOffer ? newOffer.id : s.offerAlert,
         denounceAlert: next.denounced[0] ?? s.denounceAlert,
         time: { tickCount: next.tickCount },
@@ -209,13 +217,17 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const founder = s.artists.find((a) => a.homeTileKey === workshopKey);
       // Gate on the commission's own material (marble vs bronze), not the type.
       const material = commissionMaterial(commission);
-      const supply = material
-        ? getSupply(s.map.tiles, s.artists, s.commissions)[material]
-        : undefined;
-      if (!canAssignCommission(commission, founder, s.map.tiles, supply)) return s;
+      const available = material ? s.materials[material] : Infinity;
+      if (!canAssignCommission(commission, founder, s.map.tiles, available)) return s;
+      // Stock is spent up front, so assigned work never stalls on materials.
+      // ponytail: no refund when a raze reopens the commission — spent is spent.
+      const cost = commissionMaterialCost(commission);
       return {
         artists: s.artists.map((a) => (a === founder ? { ...a, workProgress: 0 } : a)),
         commissions: s.commissions.map((c) => (c === commission ? { ...c, workshopKey } : c)),
+        ...(material && cost > 0
+          ? { materials: { ...s.materials, [material]: s.materials[material] - cost } }
+          : {}),
       };
     }),
 
@@ -370,7 +382,8 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    // v8: per-faction favor added, seeded from completed works. v7: XP ×100.
+    // v9: materials became accumulating stock — pools start empty. v8:
+    // per-faction favor added, seeded from completed works. v7: XP ×100.
     // v6: seeded map (water layer) added — the first *preserving* migration:
     // pre-water saves keep their city and get mapSeed: null (forever dry,
     // since a newly seeded river would collide with their buildings).
@@ -395,6 +408,7 @@ export const useGameStore = create<GameState>()(
       artworks: s.artworks,
       commissions: s.commissions,
       favor: s.favor,
+      materials: s.materials,
       // Absent on old saves reads falsy = not yet celebrated — no migration.
       renaissanceReached: s.renaissanceReached,
       map: { tiles: s.map.tiles, selectedBuilding: null },

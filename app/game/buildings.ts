@@ -201,7 +201,7 @@ export const BUILDING_TYPES = [
     paved: true,
     workersRequired: 2,
     maxWorkers: 4,
-    supplies: { material: "pigment", capacity: 3 },
+    supplies: { material: "pigment", rate: 2, storage: 20 },
   },
   {
     type: "materials",
@@ -214,7 +214,7 @@ export const BUILDING_TYPES = [
     paved: true,
     workersRequired: 2,
     maxWorkers: 4,
-    supplies: { material: "marble", capacity: 2 },
+    supplies: { material: "marble", rate: 2, storage: 20 },
   },
   {
     type: "materials",
@@ -227,7 +227,21 @@ export const BUILDING_TYPES = [
     paved: true,
     workersRequired: 2,
     maxWorkers: 4,
-    supplies: { material: "bronze", capacity: 2 },
+    supplies: { material: "bronze", rate: 2, storage: 20 },
+  },
+  {
+    type: "materials",
+    id: "warehouse",
+    name: "Warehouse",
+    baseCost: 350,
+    description: "Stores materials — raises every material's storage ceiling.",
+    size: { width: 2.0, height: 1.5, depth: 2.0 },
+    color: "#9a8a6f",
+    footprint: { width: 4, depth: 4 },
+    paved: true,
+    workersRequired: 0,
+    maxWorkers: 0,
+    materialStorage: 50,
   },
   {
     type: "materials",
@@ -651,7 +665,7 @@ export function escalatedCost(metadata: BuildingMetadata, rank: number): number 
 }
 
 /** 0-indexed rank by build order (oldest first, tied-broken by key — the
- * family already used by allocateWorkers/computeSupply/tick's income DR)
+ * family already used by allocateWorkers and tick's income DR)
  * among all currently-placed origins of the same building id. Omit
  * `originKey` to get the rank a brand-new build would receive (= current
  * count); pass it to get an existing tile's own rank among its siblings. */

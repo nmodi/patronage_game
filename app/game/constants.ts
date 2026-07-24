@@ -105,6 +105,12 @@ export const FLORIN_RANK_COMPRESSION = 0.25; // share of the prestige rank curve
 export const INCOME_DIMINISHING_RETURNS = 0.85; // geometric decay per duplicate florin-generator of the same building, oldest first
 export const COST_ESCALATION = 1.15; // per-duplicate build-cost growth for workshops/suppliers/services
 
+// --- Material stock (materials.ts, tick.ts, commissions.ts) ---
+// Materials accumulate in one city-wide pool each and are spent lump-sum when a
+// commission is assigned. Per-supplier rate/storage live in buildings.ts.
+export const MATERIAL_STORAGE_BASE = 20; // pool cap floor per material, before any supplier or warehouse
+export const MATERIAL_COST_SCALE = 5; // × the artwork rank curve (1–10) × grandeur (1–2) = a commission's material cost
+
 // --- Factions (commissions.ts, tick.ts) ---
 // Per-faction favor, 0–100. Reads default to FAVOR_START; moves only on player
 // decisions (completions up, declined/expired offers down) — never time decay.

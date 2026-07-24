@@ -1,7 +1,7 @@
 import { Clock, Coins, Crown, Scroll } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
-import { commissionMaterial, getSupply } from "~/game/materials";
+import { commissionMaterial, commissionMaterialCost } from "~/game/materials";
 import { canAssignCommission, requesterPool } from "~/game/commissions";
 import { HudPanel } from "./Panel";
 import type { Commission } from "~/game/types";
@@ -13,11 +13,11 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
   const artists = useGameStore((s) => s.artists);
   const artworks = useGameStore((s) => s.artworks);
   const tiles = useGameStore((s) => s.map.tiles);
+  const materials = useGameStore((s) => s.materials);
   const tickCount = useGameStore((s) => s.time.tickCount);
   const assignCommission = useGameStore((s) => s.assignCommission);
   const declineCommission = useGameStore((s) => s.declineCommission);
 
-  const supply = getSupply(tiles, artists, commissions);
   const active = commissions.filter((c) => c.workshopKey);
   const offers = commissions.filter((c) => !c.workshopKey);
 
@@ -40,14 +40,15 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
 
   // Eligible workshops for an offer — mirrors the assignCommission guards so
   // the button never no-ops: founder of the right type, idle, workshop staffed,
-  // supply not at capacity.
-  const eligibleWorkshops = (c: Commission) => {
+  // enough material stock to pay the commission's cost.
+  const stockFor = (c: Commission) => {
     const material = commissionMaterial(c);
-    const materialSupply = material ? supply[material] : undefined;
-    return [...founders.entries()]
-      .filter(([, founder]) => canAssignCommission(c, founder, tiles, materialSupply))
-      .sort(([a], [b]) => a.localeCompare(b));
+    return material ? materials[material] : Infinity;
   };
+  const eligibleWorkshops = (c: Commission) =>
+    [...founders.entries()]
+      .filter(([, founder]) => canAssignCommission(c, founder, tiles, stockFor(c)))
+      .sort(([a], [b]) => a.localeCompare(b));
 
   return (
     <HudPanel
@@ -96,6 +97,10 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
           const workshops = eligibleWorkshops(c);
           const monthsLeft = c.expiresTick - tickCount;
           const material = commissionMaterial(c);
+          const cost = commissionMaterialCost(c);
+          // Short on stock is its own message: the assign buttons vanish for
+          // both reasons, so say which one it is.
+          const shortfall = material && stockFor(c) < cost ? material : null;
           return (
             <div key={c.id} className="flex items-start gap-2.5">
               <ArtworkThumbnail title={c.title} variant="offer" />
@@ -110,7 +115,13 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                 </span>
                 <span className="text-sm font-semibold text-sienna">
                   Requires: {capitalizeLabel(c.artistType)}
-                  {material && <span> · {capitalizeLabel(material)}</span>}
+                  {material && (
+                    <span>
+                      {" "}
+                      · {capitalizeLabel(material)}
+                      {cost > 0 && ` ${cost}`}
+                    </span>
+                  )}
                   {monthsLeft < 4 && <span> · expires in {monthsLeft} mo</span>}
                 </span>
                 {workshops.length > 0 ? (
@@ -125,7 +136,9 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                   ))
                 ) : (
                   <span className="rounded border border-wood/50 bg-parchment-deep px-2 py-1.5 text-center text-sm text-ink-faint shadow-inner">
-                    Not assigned — no idle {c.artistType} workshop
+                    {shortfall
+                      ? `Not enough ${shortfall} — ${Math.floor(materials[shortfall])} / ${cost} in store`
+                      : `Not assigned — no idle ${c.artistType} workshop`}
                   </span>
                 )}
                 <button

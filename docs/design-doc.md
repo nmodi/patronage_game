@@ -55,7 +55,7 @@ The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, war
 | **Prestige** | What you **earn** | Cultural reputation. Not spent — the satisfying number that goes up. Crossing the prestige milestone triggers the Renaissance celebration. |
 | **Population** | Status pool | The labor pool. Not spent like currency, but the two-pass worker allocation makes it matter. |
 
-**Deliberately NOT resources:** materials are never a stockpile. Pigment, marble, etc. appear only as capacity status on supplier buildings ("Pigment Trader 2/3 painters").
+**Deliberately NOT headline resources:** materials (pigment, marble, bronze) *are* a stockpile since July 2026 — city-wide pools that suppliers fill and commissions spend (see Material Suppliers) — but they stay off the top bar. They're a cost you pay when accepting a commission, not a number you steer the city by; they live in a small readout strip and on supplier/commission cards. Adding a fourth top-bar resource still needs a real standing decision behind it (principle 8).
 
 ---
 
@@ -63,7 +63,7 @@ The closest visual reference is **Dorfromantik** — low-poly, isometric 3D, war
 
 Players place buildings individually on the grid — houses included. This is deliberate for the current scope: placing houses is satisfying at small-city scale.
 
-**Raze** *(built — July 2026)*: a demolition tool at the end of the build palette. Click removes a structure; holding the button drags a sweep across roads and decorations. Razing salvages half the build cost as florins. Demolitions that hurt — housed artists, an assigned commission — need a deliberate click plus a confirm card ("Its artists will depart; '…' will be set aside"); sweeps pass over them. Downstream systems self-heal: artists depart immediately, the commission re-opens with a fresh expiry, workers and supplier capacity rebalance next tick.
+**Raze** *(built — July 2026)*: a demolition tool at the end of the build palette. Click removes a structure; holding the button drags a sweep across roads and decorations. Razing salvages half the build cost as florins. Demolitions that hurt — housed artists, an assigned commission — need a deliberate click plus a confirm card ("Its artists will depart; '…' will be set aside"); sweeps pass over them. Downstream systems self-heal: artists depart immediately, the commission re-opens with a fresh expiry, workers rebalance next tick. Materials already spent on a reopened commission are **not** refunded — reassigning it pays again.
 
 **Later-phase goal:** neighborhood zoning. Players designate zones ("Workers' Quarter") that auto-fill with tier-appropriate housing as prosperity grows. Not current scope; individual placement is the POC baseline it evolves from.
 
@@ -142,14 +142,14 @@ Painters, Sculptors, Architects *(painters + sculptors spawnable today)*
 
 ### Needs
 - A staffed workshop with a free slot (artists arrive passively when the city has inspiration)
-- Material supplier capacity for their type
+- A commission to work — whose material cost the city could afford when it was accepted
 - City inspiration above zero
 
 ---
 
 ## Material Suppliers
 
-Suppliers have **limited capacity** — the primary scarcity mechanic:
+Suppliers **produce material stock** — the primary scarcity mechanic:
 
 | Supplier | Serves |
 |---|---|
@@ -160,9 +160,17 @@ Suppliers have **limited capacity** — the primary scarcity mechanic:
 | Timber Yard | Construction, woodworkers, architects (building commissions, when they land) |
 | Paper Mill | Scholars, printed works |
 
-Materials are not consumed — a working artist holds a supplier slot until the work completes. When demand exceeds capacity, additional artists of that type cannot work (oldest workshops keep their slots). Players build more suppliers to expand capacity. This forces the core prioritization: which artists get materials? Sculpture commissions come in **marble or bronze** (bronze the rarer, pricier medium), and the two draw from separate suppliers — so a bronze commission needs a Bronze Foundry, not just any sculptor with a marble slot.
+**Material stock** *(built — July 2026; a deliberate reversal of the original "materials are never a stockpile" rule — see Key Design Principles #2/#5)*. Each material is one **city-wide pool** that accumulates:
 
-**Which suppliers a run offers** is planned to be seed-determined — see [map-resources.md](map-resources.md).
+- **Suppliers produce** their material every month while staffed — `supplies: { material, rate, storage }` in `buildings.ts` (all three currently produce 2/month), scaled by staffing efficiency and plaza connection exactly like a florin generator. Deliberately **no diminishing returns**: a second supplier is always more stock (principle 6), and escalating build cost already prices duplicates.
+- **Commissions cost a lump sum**, deducted when the player assigns one (`materialCost`, stamped at offer time as `MATERIAL_COST_SCALE × the artwork rank curve × the requester's favor grandeur`). So the grander the ask — higher-ranked artist, higher-favor patron — the deeper the stockpile it demands. Once assigned, **work never stalls on materials**; the stock is already spent (principle 7 — no mid-flight crisis). Razing a workshop reopens the commission but does not refund the materials.
+- **Storage is capped**, so waiting can't substitute for building: `MATERIAL_STORAGE_BASE` (20) per material, plus each supplier's own `storage` (20, its material only), plus each **Warehouse** (+50, every material). A top-rank commission at the top favor rung costs 100 — more than one supplier's ceiling — so the grandest asks require a genuinely built-out city, which is the whole point of the system.
+- Sculpture commissions still come in **marble or bronze** (bronze the rarer, pricier medium) drawing on **separate pools** — a bronze commission needs a Bronze Foundry, not a full marble store.
+- Capacity is not per-artist any more: how many artists can work at once is a workshop-and-worker question, not a material one. The material question is now "can the city afford this commission?"
+
+The pools are three persisted numbers with no routing and no per-building stockpiles — principle 2's ban on granular supply chains survives intact; only the "never a stockpile" clause was traded away.
+
+**Which suppliers a run offers** is planned to be seed-determined — see [map-resources.md](map-resources.md). The **Market's** planned repurpose (spend florins for overflow material capacity) is now a natural small follow-up: florins → pool, an emergency top-up when a commission outruns your suppliers.
 
 ---
 
@@ -173,7 +181,7 @@ Materials are not consumed — a working artist holds a supplier slot until the 
 Each commission has:
 - A **requester** (Church / noble family) — flavor and reward mix
 - A **required artist type** (painter, sculptor, …) — *stretch:* plus an optional **minimum rank** of that type (see Later / stretch → Architects & building commissions)
-- A **required material** (implies supplier capacity must be available) — *(built)* sculpture commissions roll marble or bronze
+- A **required material** and its **cost in stock**, deducted from the city pool when the commission is assigned — *(built)* sculpture commissions roll marble or bronze; cost scales with artist rank and the patron's grandeur
 - A **duration** in months
 - A **reward** (florins and/or prestige)
 - An optional **deadline** (gentle tension, not punishment)
@@ -217,8 +225,9 @@ Workshops are per-discipline: each hosts and spawns only its own artist type.
 - **Sculptor's Workshop** *(built)* — sculptors; same stats, reuses the workshop model for now
 - **Architect's Studio** — architects, the third discipline; grows into the building-commission pipeline (see Later / stretch → Architects & building commissions). Timber Yard is their supplier
 
-### Suppliers (capacity-limited)
+### Suppliers (produce material stock)
 - Pigment Trader *(built)*, Marble Supplier *(built)*, Bronze Foundry *(built — bronze sculpture commissions)*, Goldsmith, Timber Yard, Paper Mill, Glassblower (unlocks stained-glass commissions)
+- **Warehouse** *(built — July 2026)* — workerless storage: +50 to every material's ceiling, no production. The way a city banks enough stock for a grand commission without a supplier for every material.
 
 ### Housing
 - Cottage *(built)*, Townhouse *(built)*, Villa, Palazzo, Grand Palazzo
@@ -262,7 +271,7 @@ Design tension to resolve before building any of these: water adjacency must sta
 
 ## Inactive Building Feedback
 
-When a building cannot function it desaturates, activity animations stop, and the hover tooltip states the specific reason: "Needs 2 more workers", "Pigment Trader at capacity".
+When a building cannot function it desaturates, activity animations stop, and the hover tooltip states the specific reason — since the material stockpile rework, understaffing is the only such reason ("Needs 2 more workers"); material shortfalls now surface on the commission offer instead ("Not enough marble — 14 / 30 in store"), before any work starts.
 
 ---
 
@@ -295,7 +304,7 @@ All four are derived live from persisted state (`renaissanceProgress` in `app/ga
                   [Housing] [Workshops] [Civic] [Materials] [Decorations]
 ```
 
-Left panel: artist roster (replaces the faction bars from earlier drafts). Right panel: active commissions. Top-right, under the settings button: the faction crest banner (one crest per admitted patron → standing card). Bottom-right: the persistent commission-arrival card and its darker denunciation sibling.
+Left panel: artist roster (replaces the faction bars from earlier drafts). Right panel: active commissions. Top-right, under the settings button, a single **right rail** holds the persistent city status in one column: the faction crest banner (one crest per admitted patron → standing card) above, and the **Stores** card below it (pigment / marble / bronze, stock over ceiling — hidden until the first supplier or warehouse stands). Patrons above, what you can answer them with below; both are `Panel` cards at the same width, so the rail reads as one column. *(A centered strip under the top bar was tried first and rejected — floating in dead space with nothing to anchor to.)* Bottom-right: the persistent commission-arrival card and its darker denunciation sibling.
 
 ---
 
@@ -309,7 +318,7 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 - **4 Population & workers** — housing/amenity caps, two-pass allocation, inactive feedback
 - **5 Artists** — arrival, workshops, types
 - **6 Artworks** — work progress, XP ranks, prestige on completion
-- **7 Suppliers** — capacity gating, blocked-artist feedback
+- **7 Suppliers** — capacity gating, blocked-artist feedback *(superseded July 2026 by the material stockpile rework: suppliers now produce accumulating stock and commissions spend it at assign — see Material Suppliers)*
 - **8 Commissions** — DONE. System-generated offers (per-month chance, capped open offers, 12-month offer expiry; requesters are flavor strings that skew the florin/prestige mix); one-step assign-to-workshop UI in the right panel; progress per tick; completion mints the named artwork and pays out. Replaced the click-to-start artwork flow. Faction-driven offer generation is a later phase.
 - **9 Work display** — DONE. Buildings and plazas carry typed **display slots** (`BuildingMetadata.displaySlots` — `painting`/`statue` interior, `plinth` exterior with a footprint cell); painter works fill painting slots, sculptor works fill statue/plinth slots (`app/game/display.ts` `canDisplayWork` guard, shared by the store actions and both assign UIs). **Two assign flows**: click a slotted building → `DisplayPanel` modal (fill an empty slot from storage, recall a filled one; a direct click on a filled plinth opens that work's detail — driven by the placement controller's idle click → `inspectTarget`), and the Gallery codex's per-work "Display at… / Recall". **Incentive (both, small)**: every displayed work trickles city **Inspiration** per tick scaled by its captured commission prestige — except church hosts (cathedral, chapel), which trickle **Prestige** — and the host runs **+5% more effective per work, capped +25%**, a second scalar threaded beside plaza connectivity through the tick, `computeCityMetrics`, and `progressArtworks` (`computeDisplaySummary`). **Render** (`app/game/render/displayArt.ts`): a plinth shows a stone pedestal always (empty = an invitation) + a marble statue when filled (the citizen figure re-posed via `createStatueMesh`); paintings display on a free-standing framed **easel** out front with a procedural hashed canvas — a wall-flush canvas got lost against the ornate low-poly kit facades, so it stands in the open like a statue. New **Sculpture Display** decoration (a placeable plinth). Raze self-heals: a razed host's works return to storage and the confirm card warns. No save migration — the new `Artwork.prestige`/`displayedAt` fields are optional. *Still open: displayed art is placeholder procedural (custom low-poly statue/painting models later); single-Town-Center-Plaza enforcement still carries over from Phase 10.*
 - **10 Plaza connectivity (soft spatial inspiration)** — DONE, reframed from radius to network distance: the bonus radiates from the Main Plaza (Town Center Plaza) through roads with linear falloff (zero at 15 tiles), refreshed to full by secondary plazas on the network (`app/game/connectivity.ts` 0-1 BFS). Up to +25% by connection strength: generator output + service amenities (tick), commission progress (`progressArtworks`), housing capacity (`getHousing`); tooltip shows the current % or the "Link to a plaza with roads" hint. Gives roads a purpose; never a requirement or penalty. *Still open: enforce a single Town Center Plaza per city.*
@@ -367,10 +376,10 @@ Dev helpers: `/?demo` seeds a visual test city, `&pause` freezes the tick for st
 ## Key Design Principles (do not violate these)
 
 1. **No citizen pathfinding micromanagement.** Citizens are abstracted.
-2. **No granular supply chains.** Service buildings raise population thresholds — no food routing. Materials are supplier capacity, never a stockpile.
+2. **No granular supply chains.** Service buildings raise population thresholds — no food routing. Materials accumulate in three city-wide pools and are spent lump-sum when a commission is accepted — never routed, never per-building, never a stockpile the player manages. *(The original rule read "supplier capacity, never a stockpile"; the stockpile clause was deliberately overturned in July 2026 so material cost could scale with commission grandeur — the anti-simulation half of the rule stands.)*
 3. **All art is commissioned.** Every artwork has a requester, a name, and stakes. No anonymous grind output.
 4. **Favor is a decisions-only meter.** Each patron carries 0–100 favor moved solely by what the player does — completed works up, declined or expired offers down — never by time decay. Consequences stay faction-scoped (that patron's offer rate and grandeur), with one sanctioned exception: the first slide into Affronted costs a one-time denunciation prestige hit. Favor is never a top-bar resource. *(This deliberately overturned the original "no relationship meters" rule — the meter earned its way back in by these constraints.)*
-5. **Meaningful scarcity over complexity.** Supplier capacity is the primary constraint.
+5. **Meaningful scarcity over complexity.** Material stock versus commission cost is the primary constraint — a grand ask should outrun a small city's suppliers and storage.
 6. **Soft spatial meaning.** Plaza connection is a nudge (graded bonus with gentle falloff), never a hard cliff. Players are never punished for building something that looks good to them.
 7. **Cozy but with real decisions.** Tension from commission deadlines and artist/material scarcity — not crisis management.
 8. **Lean resources.** Exactly three headline resources (Florins, Inspiration, Prestige) plus Population as status. Never add a resource the player doesn't make decisions about.

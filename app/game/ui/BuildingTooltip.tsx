@@ -7,13 +7,7 @@ import {
   PLAZA_IDS,
 } from "~/game/connectivity";
 import { displayBoost } from "~/game/display";
-import {
-  assignedMaterials,
-  blockedReason,
-  getSupply,
-  MATERIAL_BY_ARTIST_TYPE,
-  MATERIAL_USERS,
-} from "~/game/materials";
+import { materialCaps } from "~/game/materials";
 import { getRazeSalvage } from "~/game/raze";
 import { trafficFactor } from "~/game/traffic";
 import type { BuildingMetadata } from "~/game/types";
@@ -38,6 +32,11 @@ function getActiveEffects(
   const multiplier =
     staffingEfficiency(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0, workers) * hostBoost;
 
+  if (metadata.supplies) {
+    effects.push(
+      `+${formatAmount(metadata.supplies.rate * multiplier)} ${metadata.supplies.material} / month`
+    );
+  }
   if (metadata.generates?.income) {
     effects.push(`+${formatAmount(metadata.generates.income * multiplier)} Florins / month`);
   }
@@ -69,10 +68,9 @@ export function BuildingTooltip() {
   const tile = useGameStore((s) =>
     s.hoveredTileKey ? s.map.tiles[s.hoveredTileKey] : undefined
   );
-  const artists = useGameStore((s) => s.artists);
   const artworks = useGameStore((s) => s.artworks);
-  const commissions = useGameStore((s) => s.commissions);
   const tiles = useGameStore((s) => s.map.tiles);
+  const materials = useGameStore((s) => s.materials);
   const population = useGameStore((s) => s.population);
   const isRazing = useGameStore((s) => s.map.selectedBuilding === RAZE_TOOL);
   const mouse = useRef({ x: 0, y: 0 });
@@ -123,25 +121,11 @@ export function BuildingTooltip() {
     ? getActiveEffects(metadata, tile.workers, plazaStrength, displayedCount, traffic)
     : [];
 
-  // Material supply status (Phase 7): citywide per-material totals, so a
-  // supplier reads "Pigment: 2/3 painters" and a staffed-but-blocked workshop
-  // gets its reason instead of "Needs 0 more workers".
-  const supply = getSupply(tiles, artists, commissions);
-  const material = metadata.supplies?.material;
-  const materialStatus = material ? supply[material] : undefined;
-  const founder =
-    metadata.artistCapacity != null
-      ? artists.find((a) => a.homeTileKey === originKey)
-      : undefined;
-  // A blocked workshop's material comes from its assigned commission (marble vs
-  // bronze); fall back to the type default when idle/pre-bronze.
-  const founderMaterial = founder
-    ? assignedMaterials(commissions).get(originKey) ?? MATERIAL_BY_ARTIST_TYPE[founder.type]
-    : undefined;
-  const materialReason =
-    !isActive && missing === 0 && founderMaterial
-      ? blockedReason(founderMaterial, supply[founderMaterial])
-      : null;
+  // Material stock: a supplier also reads the citywide pool it feeds (its own
+  // monthly output rides the active-effects list); a warehouse reads the
+  // ceiling it adds.
+  const supplies = metadata.supplies;
+  const caps = supplies ? materialCaps(tiles) : null;
 
   return (
     <div
@@ -157,10 +141,15 @@ export function BuildingTooltip() {
             {(metadata.maxWorkers ?? 0) > required ? ` (max ${metadata.maxWorkers})` : ""}
           </div>
         )}
-        {material && materialStatus && (
+        {supplies && caps && (
           <div className="text-sm text-ink-faint">
-            {capitalizeLabel(material)}: {materialStatus.inUse}/
-            {materialStatus.capacity} {MATERIAL_USERS[material]}
+            {capitalizeLabel(supplies.material)} stock {Math.floor(materials[supplies.material])} /{" "}
+            {caps[supplies.material]} citywide
+          </div>
+        )}
+        {metadata.materialStorage && (
+          <div className="text-sm text-ink-faint">
+            +{metadata.materialStorage} storage per material
           </div>
         )}
         {canBeInactive && (
@@ -169,7 +158,7 @@ export function BuildingTooltip() {
               ? "Active"
               : missing > 0
                 ? `Needs ${missing} more worker${missing === 1 ? "" : "s"}`
-                : materialReason ?? "Inactive"}
+                : "Inactive"}
           </div>
         )}
         {activeEffects.length > 0 && (

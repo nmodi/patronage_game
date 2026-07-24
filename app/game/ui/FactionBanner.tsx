@@ -16,9 +16,9 @@ const BANNER_COLORS: Record<string, string> = {
 };
 
 /**
- * One hanging pennant per admitted patron (Civ-style diplomacy banners),
- * top-right under the settings button; click toggles that patron's standing
- * card — the open banner unfurls lower.
+ * One hanging pennant per admitted patron (Civ-style diplomacy banners); click
+ * toggles that patron's standing card — the open banner unfurls lower. Lives in
+ * the HUD's right-hand rail (positioned by GameHUD) above the stores panel.
  */
 export function FactionBanner() {
   const tiles = useGameStore((s) => s.map.tiles);
@@ -30,7 +30,7 @@ export function FactionBanner() {
   const open = pool.find((r) => r.name === openName);
 
   return (
-    <div className="pointer-events-none fixed right-6 top-16 z-40 flex flex-col items-end gap-2">
+    <div className="flex flex-col items-end gap-2">
       <div className="flex items-start gap-2">
         {pool.map((r) => {
           const Icon = r.name === CHURCH ? Church : Shield;

@@ -13,12 +13,13 @@ import {
   FAVOR_START,
   FLORIN_RANK_COMPRESSION,
   FLORINS_PER_PRESTIGE,
+  MATERIAL_COST_SCALE,
   MAX_OPEN_OFFERS,
   OFFER_EXPIRY_MONTHS,
   REQUESTER_REWARD_SKEW,
 } from "./constants.ts";
 import type { TileMap } from "./grid.ts";
-import { MATERIAL_BY_ARTIST_TYPE, type MaterialSupply } from "./materials.ts";
+import { commissionMaterialCost, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts";
 import type { Artist, ArtistRank, Commission } from "./types.ts";
 import {
   ARTWORK_PRESTIGE,
@@ -115,12 +116,16 @@ export function favorFromWorks(works: { requester?: string }[]): Record<string, 
   return favor;
 }
 
-/** Shared authoritative guard for assigning an open commission to a founder's workshop. */
+/**
+ * Shared authoritative guard for assigning an open commission to a founder's
+ * workshop. `available` is the city's current stock of the commission's
+ * material — pass Infinity for materially ungated types (architects).
+ */
 export function canAssignCommission(
   commission: Commission,
   founder: Artist | undefined,
   tiles: TileMap,
-  supply: MaterialSupply | undefined
+  available: number
 ): boolean {
   if (commission.workshopKey || !founder) return false;
   if (founder.type !== commission.artistType || founder.workProgress != null) return false;
@@ -132,7 +137,7 @@ export function canAssignCommission(
     return false;
   }
 
-  return !(supply && supply.inUse >= supply.capacity);
+  return available >= commissionMaterialCost(commission);
 }
 
 /**
@@ -213,6 +218,10 @@ export function maybeOfferCommission(
     requester: requester.name,
     artistType: type,
     material,
+    // Grander asks want more stone: cost rides the same rank curve and grandeur
+    // multiplier as the reward, so a high-favor commission outgrows a small
+    // city's storage and pushes the player to build out suppliers.
+    materialCost: material ? Math.round(MATERIAL_COST_SCALE * rankPrestige * grandeur) : undefined,
     durationMonths: Math.round(WORK_DURATION_MONTHS[bestRank] * grandeur),
     florins: Math.round(florins * grandeur),
     prestige: Math.max(1, Math.round(prestige * grandeur)),

@@ -1,6 +1,6 @@
 import { favorFromWorks } from "./commissions.ts";
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /** Preserve compatible saves while explicitly discarding structurally obsolete versions. */
 export function migrateSave(persisted: unknown, version: number): unknown {
@@ -11,6 +11,7 @@ export function migrateSave(persisted: unknown, version: number): unknown {
     artists?: { xp?: number }[];
     artworks?: { requester?: string }[];
     favor?: Record<string, number>;
+    materials?: Record<string, number>;
   };
   // v5 predates seeded water. Keeping it permanently dry avoids placing a new
   // river through an existing city.
@@ -26,6 +27,12 @@ export function migrateSave(persisted: unknown, version: number): unknown {
   // works so old saves keep the standing they earned.
   if (version < 8) {
     save = { ...save, favor: favorFromWorks(save.artworks ?? []) };
+  }
+  // v9 turned supplier capacity into accumulating stock. Pools start empty:
+  // pre-v9 offers carry no materialCost (so they stay free to assign), work
+  // already in flight never re-checks, and suppliers refill within months.
+  if (version < 9) {
+    save = { ...save, materials: { pigment: 0, marble: 0, bronze: 0 } };
   }
   return save;
 }

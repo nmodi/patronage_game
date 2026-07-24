@@ -1,6 +1,14 @@
-import type { Artist, ArtistType, Commission, Material } from "./types.ts";
+import type { ArtistType, Commission, Material } from "./types.ts";
 import type { TileMap } from "./grid.ts";
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
+import { MATERIAL_STORAGE_BASE } from "./constants.ts";
+
+// Materials are an accumulating city-wide stock (July 2026, deliberate reversal
+// of the original "capacity token" model): staffed suppliers produce units each
+// month into one pool per material, and a commission spends a lump sum from that
+// pool when it's assigned. Nothing is routed and nothing is per-building —
+// pools are three numbers — so there are still no supply chains. Once assigned,
+// work never stalls on materials.
 
 // Legacy-default material per artist type: what a commission needs when it
 // doesn't name a material (pre-bronze saves). Sculptors default to marble;
@@ -12,106 +20,53 @@ export const MATERIAL_BY_ARTIST_TYPE: Partial<Record<ArtistType, Material>> = {
 
 export const MATERIALS: readonly Material[] = ["pigment", "marble", "bronze"];
 
-// Which artist type each material serves — tooltip noun only ("Bronze: 1/2 sculptors").
-export const MATERIAL_USERS: Record<Material, string> = {
-  pigment: "painters",
-  marble: "sculptors",
-  bronze: "sculptors",
-};
+export type MaterialPools = Record<Material, number>;
+
+export const EMPTY_POOLS: MaterialPools = { pigment: 0, marble: 0, bronze: 0 };
 
 /** A commission's required material: explicit field, or the artist-type default. */
 export function commissionMaterial(c: Commission): Material | undefined {
   return c.material ?? MATERIAL_BY_ARTIST_TYPE[c.artistType];
 }
 
-/** workshopKey → required material, for assigned commissions only. */
-export function assignedMaterials(commissions: Commission[]): Map<string, Material> {
-  const byKey = new Map<string, Material>();
-  for (const c of commissions) {
-    const material = c.workshopKey ? commissionMaterial(c) : undefined;
-    if (c.workshopKey && material) byKey.set(c.workshopKey, material);
-  }
-  return byKey;
-}
-
-export interface MaterialSupply {
-  capacity: number; // total slots from staffed suppliers
-  inUse: number; // working workshops granted a slot
-  allowed: Set<string>; // workshop origin keys permitted to work this tick
-}
-
-export interface WorkingWorkshop {
-  key: string; // origin key "x,y"
-  material: Material; // material the workshop's current commission consumes
-  builtTick: number;
+/** Stock a commission spends at assign; pre-stockpile offers are free. */
+export function commissionMaterialCost(c: Commission): number {
+  return c.materialCost ?? 0;
 }
 
 /**
- * Allocate supplier capacity to working workshops (design doc, Phase 7).
- * Materials aren't consumed — a working workshop holds a slot until its
- * artwork completes. When demand exceeds capacity the oldest workshops keep
- * their slots: sort by (builtTick, key), the same tiebreak family as
- * allocateWorkers. Keyed by material, so marble and bronze (both sculptor
- * materials) don't cross-allocate. Every material gets an entry, even with no
- * supplier built (capacity 0).
+ * Storage ceiling per material: a base yard, plus each supplier's own storage
+ * for its material, plus every warehouse for all materials. Storage counts
+ * whether or not the building is staffed — only production needs workers.
  */
-export function computeSupply(
-  suppliers: { material: Material; capacity: number }[],
-  working: WorkingWorkshop[]
-): Partial<Record<Material, MaterialSupply>> {
-  const result: Partial<Record<Material, MaterialSupply>> = {};
-  for (const material of MATERIALS) {
-    const capacity = suppliers
-      .filter((s) => s.material === material)
-      .reduce((sum, s) => sum + s.capacity, 0);
-    const allowed = new Set(
-      working
-        .filter((w) => w.material === material)
-        .sort((a, b) => a.builtTick - b.builtTick || a.key.localeCompare(b.key))
-        .slice(0, capacity)
-        .map((w) => w.key)
-    );
-    result[material] = { capacity, inUse: allowed.size, allowed };
-  }
-  return result;
-}
-
-/** Store/UI adapter: capacity from staffed supplier tiles, demand from working founders. */
-export function getSupply(
-  tiles: TileMap,
-  artists: Artist[],
-  commissions: Commission[]
-): Partial<Record<Material, MaterialSupply>> {
-  const suppliers: { material: Material; capacity: number }[] = [];
+export function materialCaps(tiles: TileMap): MaterialPools {
+  const caps: MaterialPools = { ...EMPTY_POOLS };
+  for (const material of MATERIALS) caps[material] = MATERIAL_STORAGE_BASE;
   for (const tile of Object.values(tiles)) {
-    if (!tile.isOrigin || !tile.isActive) continue;
-    const supplies = BUILDING_METADATA_BY_ID[tile.buildingId]?.supplies;
-    if (supplies) suppliers.push(supplies);
+    if (!tile.isOrigin) continue;
+    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+    if (!metadata) continue;
+    if (metadata.supplies) caps[metadata.supplies.material] += metadata.supplies.storage;
+    if (metadata.materialStorage) {
+      for (const material of MATERIALS) caps[material] += metadata.materialStorage;
+    }
   }
-  const byKey = assignedMaterials(commissions);
-  const working: WorkingWorkshop[] = [];
-  for (const a of artists) {
-    if (a.workProgress == null) continue;
-    // A working founder's material comes from its assigned commission; fall
-    // back to the type default for pre-bronze saves / orphaned progress.
-    const material = byKey.get(a.homeTileKey) ?? MATERIAL_BY_ARTIST_TYPE[a.type];
-    if (material == null) continue; // ungated type (architect)
-    const home = tiles[a.homeTileKey];
-    if (!home) continue; // workshop demolished; pruned by the next tick
-    working.push({ key: a.homeTileKey, material, builtTick: home.builtTick ?? 0 });
-  }
-  return computeSupply(suppliers, working);
+  return caps;
 }
 
-/** Tooltip/panel reason for a material-blocked workshop; null for ungated types. */
-export function blockedReason(
-  material: Material | undefined,
-  supply: MaterialSupply | undefined
-): string | null {
-  if (material == null || supply == null) return null;
-  if (supply.capacity === 0) return `No ${material} supplier`;
-  const name =
-    Object.values(BUILDING_METADATA_BY_ID).find((m) => m.supplies?.material === material)?.name ??
-    "Supplier";
-  return `${name} at capacity`;
+/**
+ * Add a month's production, clamped to the caps. Pure; returns the same object
+ * identity when nothing moved (the tick's change-tracking convention).
+ */
+export function addProduction(
+  pools: MaterialPools,
+  produced: { material: Material; amount: number }[],
+  caps: MaterialPools
+): MaterialPools {
+  if (produced.length === 0) return pools;
+  const next = { ...pools };
+  for (const { material, amount } of produced) {
+    next[material] = Math.min(caps[material], next[material] + amount);
+  }
+  return MATERIALS.every((m) => next[m] === pools[m]) ? pools : next;
 }
