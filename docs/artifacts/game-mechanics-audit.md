@@ -1,5 +1,5 @@
 # Patronage — Game Mechanics Audit
-*Generated July 2026. A complete rundown of every implemented game mechanic with code references, followed by an audit of the `docs/` folder: which planned mechanics are built and which are not.*
+*Generated July 2026; refreshed after factions slice 1 landed. A complete rundown of every implemented game mechanic with code references, followed by an audit of the `docs/` folder: which planned mechanics are built and which are not.*
 
 This is a snapshot of the code as it stands, cross-checked against the design docs. Line numbers are approximate (they drift with edits); the file + function names are the durable references. Balance constants are pulled from `app/game/constants.ts` unless noted — per-building stats live inline in `app/game/buildings.ts`.
 
@@ -88,12 +88,22 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Offer generation** | Each month, if open offers < `MAX_OPEN_OFFERS = 3`, chance `COMMISSION_OFFER_CHANCE = 0.15` one arrives. Type drawn from artist types present (every offer actionable). Sculptor offers roll bronze at `BRONZE_COMMISSION_CHANCE = 1/3`. Best rank of that type scales duration/reward. Expiry `OFFER_EXPIRY_MONTHS = 12`. | `app/game/commissions.ts` → `maybeOfferCommission()` |
-| **Reward calc** | `basePrestige = ARTWORK_PRESTIGE[bestRank]`; florins compressed against rank (`FLORIN_RANK_COMPRESSION = 0.25`, `FLORINS_PER_PRESTIGE = 25`). Requester `mix` skews split by `REQUESTER_REWARD_SKEW = 2` (florins-mix doubles florins/halves prestige; prestige-mix the reverse; mixed leaves base). | `commissions.ts` |
-| **Requesters** | Flavor strings: The Church (florins), Medici/Strozzi/Pazzi (prestige), Wool/Silk Guild (mixed). Guilds slated for removal. | `commissions.ts` → `REQUESTERS` |
+| **Offer generation** | Each month, if open offers < `MAX_OPEN_OFFERS = 3`, chance `COMMISSION_OFFER_CHANCE = 0.08` one arrives (rare-but-rich pacing — ~one a year, announced by a persistent arrival card). Requester drawn from the admitted patron pool (empty pool → no offers). Type drawn from artist types present (every offer actionable). Sculptor offers roll bronze at `BRONZE_COMMISSION_CHANCE = 1/3`. Best rank of that type scales duration/reward; the requester's favor rung multiplies duration/florins/prestige (see §10a). Expiry `OFFER_EXPIRY_MONTHS = 12`. | `app/game/commissions.ts` → `maybeOfferCommission()` |
+| **Reward calc** | `basePrestige = ARTWORK_PRESTIGE[bestRank] · COMMISSION_PRESTIGE_SCALE(1.5)`; florins compressed against rank (`FLORIN_RANK_COMPRESSION = 0.25`, `FLORINS_PER_PRESTIGE = 40`). Requester `mix` skews split by `REQUESTER_REWARD_SKEW = 2` (florins-mix doubles florins/halves prestige; prestige-mix the reverse). Favor grandeur multiplies on top. | `commissions.ts` |
+| **Requesters (patron pool)** | The Church (florins mix, devotional `CHURCH_TITLES`) + Medici/Strozzi/Pazzi (prestige mix). Guilds removed. Pool gated by admission: Chapel or Cathedral seats the Church; each Palazzo installs the next house in table order. | `commissions.ts` → `REQUESTERS`, `requesterPool()` |
+| **Decline** | An open offer can be declined from the panel: dropped immediately, −5 favor with the requester (same denunciation-crossing check as expiry). | store `declineCommission()` |
 | **Assignment guard** | Assign only if offer open, founder exists + type matches + idle, host is an active matching workshop, and a supplier slot is free. | `commissions.ts` → `canAssignCommission()`; store `assignCommission()` |
 | **Reconciliation** | Each tick: commissions whose workshop vanished revert to open offers with fresh expiry; offers past expiry are dropped. | `commissions.ts` → `reconcileCommissions()`, `reopenCommission()` |
 | **Completion payout** | Mints a named `Artwork` (captures title, requester, prestige, material), pays florins + prestige, clears `workProgress`, grants all members 100 XP. | `artists.ts` → `progressArtworks()` |
+
+## 10a. Faction favor (factions slice 1)
+
+| Mechanic | What it does | Code |
+|---|---|---|
+| **Favor meter** | Persisted `favor: Record<string, number>`, 0–100 per faction; reads default `FAVOR_START = 50`. Moves **only on decisions**: `FAVOR_PER_WORK = +8` per completed work, `FAVOR_SLIGHT = −5` per declined or expired open offer. No time decay. Save v8 seeds old saves from per-requester completed works. | `commissions.ts` → `favorOf()`, `favorFromWorks()`; `tick.ts`; `saveMigration.ts` |
+| **Rungs (grandeur)** | Favor ≥ `FAVOR_RUNGS` [60, 75, 90] → `FAVOR_GRANDEUR` [1, 1.3, 1.6, 2] multiplying that faction's offer duration/florins/prestige. The Church's rungs 2–3 additionally require a standing Cathedral (effective rung capped, favor untouched). | `commissions.ts` → `favorRung()` |
+| **Cooled / Affronted tiers** | Below `FAVOR_COOLED(35)`: offers skip `COOLED_SKIP_CHANCE(0.5)` of the time and force rung 0. Below `FAVOR_AFFRONTED(15)`: skip `AFFRONTED_SKIP_CHANCE(0.75)`. The ≥15 → <15 crossing fires a one-time denunciation: `DENOUNCE_PRESTIGE(−15)` city prestige (clamped ≥ 0) + alert card; re-arms on recovery. The design's single sanctioned citywide consequence. | `commissions.ts` → `favorTier()`; `tick.ts` `denounced` |
+| **UI** | Per-patron crest banner top-right (favor %, standing, next rung, cathedral-gate/recovery hints); persistent arrival + denunciation cards (transient `offerAlert`/`denounceAlert` store fields); Decline button + "— Nth work" flavor on the commissions panel. | `ui/FactionBanner.tsx`; `ui/OfferAlert.tsx`; `ui/CommissionsPanel.tsx` |
 
 ## 11. Work display (Phase 9)
 
@@ -191,6 +201,8 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Display panel (per-building slot manager, store `inspectTarget`-driven) | `ui/DisplayPanel.tsx` |
 | Building tooltip (status reasons, computed active effects, plaza/traffic hints, raze salvage) | `ui/BuildingTooltip.tsx` |
 | Renaissance celebration card | `ui/RenaissanceCard.tsx` |
+| Faction crest banner (per-patron favor/standing card) | `ui/FactionBanner.tsx` |
+| Offer-arrival + denunciation alert cards | `ui/OfferAlert.tsx` |
 | Raze confirm popover | `ui/RazeConfirm.tsx` |
 | Main menu / continue-save peek (no hydration until Continue) | `ui/MainMenu.tsx` |
 
@@ -231,7 +243,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 - Palazzo `housing: 12`.
 - Work-display sites (Phase 9) as an effect slot.
 
-**Built post-audit (factions slice 1):**
+**Built (factions slice 1, July 2026):**
 - **Requester-pool shaping** — Cathedral commission elevation (Church admission + upper favor rungs), Palazzo noble installs (`requesterPool` in `commissions.ts`).
 
 **Not built:**
@@ -241,12 +253,12 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## `factions.md` — requesters grown into patrons
 
-**Status: slice 1 built (July 2026, post-audit).** Patron admission, the 0–100 favor ladder, rungs/tiers, and the banner UI landed via `archive/factions-slice-1.md`; the main doc's Commission Requesters section supersedes this doc where they conflict.
+**Status: slice 1 built (July 2026).** Patron admission, the 0–100 favor ladder, rungs/tiers, and the banner UI landed via `archive/factions-slice-1.md`; the main doc's Commission Requesters section supersedes this doc where they conflict.
 - Still not built: taste profiles, seed-rolled roster, rivalry pairs, signature chains.
 
 ## `archive/factions-slice-1.md` — faction slice 1 implementation plan
 
-**Status: built (July 2026, post-audit) — archived.** The plan landed in full: favor 0–100 meter, patron admission gating, `FactionBanner.tsx`/`OfferAlert.tsx`, denunciation, rare-but-rich pacing (`COMMISSION_OFFER_CHANCE = 0.08`, `FLORINS_PER_PRESTIGE = 40`), `SAVE_VERSION = 8`. The "no relationship meters" rule was deliberately overturned (design-doc principle 4).
+**Status: built (July 2026) — archived.** The plan landed in full: favor 0–100 meter, patron admission gating, `FactionBanner.tsx`/`OfferAlert.tsx`, denunciation, rare-but-rich pacing (`COMMISSION_OFFER_CHANCE = 0.08`, `FLORINS_PER_PRESTIGE = 40`), `SAVE_VERSION = 8`. The "no relationship meters" rule was deliberately overturned (design-doc principle 4).
 
 ## `map-resources.md` — seed-determined supplier availability
 
@@ -273,11 +285,9 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## Summary — the biggest unbuilt planned systems
 
-1. **Factions, later slices** (taste profiles, seed-rolled roster, rivalry pairs, signature chains) — slice 1 (favor meter, patron admission) landed post-audit; the rest of `factions.md` remains the largest designed-but-unbuilt system.
+1. **Factions, later slices** (taste profiles, seed-rolled roster, rivalry pairs, signature chains) — slice 1 (favor meter, patron admission) is built (see §10a); the rest of `factions.md` remains the largest designed-but-unbuilt system.
 2. **Architects & building commissions** — the entire third discipline and construction pipeline.
 3. **Map resources** — seed-rolled supplier availability + substitute pairs.
 4. **Expanded building roster** — most Civic/Religious/Trade/Social/Waterfront buildings; all the `building-effects.md` slight-negative trade-offs.
 5. **Neighborhood zoning** and **housing tiers 3–5**.
 6. **Per-plaza paving picker**, **single-plaza enforcement**, **diagonal row-house blending**, **Lake archetype**, **campaign scenarios** — smaller stretch items.
-</content>
-</invoke>
