@@ -244,6 +244,7 @@ const TINT_COLORS: Record<string, string> = {
   roofFaded: "#e9eef0",
   bronze: "#a3773e", // warm cast-metal brown for the foundry's ingot stock (diffuse-only — no metal sheen)
   crate: "#b08c5c", // packing-timber tan for the warehouse's crate stacks (lighter than bronze, so the two yards don't read alike)
+  timber: "#7d5c3c", // structural posts (warehouse loggia) — a step darker than crate so the frame reads as beams, not cargo
   // Unlit interior behind a window opening. Dark enough to survive the ~1.9x
   // sun on a lit face — at the old #6a5c4b the shutterless arched windows'
   // reveals blew out to pale tan and read as empty niches.
@@ -969,27 +970,58 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     fit: 0.95,
     randomRotate: "quarter",
   },
-  // Warehouse: a plain storage barn — one long gable shed with wide cargo doors
-  // on the street face and crate stacks along the side. No yard activity and no
-  // side windows: it stores, it doesn't work (workerless), so it reads quieter
-  // than the three suppliers it sits beside on the Materials tab.
+  // Warehouse: a storage barn at tavern scale (9x7) — one long gable hall with
+  // a wide cargo doorway on the gable end and a timber-post loggia down the
+  // whole street side, stacked with goods (the reference sheet's shape). The
+  // loggia is the tell — a supplier works a yard, a warehouse just shelters
+  // cargo, so nothing here is a workplace prop. Block spans and fit/scaleY are
+  // the tavern's, so doors and windows come out kit-sized on both.
   warehouse: {
     front: [1, 0],
     parts: [
-      { file: "proc:block", position: [0, 0, 0], scale: [1.3, 1.15, 1.6], tint: "facade" },
-      ...gableRoof([0, 1.15, 0], [1.3 / 0.55, 0.5, 1.6]),
-      // twin cargo doors on the +X gable end (wall at x 0.65)
-      ...doorOn("posX", -0.34, 0.65),
-      ...doorOn("posX", 0.34, 0.65),
-      ...windowOn("negX", 0.15, -0.3, 0.65),
-      ...windowOn("negX", 0.15, 0.3, 0.65),
-      // crate stacks along the long side (wall at z 0.8)
-      { file: "proc:block", position: [-0.35, 0, 0.95], scale: [0.26, 0.26, 0.26], tint: "crate" },
-      { file: "proc:block", position: [-0.05, 0, 0.98], scale: [0.3, 0.3, 0.26], tint: "crate" },
-      { file: "proc:block", position: [-0.06, 0.3, 0.98], scale: [0.22, 0.22, 0.2], rotationY: 0.3, tint: "crate" },
-      { file: TOWN + "cart.glb", position: [0.5, 0, 0.95], rotationY: 0.1, scale: 0.6 },
+      // hall: gable end to the street, walls at x ±1.5 / z −1.15..0.45. Roof x
+      // scale is (half-span + the kit's 0.075 verge) over the piece's own 0.55
+      // half-extent — the old ref used the *full* span there and hung a roof
+      // twice the building's width.
+      { file: "proc:block", position: [0, 0, -0.35], scale: [3.0, 1.25, 1.6], tint: "facade" },
+      ...gableRoof([0, 1.25, -0.35], [1.575 / 0.55, 0.55, 1.6]),
+      { file: TOWN + "chimney.glb", position: [-1.0, 1.0, -0.35], scale: 0.65 },
+      // one wide cargo doorway, stone plaque over it (the ref's crest panel)
+      ...doorOn("posX", -0.35, 1.5, [1, 1, 1.9]),
+      { file: "proc:block", position: [1.515, 1.04, -0.35], scale: [0.04, 0.16, 0.24], tint: "stone" },
+      // small high windows on the blind long wall (z −1.15) and the far end
+      ...[-1.05, -0.35, 0.35, 1.05].flatMap((x) => windowOn("negZ", 0.55, x, 1.15)),
+      ...windowOn("negX", 0.55, -0.35, 1.5),
+      // loggia: lean-to whose ridge buries in the +Z wall (the tavern-awning
+      // trick), so only its outer slope shows. Roof piece direct, not
+      // gableRoof — an open shelter has no gable ends to close. Inset from the
+      // gable ends (half-span 1.4 vs the wall's 1.5) so its verge doesn't poke
+      // through the street face.
+      ...[[1.4 / 0.55, 0.7, 1.3] as [number, number, number]].map(
+        (scale): Part => ({ file: procRoofFile("roof-gable", scale), position: [0, 0.6, 0.45], scale, tint: "roof" })
+      ),
+      // timber posts, cut to the slope's underside at z 1.05 (y ≈ 0.655). The
+      // shelter ridge lands at 1.0, a clear step below the 1.25 eave — level
+      // with it the two roofs read as one slope off the ridge.
+      ...[-1.25, -0.75, -0.25, 0.25, 0.75, 1.25].map(
+        (x): Part => ({ file: "proc:block", position: [x, 0, 1.05], scale: [0.09, 0.655, 0.09], tint: "timber" })
+      ),
+      // cargo under the shelter: crate stacks down the run, a cart out front
+      { file: "proc:block", position: [-1.15, 0, 0.78], scale: [0.2, 0.2, 0.19], tint: "crate" },
+      { file: "proc:block", position: [-1.14, 0.2, 0.79], scale: [0.15, 0.14, 0.14], rotationY: 0.3, tint: "crate" },
+      { file: "proc:block", position: [-0.78, 0, 0.88], scale: [0.18, 0.18, 0.18], rotationY: 0.15, tint: "crate" },
+      { file: "proc:block", position: [-0.25, 0, 0.78], scale: [0.23, 0.14, 0.2], tint: "crate" },
+      { file: "proc:block", position: [-0.24, 0.14, 0.79], scale: [0.16, 0.11, 0.15], rotationY: -0.25, tint: "crate" },
+      { file: "proc:block", position: [0.3, 0, 0.88], scale: [0.19, 0.19, 0.18], rotationY: -0.1, tint: "crate" },
+      { file: "proc:block", position: [0.8, 0, 0.8], scale: [0.16, 0.16, 0.16], rotationY: 0.25, tint: "crate" },
+      { file: "proc:block", position: [0.81, 0.16, 0.81], scale: [0.12, 0.11, 0.12], tint: "crate" },
+      // cart parked on the apron clear of the posts (it fouled the end post
+      // under the shelter); buried so poking past the eave line doesn't
+      // rescale the building, the tavern's terrace-prop trick
+      { file: TOWN + "cart.glb", position: [0.95, 0, 1.42], rotationY: 0.35, scale: 0.4, buried: true },
     ],
-    fit: 0.95,
+    fit: 0.92,
+    scaleY: 0.79,
     randomRotate: "quarter",
   },
   // Long tavern hall: three bays under one continuous gable roof, with a
@@ -1023,12 +1055,14 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...windowOn("negZ", 0, 1, 0.75),
       ...windowOn("negX", 0, -0.3, 1.5),
       ...windowOn("negX", 0, 0.3, 1.5),
-      // terrace: shallow tiled awning (ridge sunk into the wall, cathedral
-      // lean-to trick) over benches and potted shrubs. Prop scales counter the
-      // global stretch (~1.36x / 1.84z) so they render roughly square.
-      // awning rides just under the eaves — the arched door frame reaches
-      // nearly the full wall height, so anything lower slices through it
-      ...gableRoof([0, 0.82, 0.75], [2.6, 0.2, 0.5]),
+      // terrace: striped fabric awning (the market stalls' cloth, not a second
+      // tiled roof) with its back half sunk into the wall. Prop scales counter
+      // the global stretch (~1.36x / 1.84z) so they render roughly square.
+      // The canopy rides just under the eaves — the arched door frame reaches
+      // nearly the full wall height, so anything lower slices through it.
+      // (no tint: the piece authors its own crimson — cloth1/cloth2 are
+      // colormap swaps, which only reach the kit's textured meshes)
+      { file: "proc:awning@18x1", position: [0, 0.76, 0.75], scale: [2.6, 1, 0.5] },
       // square café tables (the market's open table stand); z=0.9 keeps the legs
       // clear of the wall face at 0.75, buried so poking past the awning's
       // z=1.0 fit edge doesn't rescale the walls

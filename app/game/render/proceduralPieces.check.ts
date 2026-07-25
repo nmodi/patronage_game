@@ -12,6 +12,8 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 
 import {
+  AWNING_EAVE,
+  AWNING_RISE,
   BLOCK_ENVELOPE,
   HIP_ENVELOPE,
   PROC_FILES,
@@ -164,6 +166,17 @@ assert.equal(bounds("proc:shutter").material, "glazing");
 assert.equal(bounds("proc:arch-leaf").material, "glazing");
 assert.equal(bounds("proc:rose").material, "stone");
 assert.equal(bounds("proc:rose-glass").material, "glazing");
+assert.equal(bounds("proc:awning").material, "cloth");
+
+// The awning drops into the roof pieces' plan (a ref swapping gableRoof for it
+// keeps its transform), but rises a fraction as high — cloth, not tile.
+{
+  const awn = bounds("proc:awning");
+  assert.ok(Math.abs(awn.max[0] - ROOF_ENVELOPE.max[0]) < EPS, `awning half-span ${awn.max[0]}, want the roof's ${ROOF_ENVELOPE.max[0]}`);
+  assert.ok(Math.abs(awn.max[2] - ROOF_ENVELOPE.max[2]) < EPS, `awning half-depth ${awn.max[2]}, want the roof's ${ROOF_ENVELOPE.max[2]}`);
+  assert.ok(Math.abs(awn.max[1] - AWNING_EAVE - AWNING_RISE) < EPS, `awning ridge ${awn.max[1]}, want ${AWNING_EAVE + AWNING_RISE}`);
+  assert.ok(awn.max[1] < ROOF_ENVELOPE.max[1] / 2, "the awning must read shallower than a tiled roof");
+}
 
 // One mesh per piece keeps the batch key (`${file}#${i}`) stable.
 for (const file of PROC_FILES) assert.equal(bounds(file).meshCount, 1, `${file}: expected 1 mesh`);

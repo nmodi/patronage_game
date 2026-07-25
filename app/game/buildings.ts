@@ -235,9 +235,10 @@ export const BUILDING_TYPES = [
     name: "Warehouse",
     baseCost: 350,
     description: "Stores materials — raises every material's storage ceiling.",
-    size: { width: 2.0, height: 1.5, depth: 2.0 },
+    // Tavern-scale: a storage hall, the biggest thing on the Materials tab.
+    size: { width: 3.9, height: 1.8, depth: 3.0 },
     color: "#9a8a6f",
-    footprint: { width: 4, depth: 4 },
+    footprint: { width: 9, depth: 7 },
     paved: true,
     workersRequired: 0,
     maxWorkers: 0,

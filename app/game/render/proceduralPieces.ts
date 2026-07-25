@@ -1202,6 +1202,63 @@ function buildArchBay(scene: Scene) {
   return { mesh, material: "stone", color: STONE };
 }
 
+/** Fabric awning — the market stalls' canopy language as a wall-mounted shop
+ * awning, for refs that were reaching for `gableRoof` to get a lean-to and
+ * ending up with a second tiled roof. Same plan as the roof pieces (ridge along
+ * X at z = 0, slopes falling to ±Z, x half-span 0.55) so an existing ref keeps
+ * its transform, but the pitch is authored shallow — cloth, not tile — and the
+ * rise is small enough that a ref passes y scale ~1 instead of squashing it.
+ * Panels alternate shade like seamed cloth and their valances alternate depth,
+ * which is what reads as a scalloped skirt at this scale. One `cloth` material,
+ * so `Part.tint` recolors a whole canopy (the market's fabrics are blue, gold,
+ * crimson, green — see scripts/make-stall-cloth.py). */
+export const AWNING_RISE = 0.16;
+const AWNING_T = 0.02;
+/** Valance drops, alternating per panel. The deeper one sets the piece's base:
+ * every piece but the roofs and the roses is authored base-at-0 (checked), so
+ * the eave line sits one deep valance up and a ref positions by that. */
+const AWNING_VALANCE: [number, number] = [0.05, 0.09];
+export const AWNING_EAVE = Math.max(...AWNING_VALANCE);
+// The stalls' crimson is #a83246 *as the atlas holds it*; the scene lights a
+// sunlit face at ~1.9x, so an authored colour has to sit well under the swatch
+// it matches or it renders hot pink (the same rule the generated roofs follow).
+const CLOTH = "#5f232c";
+function buildAwning(scene: Scene, panels: number) {
+  const parts: Mesh[] = [];
+  const w = (2 * ROOF_HALF_X) / panels;
+  for (let i = 0; i < panels; i++) {
+    const shade = i % 2 ? 0.82 : 1;
+    const drop = AWNING_VALANCE[i % 2]!;
+    for (const s of [1, -1]) {
+      const z = s * ROOF_HALF_Z;
+      const ridge = AWNING_EAVE + AWNING_RISE;
+      parts.push(
+        wedge(
+          `awn-${i}-${s}`,
+          [[0, ridge], [z, AWNING_EAVE], [z, AWNING_EAVE - AWNING_T], [0, ridge - AWNING_T]],
+          w / 2,
+          shade,
+          scene
+        ),
+        // valance hanging off the eave, in the fabric's own thickness
+        shadedBox(
+          `awn-v-${i}-${s}`,
+          [-w / 2, w / 2],
+          [AWNING_EAVE - drop, AWNING_EAVE],
+          s > 0 ? [z - AWNING_T, z] : [z, z + AWNING_T],
+          shade,
+          scene
+        )
+      );
+    }
+    const x = -ROOF_HALF_X + (i + 0.5) * w;
+    for (const m of parts.slice(-4)) m.bakeTransformIntoVertices(Matrix.Translation(x, 0, 0));
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-awning";
+  return { mesh, material: "cloth", color: CLOTH };
+}
+
 type Builder = (scene: Scene, courses: number, rows: number) => {
   mesh: Mesh;
   material: string;
@@ -1224,6 +1281,7 @@ const BUILDERS: Record<string, Builder> = {
   "portal-frame": buildPortalFrame,
   "portal-leaf": buildPortalLeaf,
   "arch-bay": buildArchBay,
+  awning: (scene, courses) => buildAwning(scene, courses),
 };
 
 export const PROC_FILES = Object.keys(BUILDERS).map((id) => PROC_PREFIX + id);
