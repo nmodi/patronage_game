@@ -78,6 +78,10 @@ export const XP_RATES = {
   practicePerMonth: 2, // passive training, every artist, every month
   teachingMultiplier: 3, // practice rate × this when a higher-ranked artist shares the workshop
   perCompletedWork: 100, // one-time gain for every member when the workshop completes a work
+  // The city teaches architects: XP per florin the player spends placing
+  // structures (fourth source, architects in active studios only). A 1500ƒ
+  // cathedral teaches 75 ≈ ¾ of a completed work; a 10ƒ fence floors to 0.
+  perFlorinBuilt: 0.05,
 };
 
 // --- Work display (display.ts) ---

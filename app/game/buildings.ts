@@ -77,6 +77,7 @@ export const BUILDING_TYPES = [
     color: "#c9b183",
     footprint: { width: 10, depth: 8 },
     paved: true,
+    buildCost: { stone: 20, timber: 10 },
     housing: 12,
     workersRequired: 0,
     maxWorkers: 0,
@@ -99,6 +100,10 @@ export const BUILDING_TYPES = [
     color: "#d8d2c4",
     footprint: { width: 14, depth: 12 },
     paved: true,
+    // The grandest construction drains a single quarry's entire 40 ceiling
+    // (base 20 + storage 20) — a full stores district, like a top-rung
+    // commission outrunning one supplier (principle 5).
+    buildCost: { stone: 40, timber: 10 },
     prestigeOnBuild: 25, // the consecration moment
     workersRequired: 0,
     maxWorkers: 0,
@@ -121,6 +126,47 @@ export const BUILDING_TYPES = [
     footprint: { width: 5, depth: 8 },
     paved: true,
     amenities: 10, // spiritual comfort — the one build-once, workerless service
+    workersRequired: 0,
+    maxWorkers: 0,
+    displaySlots: [{ kind: "painting" }, { kind: "painting" }, { kind: "statue" }],
+  },
+  {
+    // Blueprint commission structure (noble ask): an open sculpture gallery —
+    // Loggia dei Lanzi. Never in the open palette; a completed architect
+    // commission funds it (0ƒ) and construction draws on the stone/timber pools.
+    type: "city",
+    id: "loggia",
+    name: "Loggia",
+    baseCost: 500, // reference price (salvage 0, placement 0ƒ) — sizes the ask
+    size: { width: 3.4, height: 1.3, depth: 2.1 },
+    color: "#d8d2c4",
+    footprint: { width: 8, depth: 5 },
+    paved: true,
+    commissionOnly: true,
+    buildCost: { stone: 15, timber: 10 },
+    generates: { inspiration: 2 },
+    prestigeOnBuild: 10,
+    workersRequired: 0,
+    maxWorkers: 0,
+    // An open gallery: its works stand on plinths under the arches.
+    displaySlots: [
+      { kind: "plinth", cell: { x: 2, y: 2 } },
+      { kind: "plinth", cell: { x: 5, y: 2 } },
+    ],
+  },
+  {
+    // Blueprint commission structure (Church ask): pure prestige, per the doc.
+    type: "city",
+    id: "baptistery",
+    name: "Baptistery",
+    baseCost: 800, // reference price (salvage 0, placement 0ƒ) — sizes the ask
+    size: { width: 2.6, height: 2.6, depth: 2.6 },
+    color: "#d8d2c4",
+    footprint: { width: 6, depth: 6 },
+    paved: true,
+    commissionOnly: true,
+    buildCost: { stone: 30 },
+    prestigeOnBuild: 40,
     workersRequired: 0,
     maxWorkers: 0,
     displaySlots: [{ kind: "painting" }, { kind: "painting" }, { kind: "statue" }],
@@ -157,6 +203,21 @@ export const BUILDING_TYPES = [
     // ≈ model-local (0.42, 0.68), the old decorative plinth's spot) — clear of
     // the -X-bay door.
     displaySlots: [{ kind: "plinth", cell: { x: 4, y: 3 } }],
+  },
+  {
+    type: "artist",
+    id: "architect_studio",
+    name: "Architect's Studio",
+    baseCost: 100,
+    size: { width: 2.6, height: 1.6, depth: 1.7 },
+    color: "#b5a98e",
+    footprint: { width: 6, depth: 4 },
+    paved: true,
+    workersRequired: 2,
+    maxWorkers: 4,
+    artistCapacity: 2,
+    artistType: "architect",
+    // No displaySlots: architect works are designs, not displayable art.
   },
   {
     type: "residential",
@@ -231,6 +292,32 @@ export const BUILDING_TYPES = [
   },
   {
     type: "materials",
+    id: "timber_yard",
+    name: "Timber Yard",
+    baseCost: 200,
+    size: { width: 1.8, height: 1.2, depth: 1.8 },
+    color: "#9a7648",
+    footprint: { width: 4, depth: 4 },
+    paved: true,
+    workersRequired: 2,
+    maxWorkers: 4,
+    supplies: { material: "timber", rate: 2, storage: 20 },
+  },
+  {
+    type: "materials",
+    id: "stone_quarry",
+    name: "Stone Quarry",
+    baseCost: 250,
+    size: { width: 1.8, height: 1.1, depth: 1.8 },
+    color: "#a8a094",
+    footprint: { width: 4, depth: 4 },
+    paved: true,
+    workersRequired: 2,
+    maxWorkers: 4,
+    supplies: { material: "stone", rate: 2, storage: 20 },
+  },
+  {
+    type: "materials",
     id: "warehouse",
     name: "Warehouse",
     baseCost: 350,
@@ -240,6 +327,7 @@ export const BUILDING_TYPES = [
     color: "#9a8a6f",
     footprint: { width: 9, depth: 7 },
     paved: true,
+    buildCost: { timber: 20 },
     workersRequired: 0,
     maxWorkers: 0,
     materialStorage: 50,
@@ -501,6 +589,7 @@ export const BUILDING_TYPES = [
     size: { width: 1.2, height: 4.5, depth: 1.2 },
     color: "#d8d2c4",
     paved: true,
+    buildCost: { stone: 15 },
     footprint: { width: 3, depth: 3 },
     generates: { inspiration: 1.5 },
     // Campaniles anchor a neighborhood: a cheap connectivity relay that

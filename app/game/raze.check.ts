@@ -148,6 +148,10 @@ const commission = (
   });
 }
 
+// Funded blueprint builds salvage nothing — the player never paid florins.
+assert.equal(getRazeSalvage({}, "loggia", "0,0"), 0);
+assert.equal(getRazeSalvage({}, "baptistery", "0,0"), 0);
+
 // Razing a display host recalls its works to storage; works elsewhere and the
 // array identity (when nothing was displayed there) are untouched.
 {

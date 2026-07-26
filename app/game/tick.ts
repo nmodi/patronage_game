@@ -28,6 +28,7 @@ export interface TickSnapshot {
   commissions: Commission[];
   favor: Record<string, number>;
   materials: MaterialPools;
+  fundedBuilds: string[];
   time: { tickCount: number };
   map: { tiles: TileMap };
 }
@@ -42,6 +43,7 @@ export interface TickTransition {
   commissions: Commission[];
   favor: Record<string, number>;
   materials: MaterialPools;
+  fundedBuilds: string[]; // grows when a blueprint commission completes
   denounced: string[]; // factions that crossed into affronted this tick
   tickCount: number;
   tiles: TileMap;
@@ -241,8 +243,15 @@ export function advanceTick(
     artists = work.artists;
     artistsChanged = true;
   }
+  let fundedBuilds = state.fundedBuilds;
   if (work.finishedCommissionIds.length > 0) {
     const finished = new Set(work.finishedCommissionIds);
+    // A finished blueprint commission funds its structure: the token that lets
+    // the player place it once at 0 florins (construction materials still due).
+    const unlocked = commissions
+      .filter((c) => finished.has(c.id) && c.building)
+      .map((c) => c.building!);
+    if (unlocked.length > 0) fundedBuilds = [...fundedBuilds, ...unlocked];
     commissions = commissions.filter((commission) => !finished.has(commission.id));
     commissionsChanged = true;
   }
@@ -263,6 +272,7 @@ export function advanceTick(
     commissions: commissionsChanged ? commissions : state.commissions,
     favor,
     materials: addProduction(state.materials, produced, materialCaps(updatedTiles)),
+    fundedBuilds,
     denounced,
     tickCount: state.time.tickCount + 1,
     tiles: tilesChanged ? updatedTiles : tiles,

@@ -34,7 +34,7 @@ export {
   DISPLAY_INSPIRATION_PER_PRESTIGE,
   DISPLAY_PRESTIGE_PER_PRESTIGE,
 } from "./constants.ts";
-export const CHURCH_HOST_IDS: ReadonlySet<string> = new Set(["cathedral", "chapel"]);
+export const CHURCH_HOST_IDS: ReadonlySet<string> = new Set(["cathedral", "chapel", "baptistery"]);
 
 export const SLOT_KINDS_BY_ARTIST: Record<ArtistType, readonly DisplaySlotKind[]> = {
   painter: ["painting"],

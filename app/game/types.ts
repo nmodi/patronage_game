@@ -11,7 +11,9 @@ export type BuildingType =
 export type ArtistType = "painter" | "sculptor" | "architect";
 // Supplier materials. Sculptors need one of two (marble or bronze) per
 // commission; every other artist type maps 1:1 (see MATERIAL_BY_ARTIST_TYPE).
-export type Material = "pigment" | "marble" | "bronze";
+// Timber and stone are construction materials: no commission needs them —
+// grand buildings spend them lump-sum at placement (buildCost).
+export type Material = "pigment" | "marble" | "bronze" | "timber" | "stone";
 export type ArtistRank =
   | "apprentice"
   | "journeyman"
@@ -63,6 +65,7 @@ export interface Commission {
   prestige: number;
   material?: Material; // required supplier material; undefined (pre-bronze saves) = MATERIAL_BY_ARTIST_TYPE default
   materialCost?: number; // stock deducted at assign; undefined (pre-stockpile saves) = free
+  building?: string; // blueprint commissions (architects): BuildingId unlocked+funded on completion
   expiresTick: number; // open offer vanishes after this tick
   workshopKey?: string; // set on assignment; undefined = open offer
 }
@@ -101,6 +104,8 @@ export interface BuildingMetadata {
   roadWidth?: number; // roads only: cells stamped perpendicular to the drag axis
   linear?: boolean; // drag-placed like roads: each cell is an independent 1×1 segment tile
   paved?: boolean; // render a flagstone apron over the full footprint (joins plazas visually)
+  buildCost?: Partial<Record<Material, number>>; // grand buildings: construction materials spent lump-sum from the city pools at placement
+  commissionOnly?: boolean; // placeable only via a funded blueprint commission (never in the open palette; placement costs 0ƒ + buildCost)
   supplies?: { material: Material; rate: number; storage: number }; // supplier: units produced per month while staffed, plus the cap it adds to that material's pool
   materialStorage?: number; // warehouse: cap added to *every* material pool, staffed or not
   displaySlots?: readonly DisplaySlotDef[]; // work display sites (Phase 9)

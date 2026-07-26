@@ -2,13 +2,13 @@ import { create } from "zustand";
 import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
-import type { Artist, Artwork, Commission } from "~/game/types";
-import type { BuildingId } from "~/game/buildings";
+import type { Artist, Artwork, Commission, Material } from "~/game/types";
+import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { planPlacement } from "~/game/placementRules";
 import { canAssignCommission, favorOf } from "~/game/commissions";
 import { canDisplayWork } from "~/game/display";
-import { createArtist } from "~/game/artists";
+import { createArtist, trainOnConstruction } from "~/game/artists";
 import { generateSeed, pickCityName } from "~/game/seed";
 import { DEMO_MAP_SEED } from "~/game/demoLayout";
 import {
@@ -61,6 +61,9 @@ export type GameState = {
   // Per-faction favor 0–100 (factions slice 1); unwritten entries read FAVOR_START.
   favor: Record<string, number>;
   materials: MaterialPools;
+  // Structures unlocked by completed blueprint commissions, awaiting placement
+  // (one token each; consumed by placeTiles at 0 florins).
+  fundedBuilds: string[];
   assignCommission: (commissionId: string, workshopKey: string) => void;
   // Drop an open offer for a favor slight; no-op if assigned or missing.
   declineCommission: (commissionId: string) => void;
@@ -135,6 +138,7 @@ const createInitialState = (runSeed?: string) => {
     commissions: [] as Commission[],
     favor: {} as Record<string, number>,
     materials: { ...EMPTY_POOLS } as MaterialPools,
+    fundedBuilds: [] as string[],
     renaissanceReached: false,
     hoveredTileKey: null as string | null,
     razeTarget: null as string | null,
@@ -199,6 +203,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         commissions: next.commissions,
         favor: next.favor,
         materials: next.materials,
+        fundedBuilds: next.fundedBuilds,
         offerAlert: newOffer ? newOffer.id : s.offerAlert,
         denounceAlert: next.denounced[0] ?? s.denounceAlert,
         time: { tickCount: next.tickCount },
@@ -277,9 +282,25 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     set((s) => {
       const plan = planPlacement(s, positions, buildingId, rotation);
       if (!plan) return s;
-      const { metadata, cells, freeCells, totalCost } = plan;
+      const { metadata, cells, freeCells, totalCost, materialCost } = plan;
+      const materialsSpent = Object.entries(materialCost) as [Material, number][];
       const type = metadata.type;
       const workersRequired = metadata.workersRequired ?? 0;
+
+      // The city teaches architects: XP per florin spent, computed against
+      // pre-placement tiles/artists so a studio never trains on its own
+      // construction and new founders are excluded.
+      const activeStudios = new Set(
+        Object.values(s.map.tiles)
+          .filter(
+            (t) =>
+              t.isOrigin &&
+              t.isActive &&
+              BUILDING_METADATA_BY_ID[t.buildingId]?.artistType === "architect"
+          )
+          .map((t) => `${t.position.x},${t.position.y}`)
+      );
+      const trained = trainOnConstruction(s.artists, activeStudios, totalCost);
 
       const newTiles = { ...s.map.tiles };
       const founders: Artist[] = [];
@@ -321,10 +342,30 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       placed = true;
       return {
         florins: s.florins - totalCost,
+        // Construction materials are spent up front, like commission stock —
+        // no refund on raze (the salvage is florins only).
+        ...(materialsSpent.length
+          ? {
+              materials: {
+                ...s.materials,
+                ...Object.fromEntries(materialsSpent.map(([m, amt]) => [m, s.materials[m] - amt])),
+              },
+            }
+          : {}),
         ...(metadata.prestigeOnBuild
           ? { prestige: s.prestige + metadata.prestigeOnBuild * positions.length }
           : {}),
-        ...(founders.length ? { artists: [...s.artists, ...founders] } : {}),
+        // A funded blueprint build consumes its token (one placement each).
+        ...(metadata.commissionOnly
+          ? {
+              fundedBuilds: s.fundedBuilds.filter(
+                (_, i) => i !== s.fundedBuilds.indexOf(buildingId)
+              ),
+            }
+          : {}),
+        ...(founders.length || trained !== s.artists
+          ? { artists: [...trained, ...founders] }
+          : {}),
         map: {
           ...s.map,
           tiles: newTiles,
@@ -382,6 +423,7 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
+    // v10: construction pools (timber/stone) seeded empty on old saves.
     // v9: materials became accumulating stock — pools start empty. v8:
     // per-faction favor added, seeded from completed works. v7: XP ×100.
     // v6: seeded map (water layer) added — the first *preserving* migration:
@@ -409,6 +451,8 @@ export const useGameStore = create<GameState>()(
       commissions: s.commissions,
       favor: s.favor,
       materials: s.materials,
+      // Absent on old saves hydrates to the initial [] — no migration.
+      fundedBuilds: s.fundedBuilds,
       // Absent on old saves reads falsy = not yet celebrated — no migration.
       renaissanceReached: s.renaissanceReached,
       map: { tiles: s.map.tiles, selectedBuilding: null },

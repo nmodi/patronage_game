@@ -6,6 +6,7 @@ import {
   createArtist,
   maybeArriveArtist,
   progressArtworks,
+  trainOnConstruction,
   ARTIST_ARRIVAL_CHANCE,
   ARTIST_ARRIVAL_COOLDOWN_MONTHS,
   RANK_XP,
@@ -349,6 +350,35 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   const out = progressArtworks([], [workshop("5,5")], [commission("5,5")], 3, 10);
   assert.equal(out.changed, false);
   assert.equal(out.completed.length, 0);
+}
+
+// The city teaches architects: placement XP scales with florins spent, goes
+// only to architects in the given active studios, and can rank up.
+{
+  const architect = painter({ id: "a1", type: "architect" });
+  const studios = new Set(["5,5"]);
+
+  // 1500ƒ cathedral → floor(0.05 × 1500) = 75 XP to each architect in a studio.
+  const out = trainOnConstruction([architect, painter({ id: "p2" })], studios, 1500);
+  assert.equal(out[0]!.xp, 75);
+  assert.equal(out[1]!.xp, undefined, "non-architects untouched");
+
+  // A 10ƒ fence floors to 0 — identity, no churn.
+  const same = trainOnConstruction([architect], studios, 10);
+  assert.equal(same[0], architect);
+
+  // Architect homed elsewhere (inactive/absent studio) learns nothing.
+  const away = trainOnConstruction([architect], new Set(["9,9"]), 1500);
+  assert.equal(away[0], architect);
+  assert.equal(trainOnConstruction([architect], new Set(), 1500)[0], architect);
+
+  // A big-enough build ranks up (journeyman at 400).
+  const ranked = trainOnConstruction(
+    [painter({ id: "a2", type: "architect", xp: 390 })],
+    studios,
+    1500
+  );
+  assert.equal(ranked[0]!.rank, "journeyman");
 }
 
 console.log("artists.check: all assertions passed");

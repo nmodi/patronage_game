@@ -266,6 +266,30 @@ assert.equal(maybeOfferCommission([], [painter()], 10, explode, {}, {}), null);
   assert.ok(CHURCH_TITLES.sculptor.includes(marble!.title));
 }
 
+// Architect offers ARE blueprint commissions: the title draw picks from
+// BUILDING_COMMISSIONS filtered by requester (Church religious, noble secular),
+// and no material or materialCost stamps — blueprints are free to assign.
+{
+  const architect = painter({ id: "a1", type: "architect" });
+  const church = maybeOfferCommission([], [architect], 10, win, chapelTiles, {});
+  assert.equal(church?.artistType, "architect");
+  assert.equal(church?.building, "baptistery");
+  assert.equal(church?.title, "A Baptistery for the City");
+  assert.equal(church?.material, undefined);
+  assert.equal(church?.materialCost, undefined);
+
+  const noble = maybeOfferCommission(
+    [],
+    [architect],
+    10,
+    seq(0, 0, requesterDraw(richPool, "House Medici"), 0),
+    richTiles,
+    {}
+  );
+  assert.equal(noble?.building, "loggia");
+  assert.equal(noble?.requester, "House Medici");
+}
+
 // Gated off: no artists, losing roll, or open offers at the cap → null.
 assert.equal(maybeOfferCommission([], [], 10, win, chapelTiles, {}), null);
 assert.equal(maybeOfferCommission([], [painter()], 10, lose, chapelTiles, {}), null);

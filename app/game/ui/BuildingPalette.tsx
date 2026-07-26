@@ -8,6 +8,7 @@ import {
   Church,
   Columns3,
   Cross,
+  DraftingCompass,
   Droplets,
   Fence,
   Flame,
@@ -38,7 +39,7 @@ import {
 } from "lucide-react";
 
 import { BUILDING_METADATA_BY_TYPE, type BuildingId } from "~/game/buildings";
-import type { BuildingType } from "~/game/types";
+import type { BuildingType, Material } from "~/game/types";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 import { isTextEntryTarget } from "./useGameShortcuts";
@@ -60,14 +61,19 @@ const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
   palazzo: Castle,
   cathedral: Church,
   chapel: Cross,
+  loggia: Columns3,
+  baptistery: Church,
   bell_tower: Bell,
   workshop: Palette,
   sculpture_workshop: Hammer,
+  architect_studio: DraftingCompass,
   cottage: Home,
   townhouse: Building2,
   pigment_trader: Palette,
   marble_supplier: Gem,
   bronze_foundry: Flame,
+  timber_yard: Trees,
+  stone_quarry: Pickaxe,
   warehouse: Warehouse,
   market: Store,
   bakery: Wheat,
@@ -103,6 +109,8 @@ export function BuildingPalette({
   const selectedBuilding = useGameStore((s) => s.map.selectedBuilding);
   const setSelectedBuilding = useGameStore((s) => s.setSelectedBuilding);
   const florins = useGameStore((s) => s.florins);
+  const materials = useGameStore((s) => s.materials);
+  const fundedBuilds = useGameStore((s) => s.fundedBuilds);
   const [openCategory, setOpenCategory] = useState<BuildingType | null>(null);
 
   useEffect(() => {
@@ -142,7 +150,10 @@ export function BuildingPalette({
     };
   }, [openCategory, hasOpenPanel, onClosePanel]);
 
-  const openBuildings = openCategory ? (BUILDING_METADATA_BY_TYPE[openCategory] ?? []) : [];
+  // Blueprint structures stay hidden until a completed commission funds one.
+  const openBuildings = (openCategory ? (BUILDING_METADATA_BY_TYPE[openCategory] ?? []) : []).filter(
+    (b) => !b.commissionOnly || fundedBuilds.includes(b.id)
+  );
   const selectedCategory = selectedBuilding
     ? CATEGORIES.find(({ type }) =>
         BUILDING_METADATA_BY_TYPE[type]?.some(({ id }) => id === selectedBuilding),
@@ -154,11 +165,15 @@ export function BuildingPalette({
   const centerFlyout = openBuildings.length >= 8;
   const flyout = (
     <Panel className="flex gap-1.5 overflow-x-auto">
-      {openBuildings.map(({ id, name, baseCost }) => {
+      {openBuildings.map(({ id, name, baseCost, buildCost, commissionOnly }) => {
         const buildingId = id as BuildingId;
         const BuildingIcon = BUILDING_ICONS[buildingId] ?? Warehouse;
         const isSelected = selectedBuilding === buildingId;
-        const canAfford = florins >= baseCost;
+        const bill = Object.entries(buildCost ?? {});
+        // Funded blueprint builds cost no florins — only their material bill.
+        const canAfford =
+          (commissionOnly || florins >= baseCost) &&
+          bill.every(([m, amt]) => materials[m as Material] >= amt);
         return (
           <button
             key={id}
@@ -173,7 +188,18 @@ export function BuildingPalette({
               {name}
             </span>
             <BuildingIcon className="h-7 w-7 text-prestige-gold" strokeWidth={1.75} />
-            <span className="text-xs text-ink-faint">{baseCost}ƒ</span>
+            <span className="text-center text-xs leading-tight text-ink-faint">
+              {commissionOnly ? (
+                <span className="font-semibold text-prestige-gold">Funded</span>
+              ) : (
+                `${baseCost}ƒ`
+              )}
+              {bill.map(([m, amt]) => (
+                <span key={m} className="block">
+                  {amt} {m}
+                </span>
+              ))}
+            </span>
           </button>
         );
       })}

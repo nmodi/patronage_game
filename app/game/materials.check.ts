@@ -47,6 +47,12 @@ const offer = (extra: Partial<Commission> = {}): Commission => ({
 
   const withWarehouse = materialCaps(map(tile("warehouse", 4, 0)));
   for (const m of MATERIALS) assert.ok(withWarehouse[m] > MATERIAL_STORAGE_BASE);
+
+  // The construction suppliers follow the same rule.
+  const withYard = materialCaps(map(tile("timber_yard", 0, 0), tile("stone_quarry", 4, 0)));
+  assert.ok(withYard.timber > MATERIAL_STORAGE_BASE);
+  assert.ok(withYard.stone > MATERIAL_STORAGE_BASE);
+  assert.equal(withYard.marble, MATERIAL_STORAGE_BASE);
 }
 
 // Storage doesn't need staffing — an unstaffed supplier still holds its stock.
@@ -74,8 +80,8 @@ const offer = (extra: Partial<Commission> = {}): Commission => ({
 
 // Production clamps at the cap and never runs a pool backwards.
 {
-  const caps = { pigment: 10, marble: 10, bronze: 10 };
-  const out = addProduction({ pigment: 8, marble: 0, bronze: 0 }, [
+  const caps = { pigment: 10, marble: 10, bronze: 10, timber: 10, stone: 10 };
+  const out = addProduction({ pigment: 8, marble: 0, bronze: 0, timber: 0, stone: 0 }, [
     { material: "pigment", amount: 5 },
   ], caps);
   assert.equal(out.pigment, 10);
@@ -87,13 +93,13 @@ const offer = (extra: Partial<Commission> = {}): Commission => ({
   const pools = { ...EMPTY_POOLS };
   assert.equal(addProduction(pools, [], materialCaps({})), pools);
   // Already at the cap: production changes nothing, so identity holds too.
-  const full = { pigment: 20, marble: 20, bronze: 20 };
+  const full = { pigment: 20, marble: 20, bronze: 20, timber: 20, stone: 20 };
   assert.equal(addProduction(full, [{ material: "pigment", amount: 3 }], full), full);
 }
 
 // Two suppliers of the same material both count — more suppliers is never less stock.
 {
-  const caps = { pigment: 100, marble: 100, bronze: 100 };
+  const caps = { pigment: 100, marble: 100, bronze: 100, timber: 100, stone: 100 };
   const one = addProduction(EMPTY_POOLS, [{ material: "pigment", amount: 2 }], caps);
   const two = addProduction(
     EMPTY_POOLS,
@@ -130,7 +136,7 @@ assert.equal(MATERIAL_BY_ARTIST_TYPE.architect, undefined);
 
 // Marble and bronze remain separate pools (same artist type, different stock).
 {
-  const caps = { pigment: 50, marble: 50, bronze: 50 };
+  const caps = { pigment: 50, marble: 50, bronze: 50, timber: 50, stone: 50 };
   const out = addProduction(EMPTY_POOLS, [{ material: "marble" as Material, amount: 4 }], caps);
   assert.equal(out.marble, 4);
   assert.equal(out.bronze, 0);

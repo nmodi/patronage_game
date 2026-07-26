@@ -18,11 +18,11 @@ export const MATERIAL_BY_ARTIST_TYPE: Partial<Record<ArtistType, Material>> = {
   sculptor: "marble",
 };
 
-export const MATERIALS: readonly Material[] = ["pigment", "marble", "bronze"];
+export const MATERIALS: readonly Material[] = ["pigment", "marble", "bronze", "timber", "stone"];
 
 export type MaterialPools = Record<Material, number>;
 
-export const EMPTY_POOLS: MaterialPools = { pigment: 0, marble: 0, bronze: 0 };
+export const EMPTY_POOLS: MaterialPools = { pigment: 0, marble: 0, bronze: 0, timber: 0, stone: 0 };
 
 /** A commission's required material: explicit field, or the artist-type default. */
 export function commissionMaterial(c: Commission): Material | undefined {

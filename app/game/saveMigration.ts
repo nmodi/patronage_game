@@ -1,6 +1,6 @@
 import { favorFromWorks } from "./commissions.ts";
 
-export const SAVE_VERSION = 9;
+export const SAVE_VERSION = 10;
 
 /** Preserve compatible saves while explicitly discarding structurally obsolete versions. */
 export function migrateSave(persisted: unknown, version: number): unknown {
@@ -33,6 +33,11 @@ export function migrateSave(persisted: unknown, version: number): unknown {
   // already in flight never re-checks, and suppliers refill within months.
   if (version < 9) {
     save = { ...save, materials: { pigment: 0, marble: 0, bronze: 0 } };
+  }
+  // v10 added construction materials (timber/stone pools, spent by grand
+  // buildings at placement). Pools start empty like v9's.
+  if (version < 10) {
+    save = { ...save, materials: { timber: 0, stone: 0, ...(save.materials ?? {}) } };
   }
   return save;
 }

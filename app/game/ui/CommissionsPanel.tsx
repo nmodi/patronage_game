@@ -1,6 +1,7 @@
 import { Clock, Coins, Crown, Scroll } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
+import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
 import { commissionMaterial, commissionMaterialCost } from "~/game/materials";
 import { canAssignCommission, requesterPool } from "~/game/commissions";
 import { HudPanel } from "./Panel";
@@ -101,6 +102,10 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
           // Short on stock is its own message: the assign buttons vanish for
           // both reasons, so say which one it is.
           const shortfall = material && stockFor(c) < cost ? material : null;
+          // Blueprint commissions: the structure this design will fund.
+          const blueprint = c.building
+            ? BUILDING_METADATA_BY_ID[c.building as BuildingId]
+            : undefined;
           return (
             <div key={c.id} className="flex items-start gap-2.5">
               <ArtworkThumbnail title={c.title} variant="offer" />
@@ -122,8 +127,20 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                       {cost > 0 && ` ${cost}`}
                     </span>
                   )}
+                  {blueprint && <span> · Funds a {blueprint.name}</span>}
                   {monthsLeft < 4 && <span> · expires in {monthsLeft} mo</span>}
                 </span>
+                {blueprint && (
+                  <span className="text-sm text-ink-faint">
+                    A blueprint — {c.requester} pays for construction
+                    {(() => {
+                      const bill = Object.entries(blueprint.buildCost ?? {});
+                      return bill.length > 0
+                        ? `; building it draws ${bill.map(([m, amt]) => `${amt} ${m}`).join(", ")} from your stores.`
+                        : ".";
+                    })()}
+                  </span>
+                )}
                 {workshops.length > 0 ? (
                   workshops.map(([key, founder]) => (
                     <button

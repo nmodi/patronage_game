@@ -67,6 +67,9 @@ export function getRazeImpact(
 export function getRazeSalvage(tiles: TileMap, buildingId: BuildingId, originKey: string): number {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
   if (!metadata) return 0;
+  // The requester paid for a funded blueprint build — razing it can't mint
+  // florins the player never spent.
+  if (metadata.commissionOnly) return 0;
   const rank = buildOrderRank(tiles, buildingId, originKey);
   return Math.floor(escalatedCost(metadata, rank) * RAZE_SALVAGE_FRACTION);
 }

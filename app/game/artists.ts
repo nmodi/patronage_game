@@ -192,6 +192,30 @@ function gainXp(a: Artist, amount: number): Pick<Artist, "xp" | "rank"> {
 }
 
 /**
+ * The city teaches architects (design doc, Architects): placing a structure
+ * grants every architect homed in an active studio XP scaled by the florins
+ * actually spent — a cathedral teaches much, a fence rounds to 0, and a funded
+ * (0ƒ) blueprint build teaches nothing (the completion XP already paid).
+ * Callers pass pre-placement studio keys so a studio never trains on its own
+ * construction. Pure; same array identity when no one gains.
+ */
+export function trainOnConstruction(
+  artists: Artist[],
+  activeStudioKeys: ReadonlySet<string>,
+  spentFlorins: number
+): Artist[] {
+  const lump = Math.floor(XP_RATES.perFlorinBuilt * spentFlorins);
+  if (lump <= 0 || activeStudioKeys.size === 0) return artists;
+  let changed = false;
+  const next = artists.map((a) => {
+    if (a.type !== "architect" || !activeStudioKeys.has(a.homeTileKey)) return a;
+    changed = true;
+    return { ...a, ...gainXp(a, lump) };
+  });
+  return changed ? next : artists;
+}
+
+/**
  * Advance every working workshop one month (design doc, Phase 6). An workshop's
  * work is tracked on its founding artist and progresses only while the workshop
  * is active and city inspiration > 0, at 1 + 0.5×(members − 1) months per tick

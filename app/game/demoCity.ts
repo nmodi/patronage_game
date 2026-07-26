@@ -7,11 +7,17 @@ export function seedDemoCity() {
   const state = useGameStore.getState();
   if (Object.keys(state.map.tiles).length > 0) return;
   const florins = state.florins;
+  const materials = state.materials;
   state.setFlorins(1_000_000);
+  // Construction materials, boosted like the florins so grand buildings place.
+  useGameStore.setState({
+    materials: { pigment: 1e9, marble: 1e9, bronze: 1e9, timber: 1e9, stone: 1e9 },
+  });
   for (const [x, y, buildingId, rotation] of LAYOUT) {
     useGameStore.getState().placeTile({ x, y }, buildingId, rotation);
   }
   useGameStore.getState().setFlorins(florins);
+  useGameStore.setState({ materials });
   // Fill the town and run one tick so buildings render staffed even under &pause.
   useGameStore.getState().setPopulation(useGameStore.getState().getHousing());
   useGameStore.getState().tick();

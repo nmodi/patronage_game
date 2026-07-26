@@ -21,7 +21,8 @@ function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapsh
     artworks: [],
     commissions: [],
     favor: {},
-    materials: { pigment: 0, marble: 0, bronze: 0 },
+    materials: { pigment: 0, marble: 0, bronze: 0, timber: 0, stone: 0 },
+    fundedBuilds: [],
     time: { tickCount: 10 },
     map: { tiles },
     ...extra,
@@ -202,6 +203,45 @@ const noRandomEvent = () => 1;
   // Completion honors the requester: +8 favor from the default 50.
   assert.deepEqual(out.favor, { "The Church": 58 });
   assert.deepEqual(out.denounced, []);
+}
+
+// A finished blueprint commission (architects) funds its structure: the
+// building id lands in fundedBuilds, and the design still mints as an artwork
+// with the requester honored (favor +8, same as any completion).
+{
+  const founder: Artist = {
+    id: "a1",
+    name: "Architect",
+    type: "architect",
+    rank: "apprentice",
+    homeTileKey: "5,5",
+    workProgress: 0,
+  };
+  const commission: Commission = {
+    id: "c1",
+    title: "A Baptistery for the City",
+    requester: "The Church",
+    artistType: "architect",
+    building: "baptistery",
+    durationMonths: 1,
+    florins: 50,
+    prestige: 2,
+    expiresTick: 99,
+    workshopKey: "5,5",
+  };
+  const out = advanceTick(
+    snapshot({ "5,5": inactive("architect_studio", 5, 5) }, {
+      population: 2,
+      inspiration: 1,
+      artists: [founder],
+      commissions: [commission],
+    }),
+    noRandomEvent
+  );
+  assert.deepEqual(out.fundedBuilds, ["baptistery"]);
+  assert.equal(out.commissions.length, 0);
+  assert.equal(out.artworks.length, 1);
+  assert.deepEqual(out.favor, { "The Church": 58 });
 }
 
 // An expired open offer slights its requester's favor; identity is kept when

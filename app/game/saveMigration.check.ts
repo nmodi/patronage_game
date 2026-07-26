@@ -3,8 +3,9 @@ import assert from "node:assert";
 import { migrateSave, SAVE_VERSION } from "./saveMigration.ts";
 
 const legacy = { florins: 123, map: { tiles: { "1,1": {} } } };
-// Every migration below v9 also seeds empty material pools (the stockpile rework).
-const pools = { materials: { pigment: 0, marble: 0, bronze: 0 } };
+// Every migration below v9 also seeds empty material pools (the stockpile
+// rework), and v10 adds the construction pools (timber/stone) on top.
+const pools = { materials: { timber: 0, stone: 0, pigment: 0, marble: 0, bronze: 0 } };
 assert.deepEqual(migrateSave(legacy, 4), {});
 assert.deepEqual(migrateSave(legacy, 5), {
   ...legacy,
@@ -52,6 +53,13 @@ assert.deepEqual(migrateSave(v7, 7), {
 // so they stay assignable, and suppliers refill within a few months.
 const v8 = { ...legacy, mapSeed: "abc", favor: { "The Church": 66 } };
 assert.deepEqual(migrateSave(v8, 8), { ...v8, ...pools });
+
+// v9 → v10 adds the construction pools, keeping earned stock untouched.
+const v9 = { ...legacy, mapSeed: "abc", materials: { pigment: 4, marble: 12, bronze: 0 } };
+assert.deepEqual(migrateSave(v9, 9), {
+  ...v9,
+  materials: { timber: 0, stone: 0, pigment: 4, marble: 12, bronze: 0 },
+});
 
 const current = { ...legacy, mapSeed: "abc" };
 assert.equal(migrateSave(current, SAVE_VERSION), current);

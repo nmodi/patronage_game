@@ -13,7 +13,13 @@ import { DEMO_MAP_SEED, LAYOUT } from "./demoLayout.ts";
 
 // --- 1. Replay LAYOUT exactly as seedDemoCity does, asserting every entry places.
 const tiles: TileMap = {};
-const state = { florins: Number.MAX_SAFE_INTEGER, mapSeed: DEMO_MAP_SEED, map: { tiles } };
+// Infinity pools: the demo layout replays free of material gating, like its florins.
+const state = {
+  florins: Number.MAX_SAFE_INTEGER,
+  materials: { pigment: Infinity, marble: Infinity, bronze: Infinity, timber: Infinity, stone: Infinity },
+  mapSeed: DEMO_MAP_SEED,
+  map: { tiles },
+};
 
 const failures: string[] = [];
 for (const [x, y, buildingId, rotation] of LAYOUT) {

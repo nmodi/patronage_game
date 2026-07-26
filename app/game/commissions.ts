@@ -140,6 +140,15 @@ export function canAssignCommission(
   return available >= commissionMaterialCost(commission);
 }
 
+// Blueprint commissions (architects): the ask is a structure's design.
+// Church asks stay religious, noble asks secular; one row each side, so the
+// requester filter never empties. Duplicate offers are tolerated like
+// duplicate titles.
+export const BUILDING_COMMISSIONS: { building: string; title: string; church: boolean }[] = [
+  { building: "baptistery", title: "A Baptistery for the City", church: true },
+  { building: "loggia", title: "A Loggia for the Family", church: false },
+];
+
 /**
  * Periodic commission offer (design doc, Phase 8 + factions slice 1),
  * mirroring maybeArriveArtist. Each month, if open offers are under the cap
@@ -205,6 +214,14 @@ export function maybeOfferCommission(
   const florins = baseFlorins * (skewToFlorins ? REQUESTER_REWARD_SKEW : 1 / REQUESTER_REWARD_SKEW);
   const prestige = basePrestige * (skewToFlorins ? 1 / REQUESTER_REWARD_SKEW : REQUESTER_REWARD_SKEW);
 
+  // Architects: every offer is a BLUEPRINT commission — the design for a
+  // structure the requester will fund. Same single rng draw as a title pick,
+  // so draw order for every artist type is unchanged.
+  const blueprint =
+    type === "architect"
+      ? pick(BUILDING_COMMISSIONS.filter((b) => b.church === (requester.name === CHURCH)), rng)
+      : undefined;
+
   const titlePool =
     material === "bronze"
       ? BRONZE_TITLES
@@ -214,10 +231,11 @@ export function maybeOfferCommission(
 
   return {
     id: crypto.randomUUID(),
-    title: pick(titlePool, rng),
+    title: blueprint ? blueprint.title : pick(titlePool, rng),
     requester: requester.name,
     artistType: type,
     material,
+    ...(blueprint ? { building: blueprint.building } : {}),
     // Grander asks want more stone: cost rides the same rank curve and grandeur
     // multiplier as the reward, so a high-favor commission outgrows a small
     // city's storage and pushes the player to build out suppliers.

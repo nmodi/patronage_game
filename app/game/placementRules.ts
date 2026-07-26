@@ -9,11 +9,16 @@ import {
 import { GRID_SIZE } from "./constants.ts";
 import { PLAZA_IDS } from "./connectivity.ts";
 import type { GridPos, Tile, TileMap } from "./grid.ts";
-import type { BuildingMetadata } from "./types.ts";
+import type { MaterialPools } from "./materials.ts";
+import type { BuildingMetadata, Material } from "./types.ts";
 import { getWaterCells } from "./water.ts";
 
 export interface PlacementSnapshot {
   florins: number;
+  materials: MaterialPools;
+  // Blueprint-commission tokens; absent = none, so commissionOnly buildings
+  // are unplaceable by default.
+  fundedBuilds?: readonly string[];
   mapSeed: string | null;
   map: { tiles: TileMap };
 }
@@ -26,6 +31,28 @@ export interface PlacementPlan {
   positions: GridPos[];
   freeCells: ReadonlySet<string>;
   totalCost: number;
+  /** Construction materials the batch spends (buildCost × positions); {} for most buildings. */
+  materialCost: Partial<Record<Material, number>>;
+}
+
+/**
+ * Grand buildings spend construction materials at placement — lump-sum from
+ * the city pools, exactly like a commission spends at assign (principle 2's
+ * anti-simulation core: nothing is routed, nothing stalls mid-build). Returns
+ * the batch's bill, or null when the stores can't cover it.
+ */
+function planMaterials(
+  state: PlacementSnapshot,
+  metadata: BuildingMetadata,
+  count: number
+): Partial<Record<Material, number>> | null {
+  const bill: Partial<Record<Material, number>> = {};
+  for (const [material, perBuilding] of Object.entries(metadata.buildCost ?? {})) {
+    const amount = perBuilding * count;
+    if ((state.materials[material as Material] ?? 0) < amount) return null;
+    bill[material as Material] = amount;
+  }
+  return bill;
 }
 
 const CELL_NEIGHBORS = [
@@ -98,6 +125,11 @@ export function planPlacement(
 ): PlacementPlan | null {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
   if (!metadata || positions.length === 0) return null;
+  // Funded blueprint builds only: one token, one structure per placement.
+  const funded = metadata.commissionOnly === true;
+  if (funded && (positions.length !== 1 || !(state.fundedBuilds ?? []).includes(buildingId))) {
+    return null;
+  }
 
   const footprint = rotatedFootprint(metadata, rotation);
   const { cells } = footprintMask(metadata, rotation);
@@ -133,11 +165,17 @@ export function planPlacement(
     }
   }
 
+  // "The requester funds construction": a funded build costs no florins —
+  // its buildCost materials (below) are the only bill.
   const startRank = buildOrderRank(state.map.tiles, buildingId);
   let totalCost = 0;
-  for (let i = 0; i < positions.length; i += 1) totalCost += escalatedCost(metadata, startRank + i);
+  if (!funded) {
+    for (let i = 0; i < positions.length; i += 1) totalCost += escalatedCost(metadata, startRank + i);
+  }
   if (state.florins < totalCost) return null;
-  return { metadata, footprint, cells, positions, freeCells, totalCost };
+  const materialCost = planMaterials(state, metadata, positions.length);
+  if (!materialCost) return null;
+  return { metadata, footprint, cells, positions, freeCells, totalCost, materialCost };
 }
 
 /** planPlacement for a single origin as a boolean, allocation-free — safe to
@@ -150,8 +188,12 @@ export function canPlaceAt(
 ): boolean {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
   if (!metadata) return false;
-  const cost = escalatedCost(metadata, buildOrderRank(state.map.tiles, buildingId));
-  if (state.florins < cost) return false;
+  if (metadata.commissionOnly) {
+    if (!(state.fundedBuilds ?? []).includes(buildingId)) return false;
+  } else if (state.florins < escalatedCost(metadata, buildOrderRank(state.map.tiles, buildingId))) {
+    return false;
+  }
+  if (!planMaterials(state, metadata, 1)) return false;
 
   const { cells } = footprintMask(metadata, rotation);
   const water = getWaterCells(state.mapSeed);
@@ -223,5 +265,6 @@ export function planLinearPlacement(
     positions: newCells,
     freeCells,
     totalCost,
+    materialCost: {}, // roads/linear never carry buildCost
   };
 }

@@ -684,6 +684,29 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.65,
     stretch: true,
   },
+  // Architect's studio: the workshop hall without the painter's dormer or the
+  // sculptor's head-house — a plain long hall, no chimney (drafting, not
+  // firing; no chimney part also means no smoke plume). The yard is a
+  // drafting table with a spread plan and leaning drawing boards.
+  // ponytail: placeholder silhouette — a distinct third roof variant + richer
+  // drafting-yard props are a model follow-up.
+  architect_studio: {
+    front: [0, 1],
+    parts: [
+      ...WORKSHOP_WALLS,
+      { file: "proc:block", position: [0.5, 0, 0], tint: "facade" },
+      ...WORKSHOP_HALL_ROOF,
+      // drafting yard: table with a plan sheet, boards on the wall, a sample block
+      { file: TOWN + "stall-bench.glb", position: [0.32, 0, 0.66], rotationY: Math.PI / 2, scale: 0.85 },
+      { file: "proc:block", position: [0.32, 0.19, 0.66], scale: [0.32, 0.02, 0.18], rotationY: 0.06 },
+      { file: "proc:block", position: [-0.88, 0, 0.57], scale: [0.3, 0.42, 0.05], rotationY: -0.12 },
+      { file: "proc:block", position: [-0.16, 0, 0.58], scale: [0.2, 0.28, 0.05], rotationY: 0.2 },
+      { file: "proc:block", position: [0.85, 0, 0.68], scale: 0.16, rotationY: 0.5 },
+    ],
+    fit: 0.92,
+    scaleY: 0.65,
+    stretch: true,
+  },
   // Palazzo, front facing +Z (toward the default camera). Three-story main
   // block under a low hip roof, two-story wing on +X under its own gable,
   // one-story annex on −X. Ground floor is recessed 0.5 behind the upper
@@ -896,6 +919,53 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     scaleY: 0.63,
     stretch: true,
   },
+  // Loggia: an open arcade gallery (Loggia dei Lanzi) — arch bays on three
+  // sides, closed back wall, shallow hip over the hall. All plain stone (the
+  // arcade language); works display on plinths inside the footprint.
+  // ponytail: placeholder massing — richer piers/steps are a model follow-up.
+  loggia: {
+    front: [0, 1],
+    parts: [
+      // back wall along -Z (flat stone — a stretched textured tint would
+      // stretch its courses)
+      { file: "proc:block", position: [0, 0, -0.55], scale: [4, 1.05, 0.14], tint: "stone" },
+      // front arcade: four unit bays run along X (arch-bay runs along Z
+      // unrotated, like the colonnade's segments)
+      ...[-1.5, -0.5, 0.5, 1.5].map(
+        (x): Part => ({ file: "proc:arch-bay", position: [x, 0, 0.55], rotationY: Math.PI / 2, scale: [1, 1.05, 1] })
+      ),
+      // one bay per side, closing the corners
+      { file: "proc:arch-bay", position: [-2, 0, 0], scale: [1, 1.05, 1.1] },
+      { file: "proc:arch-bay", position: [2, 0, 0], scale: [1, 1.05, 1.1] },
+      // shallow hip — no flat roofs, even on a terrace-topped reference
+      hipRoof([0, 1.05, 0], [4.3, 0.45, 1.4]),
+    ],
+    fit: 0.95,
+    scaleY: 0.8,
+    stretch: true,
+  },
+  // Baptistery: squat square drum standing in for the octagon (the real
+  // eight-sided massing is the expensive model follow-up), pale stone, portal
+  // on the front, arched windows high on each face, pyramidal hip + lantern.
+  baptistery: {
+    front: [0, 1],
+    parts: [
+      { file: "proc:block", position: [0, 0, 0], scale: [1.6, 1.4, 1.6], tint: "stone" },
+      ...portalOn("posZ", 0.8, 0, 0.75),
+      ...[-0.4, 0.4].flatMap((o) => [
+        ...archWindow("posZ", 0.8, 0.7, o, 0.6),
+        ...archWindow("negZ", 0.8, 0.7, o, 0.6),
+        ...archWindow("posX", 0.8, 0.7, o, 0.6),
+        ...archWindow("negX", 0.8, 0.7, o, 0.6),
+      ]),
+      hipRoof([0, 1.4, 0], [1.7, 0.7, 1.7]),
+      // lantern straddling the apex
+      { file: "proc:block", position: [0, 2.05, 0], scale: [0.28, 0.35, 0.28], tint: "stone" },
+      hipRoof([0, 2.4, 0], [0.45, 0.35, 0.45]),
+    ],
+    fit: 0.95,
+    scaleY: 0.75,
+  },
   // Pigment trader: a proper shop house — the 1.25-unit block (up from the old
   // 1-unit shed that read cottage-annex small) under the supplier-grammar low
   // hip, banner + stone door on the street, delivery yard tucked behind. Keep
@@ -965,6 +1035,46 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [0.58, 0, 0.55], scale: [0.4, 0.6, 0.4], tint: "stone" },
       { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.34, 0.14, 0.22], tint: "bronze" },
       { file: "proc:block", position: [0.18, 0.14, 0.78], scale: [0.24, 0.11, 0.18], rotationY: 0.4, tint: "bronze" },
+      { file: TOWN + "cart.glb", position: [0.62, 0, 0.08], rotationY: 0.5, scale: 0.6 },
+    ],
+    fit: 0.95,
+    randomRotate: "quarter",
+  },
+  // Timber yard: the marble yard's supplier grammar (low shed, squat hip) with
+  // a lumber yard — stacked log/plank piles in timber tint and a hauling cart.
+  timber_yard: {
+    front: [1, 0],
+    parts: [
+      { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
+      hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
+      ...doorOn("posX", -0.28, 0.395),
+      ...windowOn("posZ", 0.15, -0.62, 0.395),
+      ...windowOn("posZ", 0.15, 0.02, 0.395),
+      ...windowOn("negZ", 0.15, -0.28, 0.955),
+      // yard: long plank stacks + a log pile + a hauling cart
+      { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.6, 0.14, 0.24], tint: "timber" },
+      { file: "proc:block", position: [0.17, 0.14, 0.79], scale: [0.5, 0.12, 0.18], rotationY: 0.06, tint: "timber" },
+      { file: "proc:block", position: [0.68, 0, 0.5], scale: [0.16, 0.5, 0.16], tint: "timber" },
+      { file: TOWN + "cart.glb", position: [0.62, 0, -0.05], rotationY: 0.5, scale: 0.6 },
+    ],
+    fit: 0.95,
+    randomRotate: "quarter",
+  },
+  // Stone quarry: same shed, but the yard is raw extraction — rough boulders
+  // and split stone blocks rather than the marble yard's finished columns.
+  stone_quarry: {
+    front: [1, 0],
+    parts: [
+      { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
+      hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
+      ...doorOn("posX", -0.28, 0.395),
+      ...windowOn("posZ", 0.15, -0.62, 0.395),
+      ...windowOn("posZ", 0.15, 0.02, 0.395),
+      ...windowOn("negZ", 0.15, -0.28, 0.955),
+      { file: TOWN + "rock-large.glb", position: [0.55, 0, 0.55], scale: 0.75 },
+      { file: TOWN + "rock-small.glb", position: [-0.3, 0, 0.8], scale: 0.9 },
+      { file: "proc:block", position: [0.15, 0, 0.8], scale: [0.3, 0.22, 0.26], tint: "stone" },
+      { file: "proc:block", position: [0.18, 0.22, 0.78], scale: [0.22, 0.16, 0.2], rotationY: 0.4, tint: "stone" },
       { file: TOWN + "cart.glb", position: [0.62, 0, 0.08], rotationY: 0.5, scale: 0.6 },
     ],
     fit: 0.95,

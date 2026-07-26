@@ -14,8 +14,9 @@ import { getWaterCells } from "./water.ts";
 const snapshot = (
   tiles: TileMap = {},
   florins = 10_000,
-  mapSeed: string | null = null
-): PlacementSnapshot => ({ florins, mapSeed, map: { tiles } });
+  mapSeed: string | null = null,
+  materials = { pigment: 0, marble: 0, bronze: 0, timber: 100, stone: 100 }
+): PlacementSnapshot => ({ florins, materials, mapSeed, map: { tiles } });
 
 assert.equal(planPlacement(snapshot(), [], "cottage"), null);
 assert.equal(planPlacement(snapshot(), [{ x: 0, y: 0 }], "missing" as BuildingId), null);
@@ -169,6 +170,39 @@ assert.equal(
   // the 2nd workshop, not the flat 100ƒ base).
   assert.equal(canPlaceAt(snapshot(oneWorkshop, 115), { x: 20, y: 0 }, "workshop"), true);
   assert.equal(canPlaceAt(snapshot(oneWorkshop, 114), { x: 20, y: 0 }, "workshop"), false);
+}
+
+// Blueprint structures (commissionOnly): unplaceable without a funded token;
+// with one, a single placement costs 0 florins but still bills its materials.
+{
+  assert.equal(planPlacement(snapshot(), [{ x: 40, y: 40 }], "loggia"), null);
+  assert.equal(canPlaceAt(snapshot(), { x: 40, y: 40 }, "loggia"), false);
+
+  const funded = { ...snapshot({}, 0), fundedBuilds: ["loggia"] };
+  const plan = planPlacement(funded, [{ x: 40, y: 40 }], "loggia");
+  assert.equal(plan?.totalCost, 0); // florins 0 even at a 0ƒ treasury
+  assert.deepEqual(plan?.materialCost, { stone: 15, timber: 10 });
+  assert.equal(canPlaceAt(funded, { x: 40, y: 40 }, "loggia"), true);
+
+  // ... but not without the materials, and never as a batch.
+  const noStone = { ...funded, materials: { ...funded.materials, stone: 0 } };
+  assert.equal(planPlacement(noStone, [{ x: 40, y: 40 }], "loggia"), null);
+  assert.equal(
+    planPlacement(funded, [{ x: 20, y: 20 }, { x: 40, y: 40 }], "loggia"),
+    null
+  );
+}
+
+// Construction materials: grand buildings (buildCost) also gate on the city
+// pools, spent lump-sum at placement; ordinary buildings carry no bill.
+{
+  const plan = planPlacement(snapshot(), [{ x: 40, y: 40 }], "cathedral");
+  assert.deepEqual(plan?.materialCost, { stone: 40, timber: 10 });
+  assert.deepEqual(planPlacement(snapshot(), [{ x: 0, y: 0 }], "cottage")?.materialCost, {});
+
+  const broke = { pigment: 0, marble: 0, bronze: 0, timber: 100, stone: 10 };
+  assert.equal(planPlacement(snapshot({}, 10_000, null, broke), [{ x: 40, y: 40 }], "cathedral"), null);
+  assert.equal(canPlaceAt(snapshot({}, 10_000, null, broke), { x: 40, y: 40 }, "cathedral"), false);
 }
 
 // Diagonal placement claims the mask, not its bounding box: a bystander in a
