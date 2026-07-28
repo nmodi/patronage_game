@@ -1,42 +1,97 @@
 import { useMemo } from "react";
+import { Gem, Medal, Mountain, Palette, TreePine, type LucideIcon } from "lucide-react";
 
+import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
+import { computePlazaConnectivity, connectionBonusOf } from "~/game/connectivity";
 import { MATERIAL_STORAGE_BASE } from "~/game/constants";
 import { MATERIALS, materialCaps } from "~/game/materials";
+import { trafficFactor } from "~/game/traffic";
+import type { Material } from "~/game/types";
+import { staffingEfficiency } from "~/game/workers";
 import { useGameStore } from "~/stores/useGameStore";
-import { Panel } from "./Panel";
 import { capitalizeLabel } from "./format";
 
+// ponytail: placeholder glyphs until materials get bespoke art.
+const MATERIAL_ICONS: Record<Material, LucideIcon> = {
+  pigment: Palette,
+  marble: Gem,
+  bronze: Medal,
+  timber: TreePine,
+  stone: Mountain,
+};
+
 /**
- * Material stock, stacked under the patron crests in the right-hand rail:
- * who's asking above, what you can answer with below. Deliberately not a
- * top-bar chip — materials are a cost paid when accepting a commission, not a
- * headline resource (design principle 8). Hidden until the city has stock or
- * storage beyond the base yard, so a fresh city isn't fronted with zeroes.
+ * Material stock, docked flush to the right screen edge as its own rail —
+ * deliberately not a top-bar chip: materials are a cost paid when accepting a
+ * commission, not a headline resource (design principle 8). Hidden until the
+ * city has stock or storage beyond the base yard, so a fresh city isn't
+ * fronted with zeroes.
  */
 export function MaterialsPanel() {
   const materials = useGameStore((s) => s.materials);
   const tiles = useGameStore((s) => s.map.tiles);
+  const population = useGameStore((s) => s.population);
   const caps = useMemo(() => materialCaps(tiles), [tiles]);
+
+  // Mirror of the tick's supplier loop (rate × staffing × plazaBoost) using
+  // last-tick worker counts, same as the building tooltip does.
+  const rates = useMemo(() => {
+    const connected = computePlazaConnectivity(tiles);
+    const rates = Object.fromEntries(MATERIALS.map((m) => [m, 0])) as Record<Material, number>;
+    for (const [key, tile] of Object.entries(tiles)) {
+      if (!tile.isOrigin || !tile.isActive) continue;
+      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+      if (!metadata?.supplies) continue;
+      const staffing = staffingEfficiency(
+        metadata.workersRequired ?? 0,
+        metadata.maxWorkers ?? 0,
+        tile.workers
+      );
+      const boost =
+        1 +
+        connectionBonusOf(metadata) *
+          (connected.get(key) ?? 0) *
+          trafficFactor(metadata, key, tiles, population);
+      rates[metadata.supplies.material] += metadata.supplies.rate * staffing * boost;
+    }
+    return rates;
+  }, [tiles, population]);
 
   // A cap above the base yard means a supplier or warehouse stands.
   const built = MATERIALS.some((m) => caps[m] > MATERIAL_STORAGE_BASE);
   if (!built && !MATERIALS.some((m) => materials[m] > 0)) return null;
 
-  // w-60 matches FactionCard so the rail reads as one column, not two.
+  // Slim vertical rail: icon-first, names live in the hover tooltip so the
+  // rail stays narrow and eats minimal play area.
   return (
-    <Panel header="Stores" className="flex w-60 flex-col gap-1.5 text-sm">
+    <div
+      data-hud="true"
+      className="panel-parchment pointer-events-auto flex flex-col gap-2.5 rounded-l-lg px-2.5 py-3 text-ink"
+    >
+      <div className="border-b border-wood/50 px-1 pb-1.5 text-center font-display text-sm font-semibold tracking-wider [font-variant-caps:small-caps]">
+        Materials
+      </div>
       {MATERIALS.map((material) => {
+        const Icon = MATERIAL_ICONS[material];
         const held = Math.floor(materials[material]);
+        const rate = rates[material];
+        const rateLabel = rate > 0 ? `+${Number.isInteger(rate) ? rate : rate.toFixed(1)}` : null;
         return (
-          <div key={material} className="flex items-baseline justify-between gap-4">
-            <span className="text-ink-faint">{capitalizeLabel(material)}</span>
-            <span className="font-semibold text-ink tabular-nums">
+          <div key={material} className="flex flex-col items-center">
+            <div className="flex items-center gap-1.5">
+              <Icon className="h-4 w-4 text-sienna" strokeWidth={1.75} />
+              <span className="text-xs text-ink-faint">{capitalizeLabel(material)}</span>
+            </div>
+            <span className="text-sm font-semibold leading-tight tabular-nums">
               {held}
               <span className="font-normal text-ink-faint"> / {caps[material]}</span>
+            </span>
+            <span className="text-[10px] leading-tight text-ink-faint tabular-nums">
+              {rateLabel ? `${rateLabel}/mo` : " "}
             </span>
           </div>
         );
       })}
-    </Panel>
+    </div>
   );
 }
