@@ -35,6 +35,7 @@ export function FactionBanner() {
         {pool.map((r) => {
           const Icon = r.name === CHURCH ? Church : Shield;
           const isOpen = openName === r.name;
+          const tier = favorTier(favorOf(favor, r.name));
           return (
             <button
               key={r.name}
@@ -59,7 +60,17 @@ export function FactionBanner() {
                     "linear-gradient(90deg, rgba(0,0,0,0.28), rgba(0,0,0,0) 25%, rgba(0,0,0,0) 75%, rgba(0,0,0,0.28)), linear-gradient(rgba(255,255,255,0.12), rgba(0,0,0,0.18))",
                 }}
               >
-                <Icon className="h-6 w-6 text-parchment drop-shadow" strokeWidth={1.75} />
+                <div className="flex flex-col items-center gap-1">
+                  <Icon className="h-6 w-6 text-parchment drop-shadow" strokeWidth={1.75} />
+                  {/* Soured-relations warning pip — favor itself stays in the card. */}
+                  {tier !== "neutral" && (
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ring-1 ring-black/30 ${
+                        tier === "affronted" ? "bg-red-600" : "bg-amber-300"
+                      }`}
+                    />
+                  )}
+                </div>
               </div>
             </button>
           );

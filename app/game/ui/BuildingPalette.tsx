@@ -207,16 +207,13 @@ export function BuildingPalette({
   );
 
   return (
-    <div className="fixed bottom-0 left-1/2 z-50 -translate-x-1/2">
+    <div className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2">
       {openCategory && centerFlyout && openBuildings.length > 0 && (
         <div className="absolute bottom-full left-1/2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2">
           {flyout}
         </div>
       )}
-      <Panel
-        frameClassName="rounded-lg rounded-b-none border-b-0"
-        className="flex gap-1.5 pb-2!"
-      >
+      <Panel className="flex gap-1.5 py-2!">
         {CATEGORIES.map(({ type, label, icon: Icon }) => {
           if (!BUILDING_METADATA_BY_TYPE[type]?.length) return null;
           const isOpen = openCategory === type;

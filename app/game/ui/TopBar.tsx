@@ -102,7 +102,7 @@ export function TopBar() {
         )}
         {/* Fixed width so variable-width month names don't resize the card. */}
         <span className="w-24 whitespace-nowrap border-l border-wood/50 pl-3 font-display text-lg font-semibold text-ink">
-          {calendarLabel}
+          {paused ? <span className="italic text-sienna">Paused</span> : calendarLabel}
         </span>
         <div className="flex items-center gap-1">
           <button
@@ -122,7 +122,7 @@ export function TopBar() {
             return (
               <button
                 key={multiplier}
-                className={`rounded-full px-2 py-1 text-xs font-semibold transition ${
+                className={`rounded-full px-2.5 py-1.5 text-xs font-semibold transition ${
                   isActive ? "bg-sienna text-parchment" : "bg-parchment-deep text-ink-faint hover:text-ink"
                 }`}
                 onClick={() => setTickInterval(BASE_TICK_INTERVAL / multiplier)}

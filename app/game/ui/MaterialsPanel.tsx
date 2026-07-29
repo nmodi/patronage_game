@@ -75,7 +75,7 @@ export function MaterialsPanel() {
         const Icon = MATERIAL_ICONS[material];
         const held = Math.floor(materials[material]);
         const rate = rates[material];
-        const rateLabel = rate > 0 ? `+${Number.isInteger(rate) ? rate : rate.toFixed(1)}` : null;
+        const rateLabel = `+${Number.isInteger(rate) ? rate : rate.toFixed(1)}`;
         return (
           <div key={material} className="flex flex-col items-center">
             <div className="flex items-center gap-1.5">
@@ -86,8 +86,12 @@ export function MaterialsPanel() {
               {held}
               <span className="font-normal text-ink-faint"> / {caps[material]}</span>
             </span>
-            <span className="text-[10px] leading-tight text-ink-faint tabular-nums">
-              {rateLabel ? `${rateLabel}/mo` : " "}
+            <span
+              className={`text-[10px] leading-tight tabular-nums ${
+                rate > 0 ? "text-ink-faint" : "text-ink-faint/60"
+              }`}
+            >
+              {rateLabel}/mo
             </span>
           </div>
         );
