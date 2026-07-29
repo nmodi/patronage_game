@@ -10,3 +10,7 @@
 # Storybook
 /storybook-static/
 *.storybook.log
+
+# Impeccable local state (cache + per-machine consent)
+.impeccable/hook.cache.json
+.impeccable/config.local.json
