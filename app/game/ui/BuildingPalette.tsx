@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Beer,
   Bell,
   BrickWall,
   Building2,
   Castle,
+  ChevronLeft,
+  ChevronRight,
   Church,
   Columns3,
   Cross,
@@ -160,103 +162,148 @@ export function BuildingPalette({
       )?.type
     : null;
 
-  // Long lists center over the palette (capped to the viewport, scrollable);
-  // short ones anchor to their tab.
-  const centerFlyout = openBuildings.length >= 8;
+  // Paged strip (Cities-style shelf): one slim row windowed to 7 cards,
+  // chevrons + mouse wheel to page it, always centered above the bar — no
+  // category list ever clips at a screen edge, whatever its length.
+  const stripRef = useRef<HTMLDivElement>(null);
+  const [strip, setStrip] = useState({ atStart: true, atEnd: true });
+  const syncStrip = () => {
+    const el = stripRef.current;
+    if (!el) return;
+    setStrip({
+      atStart: el.scrollLeft <= 1,
+      atEnd: el.scrollLeft >= el.scrollWidth - el.clientWidth - 1,
+    });
+  };
+  useEffect(() => {
+    stripRef.current?.scrollTo({ left: 0 });
+    syncStrip();
+  }, [openCategory]);
+  const stripOverflows = !(strip.atStart && strip.atEnd);
+  const pageStrip = (dir: number) => {
+    const el = stripRef.current;
+    el?.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" });
+  };
+  const chevronClass =
+    "flex h-[92px] w-7 shrink-0 items-center justify-center rounded border border-wood/50 bg-parchment-deep text-sienna transition hover:bg-wood/30 disabled:opacity-35 disabled:hover:bg-parchment-deep";
+
   const flyout = (
-    <Panel className="flex gap-1.5 overflow-x-auto">
-      {openBuildings.map(({ id, name, baseCost, buildCost, commissionOnly }) => {
-        const buildingId = id as BuildingId;
-        const BuildingIcon = BUILDING_ICONS[buildingId] ?? Warehouse;
-        const isSelected = selectedBuilding === buildingId;
-        const bill = Object.entries(buildCost ?? {});
-        // Funded blueprint builds cost no florins — only their material bill.
-        const canAfford =
-          (commissionOnly || florins >= baseCost) &&
-          bill.every(([m, amt]) => materials[m as Material] >= amt);
-        return (
-          <button
-            key={id}
-            className={`flex h-28 w-24 min-w-0 shrink-0 flex-col items-center justify-between rounded-md border px-1.5 py-2 transition ${
-              isSelected
-                ? "border-sienna bg-white/80 text-ink"
-                : "border-wood/60 bg-white/50 text-ink hover:bg-white/80"
-            } ${canAfford ? "" : "opacity-50"}`}
-            onClick={() => setSelectedBuilding(isSelected ? null : buildingId)}
-          >
-            <span className="flex h-9 items-center text-center text-sm font-semibold leading-tight">
-              {name}
-            </span>
-            <BuildingIcon className="h-7 w-7 text-prestige-gold" strokeWidth={1.75} />
-            <span className="text-center text-xs leading-tight text-ink-faint">
-              {commissionOnly ? (
-                <span className="font-semibold text-prestige-ink">Funded</span>
-              ) : (
-                `${baseCost}ƒ`
-              )}
-              {bill.map(([m, amt]) => (
-                <span key={m} className="block">
-                  {amt} {m}
-                </span>
-              ))}
-            </span>
-          </button>
-        );
-      })}
+    <Panel className="flex items-center gap-1.5 py-2!">
+      {stripOverflows && (
+        <button
+          className={chevronClass}
+          onClick={() => pageStrip(-1)}
+          disabled={strip.atStart}
+          aria-label="Scroll left"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      <div
+        ref={stripRef}
+        onScroll={syncStrip}
+        onWheel={(e) => {
+          if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) e.currentTarget.scrollLeft += e.deltaY;
+        }}
+        className="flex max-w-[610px] gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {openBuildings.map(({ id, name, baseCost, buildCost, commissionOnly }) => {
+          const buildingId = id as BuildingId;
+          const BuildingIcon = BUILDING_ICONS[buildingId] ?? Warehouse;
+          const isSelected = selectedBuilding === buildingId;
+          const bill = Object.entries(buildCost ?? {});
+          // Funded blueprint builds cost no florins — only their material bill.
+          const canAfford =
+            (commissionOnly || florins >= baseCost) &&
+            bill.every(([m, amt]) => materials[m as Material] >= amt);
+          return (
+            <button
+              key={id}
+              className={`flex h-[92px] w-[82px] shrink-0 flex-col items-center justify-between rounded border px-1 py-1.5 transition ${
+                isSelected
+                  ? "border-sienna bg-sienna/10 text-ink"
+                  : "border-wood/50 bg-parchment-deep text-ink hover:bg-wood/30"
+              } ${canAfford ? "" : "opacity-50"}`}
+              onClick={() => setSelectedBuilding(isSelected ? null : buildingId)}
+            >
+              <span className="line-clamp-2 text-center text-xs font-semibold leading-tight">
+                {name}
+              </span>
+              <BuildingIcon className="h-6 w-6 text-prestige-gold" strokeWidth={1.75} />
+              <span className="text-center text-xs leading-tight text-ink-faint">
+                {commissionOnly ? (
+                  <span className="font-semibold text-prestige-ink">Funded</span>
+                ) : (
+                  `${baseCost}ƒ`
+                )}
+                {bill.map(([m, amt]) => (
+                  <span key={m} className="block">
+                    {amt} {m}
+                  </span>
+                ))}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {stripOverflows && (
+        <button
+          className={chevronClass}
+          onClick={() => pageStrip(1)}
+          disabled={strip.atEnd}
+          aria-label="Scroll right"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      )}
     </Panel>
   );
 
+  // Full-width workbench bar: small-caps "Build" title, squared category chips,
+  // and a round Raze medallion that unfurls its name (square = category,
+  // circle = action — see .pal-* in app.css).
   return (
-    <div className="fixed bottom-3 left-1/2 z-50 -translate-x-1/2">
-      {openCategory && centerFlyout && openBuildings.length > 0 && (
-        <div className="absolute bottom-full left-1/2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2">
+    <div className="fixed bottom-0 left-0 right-0 z-50">
+      {openCategory && openBuildings.length > 0 && (
+        <div className="absolute bottom-full left-1/2 mb-2 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2">
           {flyout}
         </div>
       )}
-      <Panel className="flex gap-1.5 py-2!">
+      <Panel
+        frameClassName="rounded-none border-x-0 border-b-0"
+        className="pal-bar flex items-center"
+      >
+        <span className="pal-title">Build</span>
         {CATEGORIES.map(({ type, label, icon: Icon }) => {
           if (!BUILDING_METADATA_BY_TYPE[type]?.length) return null;
           const isOpen = openCategory === type;
           const hasSelection = selectedCategory === type;
           return (
             <div key={type} className="relative">
-              {isOpen && !centerFlyout && openBuildings.length > 0 && (
-                <div
-                  // mb-3 clears the category panel's top padding so the panels
-                  // just touch; last tab's list overflows the viewport if left-aligned.
-                  className={`absolute bottom-full mb-3 w-max ${type === "decoration" ? "right-0" : "left-0"}`}
-                >
-                  {flyout}
-                </div>
-              )}
               <button
-                className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2 transition ${
-                  isOpen || hasSelection
-                    ? "border-sienna bg-white/80 text-ink"
-                    : "border-wood/60 bg-white/50 text-ink hover:bg-white/80"
-                }`}
+                className={`pal-tab text-ink ${isOpen || hasSelection ? "is-active" : ""}`}
                 onClick={() => setOpenCategory(isOpen ? null : type)}
               >
                 <Icon className="h-5 w-5 text-sienna" strokeWidth={1.75} />
-                <span className="font-display text-xs font-semibold tracking-wider">{label}</span>
+                <span className="pal-label">{label}</span>
               </button>
             </div>
           );
         })}
+        <span className="flex-1" />
+        <span className="pal-div" />
         <button
-          className={`flex flex-col items-center gap-1 rounded-md border px-3 py-2 transition ${
-            selectedBuilding === RAZE_TOOL
-              ? "border-sienna bg-white/80 text-ink"
-              : "border-wood/60 bg-white/50 text-ink hover:bg-white/80"
-          }`}
+          className={`pal-raze ${selectedBuilding === RAZE_TOOL ? "is-active" : ""}`}
           title="Clear the lot for new works — salvage half the cost"
           onClick={() => {
             setOpenCategory(null);
             setSelectedBuilding(selectedBuilding === RAZE_TOOL ? null : RAZE_TOOL);
           }}
         >
-          <Pickaxe className="h-5 w-5 text-sienna" strokeWidth={1.75} />
-          <span className="font-display text-xs font-semibold tracking-wider">Raze</span>
+          <Pickaxe className="h-5 w-5" strokeWidth={1.75} />
+          <span className="pal-unfurl" aria-hidden="true">
+            <span className="pal-label">Raze</span>
+          </span>
         </button>
       </Panel>
     </div>
