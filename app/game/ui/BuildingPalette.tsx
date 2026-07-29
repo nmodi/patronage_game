@@ -190,7 +190,7 @@ export function BuildingPalette({
             <BuildingIcon className="h-7 w-7 text-prestige-gold" strokeWidth={1.75} />
             <span className="text-center text-xs leading-tight text-ink-faint">
               {commissionOnly ? (
-                <span className="font-semibold text-prestige-gold">Funded</span>
+                <span className="font-semibold text-prestige-ink">Funded</span>
               ) : (
                 `${baseCost}ƒ`
               )}

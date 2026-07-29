@@ -51,13 +51,13 @@ export function RazeConfirm() {
         </div>
         <div className="mt-3 flex justify-end gap-2">
           <button
-            className="rounded-md border border-wood/60 bg-white/50 px-3 py-1.5 text-sm font-semibold text-ink transition hover:bg-white/80"
+            className="btn-secondary px-3 py-1.5 text-sm"
             onClick={() => setRazeTarget(null)}
           >
             Keep
           </button>
           <button
-            className="rounded-md border border-sienna bg-white/80 px-3 py-1.5 text-sm font-semibold text-sienna transition hover:bg-white"
+            className="btn-primary px-3 py-1.5 text-sm"
             onClick={() => {
               removeTile(tile.origin);
               setRazeTarget(null);

@@ -145,14 +145,14 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                   workshops.map(([key, founder]) => (
                     <button
                       key={key}
-                      className="rounded bg-sienna px-2 py-1.5 text-sm font-semibold text-parchment transition hover:bg-sienna/85"
+                      className="btn-primary px-2 py-1.5 text-sm"
                       onClick={() => assignCommission(c.id, key)}
                     >
                       Assign to Bottega di {founder.name}
                     </button>
                   ))
                 ) : (
-                  <span className="rounded border border-wood/50 bg-parchment-deep px-2 py-1.5 text-center text-sm text-ink-faint shadow-inner">
+                  <span className="rounded-md border border-wood/50 bg-parchment-deep px-2 py-1.5 text-center text-sm text-ink-faint shadow-inner">
                     {shortfall
                       ? `Not enough ${shortfall} — ${Math.floor(materials[shortfall])} / ${cost} in store`
                       : `Not assigned — no idle ${c.artistType} workshop`}

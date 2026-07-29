@@ -113,7 +113,7 @@ export function GalleryPanel() {
                             On display at {BUILDING_METADATA_BY_ID[host.buildingId]?.name}
                           </span>
                           <button
-                            className="rounded border border-wood/50 bg-parchment-deep px-2 py-1 font-semibold text-sienna transition hover:bg-wood/30"
+                            className="btn-quiet px-2 py-1"
                             onClick={() => recallArtwork(w.id)}
                           >
                             Recall
@@ -122,7 +122,7 @@ export function GalleryPanel() {
                       ) : (
                         <div className="flex flex-col gap-1">
                           <button
-                            className="self-start rounded border border-wood/50 bg-parchment-deep px-2 py-1 text-xs font-semibold text-sienna transition hover:bg-wood/30"
+                            className="btn-quiet self-start px-2 py-1 text-xs"
                             onClick={() => setExpandedId(expandedId === w.id ? null : w.id)}
                           >
                             Display at…
@@ -136,7 +136,7 @@ export function GalleryPanel() {
                               hosts.map((h) => (
                                 <button
                                   key={h.key}
-                                  className="rounded bg-sienna px-2 py-1 text-left text-xs font-semibold text-parchment transition hover:bg-sienna/85"
+                                  className="btn-primary px-2 py-1 text-left text-xs"
                                   onClick={() => {
                                     displayArtwork(w.id, h.key, h.slot);
                                     setExpandedId(null);

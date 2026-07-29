@@ -12,16 +12,43 @@
   --color-parchment: #f9f5ec;
   --color-parchment-deep: #ede7da;
   --color-ink: #453824;
-  --color-ink-faint: #8a7658;
+  --color-ink-faint: #7d6b4f;
   --color-wood: #b39868;
   --color-sienna: #9c3a24;
   --color-verde: #4a6551;
+
+  /* Text-safe gold: prestige-gold reads at ~2.5:1 on parchment — icons only.
+     Status text (Active, Funded, at-work lines) uses this darker ink instead. */
+  --color-prestige-ink: #8a6a1c;
 }
 
 /* Sorts Mill Goudy defaults to old-style (dropped) figures; force lining
    figures wherever the display font is used so numerals sit on one baseline. */
 .font-display {
   font-variant-numeric: lining-nums;
+}
+
+/* Tailwind v4 preflight leaves buttons with the default arrow cursor. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
+/* Keyboard focus in the parchment world — the UA's blue ring clashes. */
+:where(button, input, select, a):focus-visible {
+  outline: 2px solid var(--color-sienna);
+  outline-offset: 2px;
+}
+
+/* The three button voices. Size (px/py, text-*) stays local to each context;
+   these carry the shared color/border/radius/hover language. */
+.btn-primary {
+  @apply rounded-md bg-sienna font-semibold text-parchment transition hover:bg-sienna/85;
+}
+.btn-secondary {
+  @apply rounded-md bg-parchment-deep font-semibold text-ink transition hover:bg-wood/40;
+}
+.btn-quiet {
+  @apply rounded-md border border-wood/50 bg-parchment-deep font-semibold text-sienna transition hover:bg-wood/30;
 }
 
 /* Parchment card: double border via inset hairline, faint paper grain via inline noise SVG. */

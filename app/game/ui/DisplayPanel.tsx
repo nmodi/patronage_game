@@ -99,7 +99,7 @@ export function DisplayPanel() {
               Completed {formatMonth(detailWork.completedTick)}
             </span>
             <button
-              className="rounded bg-parchment-deep px-2 py-1.5 text-sm font-semibold text-ink transition hover:bg-wood/40"
+              className="btn-secondary px-2 py-1.5 text-sm"
               onClick={() => {
                 recallArtwork(detailWork.id);
                 setInspectTarget({ key: target.key }); // fall back to the building card
@@ -139,7 +139,7 @@ export function DisplayPanel() {
                   <>
                     <div className="flex items-start gap-3">{workRow(filled)}</div>
                     <button
-                      className="rounded bg-parchment-deep px-2 py-1 text-sm font-semibold text-ink transition hover:bg-wood/40"
+                      className="btn-secondary px-2 py-1 text-sm"
                       onClick={() => recallArtwork(filled.id)}
                     >
                       Return to storage
@@ -158,7 +158,7 @@ export function DisplayPanel() {
                           eligible.map((w) => (
                             <button
                               key={w.id}
-                              className="rounded bg-sienna px-2 py-1 text-left text-sm font-semibold text-parchment transition hover:bg-sienna/85"
+                              className="btn-primary px-2 py-1 text-left text-sm"
                               onClick={() => {
                                 displayArtwork(w.id, target.key, i);
                                 setPickerSlot(null);
@@ -171,7 +171,7 @@ export function DisplayPanel() {
                       </div>
                     ) : (
                       <button
-                        className="rounded border border-wood/50 bg-parchment-deep px-2 py-1 text-sm font-semibold text-sienna transition hover:bg-wood/30"
+                        className="btn-quiet px-2 py-1 text-sm"
                         onClick={() => setPickerSlot(i)}
                       >
                         Place a work…

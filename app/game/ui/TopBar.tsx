@@ -49,6 +49,7 @@ export function TopBar() {
   const seed = useGameStore((s) => s.seed);
   const mapSeed = useGameStore((s) => s.mapSeed);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [seedCopied, setSeedCopied] = useState(false);
@@ -151,7 +152,10 @@ export function TopBar() {
           )}
           <button
             className="rounded-full bg-parchment-deep p-2 text-ink transition hover:bg-wood/40"
-            onClick={() => setSettingsOpen((open) => !open)}
+            onClick={() => {
+              setSettingsOpen((open) => !open);
+              setConfirmRestart(false);
+            }}
             aria-label="Settings"
           >
             <Settings className="h-4 w-4" />
@@ -162,7 +166,7 @@ export function TopBar() {
         <div className="absolute right-4 top-full mt-2">
           <Panel header="Settings" className="flex w-48 flex-col gap-2 text-sm">
             <button
-              className="flex items-center gap-2 rounded-lg bg-parchment-deep px-3 py-2 font-semibold text-ink transition hover:bg-wood/40"
+              className="btn-secondary flex items-center gap-2 px-3 py-2"
               // ponytail: full reload = the one clean path back to the menu — drops
               // transient UI state and exits ?demo mode uniformly; the save is
               // already persisted (every set writes through).
@@ -171,17 +175,21 @@ export function TopBar() {
               <Home className="h-4 w-4" />
               Main Menu
             </button>
+            {/* Two-click confirm in place — no native dialog breaking the parchment world. */}
             <button
-              className="flex items-center gap-2 rounded-lg bg-sienna px-3 py-2 font-semibold text-parchment transition hover:bg-sienna/85"
+              className="btn-primary flex items-center gap-2 px-3 py-2"
               onClick={() => {
-                if (window.confirm("Restart the game? All progress will be lost.")) {
-                  resetGame();
-                  setSettingsOpen(false);
+                if (!confirmRestart) {
+                  setConfirmRestart(true);
+                  return;
                 }
+                resetGame();
+                setConfirmRestart(false);
+                setSettingsOpen(false);
               }}
             >
               <RotateCcw className="h-4 w-4" />
-              Restart Game
+              {confirmRestart ? "Erase all progress?" : "Restart Game"}
             </button>
             <button
               className="flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-ink-faint transition hover:text-ink"

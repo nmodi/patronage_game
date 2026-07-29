@@ -82,7 +82,7 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
                   {members.length} {members.length === 1 ? "artist" : "artists"}
                 </span>
                 {working ? (
-                  <span className={`text-xs ${active ? "text-prestige-gold" : "text-sienna"}`}>
+                  <span className={`text-xs ${active ? "text-prestige-ink" : "text-sienna"}`}>
                     At work on {commission!.title} — {Math.floor(founder.workProgress!)}/
                     {commission!.durationMonths} months
                     {!active && " (paused)"}

@@ -44,7 +44,7 @@ export function RenaissanceCard() {
           travelers cross the mountains to stand before “{progress.wonder!.name}.”
         </div>
         <button
-          className="mt-4 rounded-md border border-sienna bg-white/80 px-4 py-2 text-sm font-semibold text-sienna transition hover:bg-white"
+          className="btn-primary mt-4 px-4 py-2 text-sm"
           onClick={dismiss}
         >
           Enter the Golden Age

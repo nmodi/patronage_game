@@ -31,6 +31,7 @@ function peekSave(): SavePeek | null {
 export function MainMenu({ onStart }: { onStart: () => void }) {
   const [save, setSave] = useState<SavePeek | null>(null);
   const [newGameOpen, setNewGameOpen] = useState(false);
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [seedDraft, setSeedDraft] = useState("");
   const [archetype, setArchetype] = useState<WaterArchetype | "random">("random");
   useEffect(() => setSave(peekSave()), []);
@@ -41,7 +42,10 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
   };
 
   const startNewGame = () => {
-    if (save && !window.confirm(`Start a new city? "${save.cityName}" will be overwritten.`)) {
+    // Two-click confirm in place of window.confirm — the guard stays, the
+    // native dialog breaking the parchment world goes.
+    if (save && !confirmOverwrite) {
+      setConfirmOverwrite(true);
       return;
     }
     // Seeds are stored lowercase — the UI shows them uppercase (TopBar copySeed).
@@ -68,7 +72,13 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
             </span>
           </MenuButton>
         )}
-        <MenuButton primary={!save} onClick={() => setNewGameOpen((open) => !open)}>
+        <MenuButton
+          primary={!save}
+          onClick={() => {
+            setNewGameOpen((open) => !open);
+            setConfirmOverwrite(false);
+          }}
+        >
           New Game
         </MenuButton>
         {newGameOpen && (
@@ -100,7 +110,7 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
               </label>
             )}
             <MenuButton primary onClick={startNewGame}>
-              Found the City
+              {confirmOverwrite ? `Overwrite "${save?.cityName}"?` : "Found the City"}
             </MenuButton>
           </div>
         )}
@@ -127,11 +137,7 @@ function MenuButton({
 }) {
   return (
     <button
-      className={`rounded-lg px-4 py-2.5 font-semibold transition ${
-        primary
-          ? "bg-sienna text-parchment hover:bg-sienna/85"
-          : "bg-parchment-deep text-ink hover:bg-wood/40"
-      }`}
+      className={`px-4 py-2.5 ${primary ? "btn-primary" : "btn-secondary"}`}
       onClick={onClick}
     >
       {children}

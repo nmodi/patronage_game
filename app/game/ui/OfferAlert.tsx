@@ -32,7 +32,7 @@ export function OfferAlert({ onView }: { onView: () => void }) {
           </span>
           <span className="text-ink-faint">−{DENOUNCE_PRESTIGE} Prestige</span>
           <button
-            className="self-end rounded bg-parchment-deep px-2 py-1.5 text-sm font-semibold text-ink transition hover:bg-wood/40"
+            className="btn-secondary self-end px-2 py-1.5 text-sm"
             onClick={() => setDenounceAlert(null)}
           >
             Dismiss
@@ -60,13 +60,13 @@ export function OfferAlert({ onView }: { onView: () => void }) {
           </span>
           <div className="flex justify-end gap-2">
             <button
-              className="rounded bg-parchment-deep px-2 py-1.5 text-sm font-semibold text-ink transition hover:bg-wood/40"
+              className="btn-secondary px-2 py-1.5 text-sm"
               onClick={() => setOfferAlert(null)}
             >
               Later
             </button>
             <button
-              className="rounded bg-sienna px-2 py-1.5 text-sm font-semibold text-parchment transition hover:bg-sienna/85"
+              className="btn-primary px-2 py-1.5 text-sm"
               onClick={() => {
                 setOfferAlert(null);
                 onView();

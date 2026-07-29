@@ -153,7 +153,7 @@ export function BuildingTooltip() {
           </div>
         )}
         {canBeInactive && (
-          <div className={`text-sm font-semibold ${isActive ? "text-prestige-gold" : "text-sienna"}`}>
+          <div className={`text-sm font-semibold ${isActive ? "text-prestige-ink" : "text-sienna"}`}>
             {isActive
               ? "Active"
               : missing > 0
