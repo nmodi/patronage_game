@@ -24,14 +24,17 @@ export function GalleryPanel() {
     <>
       <button
         data-hud="true"
-        className={`panel-parchment pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full text-ink transition ${
-          open ? "ring-2 ring-sienna" : ""
+        className={`hud-toggle panel-parchment pointer-events-auto relative h-11 rounded-full text-ink ${
+          open ? "is-open ring-2 ring-sienna" : ""
         }`}
         onClick={() => setOpen(true)}
         aria-label="Gallery"
         title="Gallery"
       >
         <Images className="h-5 w-5 text-sienna" strokeWidth={1.75} />
+        <span className="hud-toggle-label" aria-hidden="true">
+          <span className="pl-0.5 pr-3.5">Gallery</span>
+        </span>
       </button>
       {/* Portal: keeps the fixed modal out of the TopBar panel's stacking
           context so it can't get pinned to the panel. */}

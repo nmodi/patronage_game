@@ -57,14 +57,17 @@ export function HudPanel({
     <div className="relative">
       <button
         data-hud="true"
-        className={`panel-parchment pointer-events-auto relative flex h-11 w-11 items-center justify-center rounded-full text-ink transition ${
-          open ? "ring-2 ring-sienna" : ""
+        className={`hud-toggle panel-parchment pointer-events-auto relative h-11 rounded-full text-ink ${
+          open ? "is-open ring-2 ring-sienna" : ""
         }`}
         onClick={onToggle}
         aria-label={label}
         title={label}
       >
         <Icon className="h-5 w-5 text-sienna" strokeWidth={1.75} />
+        <span className="hud-toggle-label" aria-hidden="true">
+          <span className="pl-0.5 pr-3.5">{label}</span>
+        </span>
         {count != null && count > 0 && (
           <span
             className={`absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold text-parchment ${countClassName}`}

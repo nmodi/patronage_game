@@ -51,6 +51,127 @@ button:not(:disabled) {
   @apply rounded-md border border-wood/50 bg-parchment-deep font-semibold text-sienna transition hover:bg-wood/30;
 }
 
+/* HUD toggle: parchment circle that unfurls into a labeled pill on hover/open.
+   The reveal animates a grid track (0fr→1fr), never width/padding, so the
+   sibling toggles slide without layout jank; the icon keeps its own 44px cell. */
+.hud-toggle {
+  display: inline-grid;
+  grid-template-columns: 2.75rem 0fr;
+  align-items: center;
+  transition: grid-template-columns 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hud-toggle > svg {
+  justify-self: center;
+}
+.hud-toggle-label {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  font-family: var(--font-display);
+  font-variant-caps: small-caps;
+  font-variant-numeric: lining-nums;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--color-ink);
+  transition: opacity 250ms ease 80ms;
+}
+.hud-toggle:hover,
+.hud-toggle:focus-visible,
+.hud-toggle.is-open {
+  grid-template-columns: 2.75rem 1fr;
+}
+.hud-toggle:hover .hud-toggle-label,
+.hud-toggle:focus-visible .hud-toggle-label,
+.hud-toggle.is-open .hud-toggle-label {
+  opacity: 1;
+}
+/* Materials rail: left-docked icon column; each row unfurls sideways on
+   hover/focus to reveal name, held/cap, and rate — same grid-track reveal
+   as .hud-toggle so the two speak one motion language. */
+.mat-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 8px;
+}
+.mat-row {
+  display: grid;
+  grid-template-columns: auto 0fr;
+  align-items: center;
+  transition: grid-template-columns 350ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.mat-rail:hover .mat-row,
+.mat-rail:focus-within .mat-row {
+  grid-template-columns: auto 1fr;
+}
+.mat-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 28px;
+}
+.mat-held {
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  transition: opacity 250ms ease;
+}
+.mat-rail:hover .mat-held,
+.mat-rail:focus-within .mat-held {
+  opacity: 0;
+}
+.mat-detail {
+  min-width: 0;
+  overflow: hidden;
+}
+.mat-detail-inner {
+  display: inline-block;
+  white-space: nowrap;
+  padding: 0 10px 0 8px;
+  opacity: 0;
+  transition: opacity 250ms ease 80ms;
+}
+.mat-rail:hover .mat-detail-inner,
+.mat-rail:focus-within .mat-detail-inner {
+  opacity: 1;
+}
+.mat-name {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--color-ink-faint);
+  line-height: 1.2;
+}
+.mat-nums {
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.mat-cap {
+  font-weight: 400;
+  color: var(--color-ink-faint);
+}
+.mat-rate {
+  font-size: 10px;
+  color: var(--color-ink-faint);
+  font-variant-numeric: tabular-nums;
+  margin-left: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hud-toggle,
+  .hud-toggle-label,
+  .mat-row,
+  .mat-held,
+  .mat-detail-inner {
+    transition: none;
+  }
+}
+
 /* Parchment card: double border via inset hairline, faint paper grain via inline noise SVG. */
 .panel-parchment {
   background-color: var(--color-parchment);

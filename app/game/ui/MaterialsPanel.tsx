@@ -21,7 +21,7 @@ const MATERIAL_ICONS: Record<Material, LucideIcon> = {
 };
 
 /**
- * Material stock, docked flush to the right screen edge as its own rail —
+ * Material stock, docked flush to the left screen edge as its own rail —
  * deliberately not a top-bar chip: materials are a cost paid when accepting a
  * commission, not a headline resource (design principle 8). Hidden until the
  * city has stock or storage beyond the base yard, so a fresh city isn't
@@ -61,37 +61,34 @@ export function MaterialsPanel() {
   const built = MATERIALS.some((m) => caps[m] > MATERIAL_STORAGE_BASE);
   if (!built && !MATERIALS.some((m) => materials[m] > 0)) return null;
 
-  // Slim vertical rail: icon-first, names live in the hover tooltip so the
-  // rail stays narrow and eats minimal play area.
+  // Slim unfurl rail: icons + held counts at rest; hovering unfurls each row
+  // sideways to reveal name, held/cap, and rate — the .hud-toggle grid-track
+  // reveal grammar (see app.css .mat-rail).
   return (
     <div
       data-hud="true"
-      className="panel-parchment pointer-events-auto flex flex-col gap-2.5 rounded-l-lg px-2.5 py-3 text-ink"
+      className="mat-rail panel-parchment pointer-events-auto rounded-r-lg text-ink"
     >
-      <div className="border-b border-wood/50 px-1 pb-1.5 text-center font-display text-sm font-semibold tracking-wider [font-variant-caps:small-caps]">
-        Materials
-      </div>
       {MATERIALS.map((material) => {
         const Icon = MATERIAL_ICONS[material];
         const held = Math.floor(materials[material]);
         const rate = rates[material];
         const rateLabel = `+${Number.isInteger(rate) ? rate : rate.toFixed(1)}`;
         return (
-          <div key={material} className="flex flex-col items-center">
-            <div className="flex items-center gap-1.5">
+          <div key={material} className="mat-row">
+            <span className="mat-cell">
               <Icon className="h-4 w-4 text-sienna" strokeWidth={1.75} />
-              <span className="text-xs text-ink-faint">{capitalizeLabel(material)}</span>
-            </div>
-            <span className="text-sm font-semibold leading-tight tabular-nums">
-              {held}
-              <span className="font-normal text-ink-faint"> / {caps[material]}</span>
+              <span className="mat-held">{held}</span>
             </span>
-            <span
-              className={`text-[10px] leading-tight tabular-nums ${
-                rate > 0 ? "text-ink-faint" : "text-ink-faint/60"
-              }`}
-            >
-              {rateLabel}/mo
+            <span className="mat-detail">
+              <span className="mat-detail-inner">
+                <span className="mat-name">{capitalizeLabel(material)}</span>
+                <span className="mat-nums">
+                  {held}
+                  <span className="mat-cap"> / {caps[material]}</span>
+                  <span className="mat-rate">{rateLabel}/mo</span>
+                </span>
+              </span>
             </span>
           </div>
         );

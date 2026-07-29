@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-29T00:00:00Z",
+  "title": "Design System: Patronage",
+  "extensions": {
+    "colorMeta": {
+      "sienna": { "role": "primary", "displayName": "Sienna", "canonical": "#9c3a24", "tonalRamp": ["#2b0f08", "#4c1a0e", "#6e2717", "#8b3320", "#9c3a24", "#b96047", "#d68f75", "#f0c4b4"] },
+      "prestige-gold": { "role": "secondary", "displayName": "Prestige Gold", "canonical": "#c9932f", "tonalRamp": ["#3a2a0c", "#5f4514", "#84601c", "#a97b25", "#c9932f", "#d7ad5c", "#e5c78d", "#f2e2c4"] },
+      "prestige-ink": { "role": "secondary", "displayName": "Prestige Ink", "canonical": "#8a6a1c", "tonalRamp": ["#241c07", "#45350e", "#665015", "#8a6a1c", "#a5854a", "#c0a077", "#dcc2a6", "#f0e2d0"] },
+      "verde": { "role": "tertiary", "displayName": "Verde", "canonical": "#4a6551", "tonalRamp": ["#131b15", "#26362b", "#394f3e", "#4a6551", "#6b8371", "#8fa294", "#b5c2b9", "#dce2de"] },
+      "crest-blue": { "role": "tertiary", "displayName": "Crest Blue", "canonical": "#2f3d63", "tonalRamp": ["#0d111c", "#1b2340", "#252f52", "#2f3d63", "#55618a", "#7d87ab", "#a8afcc", "#d5d8e8"] },
+      "crest-blue-deep": { "role": "tertiary", "displayName": "Crest Blue Deep", "canonical": "#1b2340", "tonalRamp": ["#06070d", "#10141f", "#1b2340", "#2c3350", "#4a5170", "#737a94", "#a2a7ba", "#d2d4df"] },
+      "parchment": { "role": "neutral", "displayName": "Parchment", "canonical": "#f9f5ec", "tonalRamp": ["#6b6353", "#8d8471", "#aea691", "#cfc7b2", "#e5ded0", "#f9f5ec", "#fbf8f2", "#fdfcf8"] },
+      "parchment-deep": { "role": "neutral", "displayName": "Parchment Deep", "canonical": "#ede7da", "tonalRamp": ["#5c5546", "#7d7561", "#9e957e", "#beb59d", "#d6ceba", "#ede7da", "#f3efe5", "#f9f7f0"] },
+      "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#453824", "tonalRamp": ["#191408", "#2d2415", "#453824", "#5f4f35", "#7a684b", "#968464", "#b3a385", "#d3c8b0"] },
+      "ink-faint": { "role": "neutral", "displayName": "Ink Faint", "canonical": "#7d6b4f", "tonalRamp": ["#241f14", "#423727", "#5f4f3a", "#7d6b4f", "#97876b", "#b2a48a", "#cdc2ab", "#e8e1d1"] },
+      "wood": { "role": "neutral", "displayName": "Wood", "canonical": "#b39868", "tonalRamp": ["#33291a", "#55452c", "#77613e", "#99804f", "#b39868", "#c5ad85", "#d8c5a5", "#ebdecb"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Game title on the night sky only." },
+      "headline": { "displayName": "Headline", "purpose": "City name, calendar, offer titles, card headings." },
+      "title": { "displayName": "Title", "purpose": "Panel headers — small-caps ledger running heads." },
+      "body": { "displayName": "Body", "purpose": "Panel content, ledger rows, descriptions." },
+      "small": { "displayName": "Small", "purpose": "Secondary rows, metadata, compact rail names." },
+      "label": { "displayName": "Label", "purpose": "10px uppercase captions under resource values." }
+    },
+    "shadows": [
+      { "name": "panel-float", "value": "inset 0 0 0 3px #f9f5ec, inset 0 0 0 4px rgba(179, 152, 104, 0.55), 0 4px 12px rgba(40, 25, 10, 0.35)", "purpose": "The parchment card's double hairline border plus its one soft warm drop shadow." },
+      { "name": "title-glow", "value": "0 2px 24px rgba(0, 0, 0, 0.4)", "purpose": "Text shadow under the display title on the night sky." }
+    ],
+    "motion": [
+      { "name": "transition-default", "value": "150ms cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Tailwind's `transition` on buttons/pills — fill and ink shifts, never movement." }
+    ],
+    "breakpoints": []
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The commanding voice — sienna fill, one per screen region.",
+      "html": "<button class=\"ds-btn-primary\">Found the City</button>",
+      "css": ".ds-btn-primary { background: #9c3a24; color: #f9f5ec; font-family: 'EB Garamond', Georgia, serif; font-size: 0.875rem; font-weight: 600; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-primary:hover { background: rgba(156, 58, 36, 0.85); } .ds-btn-primary:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "The default voice — recessed parchment fill, ink text.",
+      "html": "<button class=\"ds-btn-secondary\">Later</button>",
+      "css": ".ds-btn-secondary { background: #ede7da; color: #453824; font-family: 'EB Garamond', Georgia, serif; font-size: 0.875rem; font-weight: 600; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-secondary:hover { background: rgba(179, 152, 104, 0.4); } .ds-btn-secondary:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "The aside — hairline border, sienna text on recessed parchment.",
+      "html": "<button class=\"ds-btn-quiet\">Decline</button>",
+      "css": ".ds-btn-quiet { background: #ede7da; color: #9c3a24; font-family: 'EB Garamond', Georgia, serif; font-size: 0.875rem; font-weight: 600; padding: 8px 12px; border: 1px solid rgba(179, 152, 104, 0.5); border-radius: 6px; cursor: pointer; transition: background 150ms cubic-bezier(0.4,0,0.2,1); } .ds-btn-quiet:hover { background: rgba(179, 152, 104, 0.3); } .ds-btn-quiet:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; }"
+    },
+    {
+      "name": "Parchment Panel",
+      "kind": "card",
+      "description": "The ledger page: parchment + grain, double hairline border, small-caps header, one soft drop shadow.",
+      "html": "<div class=\"ds-panel\"><div class=\"ds-panel-header\">Commissions</div><div class=\"ds-panel-body\"><div class=\"ds-row\"><span class=\"ds-row-label\">Housing capacity</span><span class=\"ds-row-value\">24</span></div><div class=\"ds-row\"><span class=\"ds-row-label\">Amenity capacity</span><span class=\"ds-row-value\">30</span></div></div></div>",
+      "css": ".ds-panel { width: 240px; background-color: #f9f5ec; background-image: url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E\"); border: 1px solid #b39868; border-radius: 8px; box-shadow: inset 0 0 0 3px #f9f5ec, inset 0 0 0 4px rgba(179,152,104,0.55), 0 4px 12px rgba(40,25,10,0.35); color: #453824; } .ds-panel-header { margin: 0 8px; padding: 8px; border-bottom: 1px solid rgba(179,152,104,0.5); font-family: 'Sorts Mill Goudy', 'EB Garamond', serif; font-size: 0.875rem; font-weight: 600; letter-spacing: 0.05em; font-variant-caps: small-caps; font-variant-numeric: lining-nums; } .ds-panel-body { padding: 12px 16px; display: flex; flex-direction: column; gap: 6px; font-family: 'EB Garamond', Georgia, serif; font-size: 0.875rem; } .ds-row { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; } .ds-row-label { color: #7d6b4f; } .ds-row-value { font-weight: 600; color: #453824; }"
+    },
+    {
+      "name": "HUD Toggle",
+      "kind": "nav",
+      "description": "Circular parchment HUD button with sienna icon and count badge; opens one floating panel.",
+      "html": "<button class=\"ds-hud-toggle\" aria-label=\"Commissions\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#9c3a24\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17h18l-2-9-4 4-3-6-3 6-4-4z\"/></svg><span class=\"ds-hud-badge\">3</span></button>",
+      "css": ".ds-hud-toggle { position: relative; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; border-radius: 9999px; background-color: #f9f5ec; border: 1px solid #b39868; box-shadow: inset 0 0 0 3px #f9f5ec, inset 0 0 0 4px rgba(179,152,104,0.55), 0 4px 12px rgba(40,25,10,0.35); cursor: pointer; transition: box-shadow 150ms; } .ds-hud-toggle:hover, .ds-hud-toggle:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; } .ds-hud-badge { position: absolute; top: -4px; right: -4px; display: flex; align-items: center; justify-content: center; height: 16px; min-width: 16px; padding: 0 4px; border-radius: 9999px; background: #453824; color: #f9f5ec; font-family: 'EB Garamond', Georgia, serif; font-size: 10px; font-weight: 600; }"
+    },
+    {
+      "name": "Resource Stat",
+      "kind": "custom",
+      "description": "Top-bar tally: gold icon beside a stacked bold value over a tiny uppercase label.",
+      "html": "<div class=\"ds-stat\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#c9932f\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M9.5 9.5c.9-1 4.1-1 5 0M9.5 14.5c.9 1 4.1 1 5 0\"/></svg><div class=\"ds-stat-col\"><span class=\"ds-stat-value\">412ƒ</span><span class=\"ds-stat-label\">Florins</span></div></div>",
+      "css": ".ds-stat { display: flex; align-items: center; gap: 10px; font-family: 'EB Garamond', Georgia, serif; } .ds-stat-col { display: flex; flex-direction: column; line-height: 1.2; } .ds-stat-value { font-size: 1.25rem; font-weight: 600; color: #453824; } .ds-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.025em; color: #7d6b4f; }"
+    },
+    {
+      "name": "Text Input",
+      "kind": "input",
+      "description": "Parchment field with wood hairline; focus swaps the border to sienna, no ring.",
+      "html": "<input class=\"ds-input\" placeholder=\"Seed (optional)\" />",
+      "css": ".ds-input { background: #f9f5ec; border: 1px solid rgba(179,152,104,0.5); border-radius: 4px; padding: 6px 8px; font-family: 'EB Garamond', Georgia, serif; font-size: 0.875rem; color: #453824; outline: none; transition: border-color 150ms; } .ds-input::placeholder { color: #7d6b4f; } .ds-input:focus { border-color: #9c3a24; }"
+    },
+    {
+      "name": "Speed Pill",
+      "kind": "chip",
+      "description": "Round toggle pills: active is sienna on parchment text, idle is faint ink on recessed parchment.",
+      "html": "<div class=\"ds-pills\"><button class=\"ds-pill ds-pill--active\">1x</button><button class=\"ds-pill\">2x</button><button class=\"ds-pill\">4x</button></div>",
+      "css": ".ds-pills { display: flex; gap: 4px; } .ds-pill { border: none; border-radius: 9999px; padding: 6px 10px; font-family: 'EB Garamond', Georgia, serif; font-size: 0.75rem; font-weight: 600; background: #ede7da; color: #7d6b4f; cursor: pointer; transition: color 150ms, background 150ms; } .ds-pill:hover { color: #453824; } .ds-pill--active { background: #9c3a24; color: #f9f5ec; } .ds-pill:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Patron's Ledger",
+    "overview": "The DOM overlay is a Renaissance banker-patron's account book laid open over the living city: parchment pages, ink entries, small-caps headings, and the occasional flash of gold where prestige is tallied. Every panel is a page from that ledger — cream paper with a faint grain, a thin wood-toned rule around the edge, entries written in warm brown ink. The register is quiet and bookish: controls recede so the low-poly city stays the star. Nothing shouts; arrivals, warnings, and even a faction's denunciation are delivered as calm entries on paper, never as native dialogs or alarmist chrome. Density is compact but never cramped — small type, tight gaps, information tabulated in label/value rows like ledger lines. Color is scarce by design: sienna is the single voice of action and attention, gold appears only as iconography beside tallies, and everything else is ink on parchment.",
+    "keyCharacteristics": [
+      "Parchment cards with double hairline borders and paper-grain noise, floating over a full-viewport 3D canvas",
+      "Warm all-serif typography (Sorts Mill Goudy display, EB Garamond body); small-caps ledger headings",
+      "One accent (sienna) for actions, focus, and attention; gold reserved for resource icons",
+      "Tabular label/value rows; tiny uppercase labels under bold values",
+      "In-world confirmations (two-click), no native browser dialogs"
+    ],
+    "rules": [
+      { "name": "The Text-Safe Gold Rule", "body": "Prestige gold reads at ~2.5:1 on parchment — it may only appear as icon fill. Any gold-toned text uses prestige ink (#8a6a1c) instead.", "section": "colors" },
+      { "name": "The One Voice Rule", "body": "Sienna is the only color that commands. A screen region gets at most one competing sienna call-to-action; everything else speaks in ink.", "section": "colors" },
+      { "name": "The Ledger Line Rule", "body": "Data is presented as justified label/value pairs: ink-faint label left, semibold ink value right.", "section": "typography" },
+      { "name": "The Paper Doesn't Lift Rule", "body": "Interaction states change ink and fill, never shadow. The one drop shadow belongs to the page itself.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do keep every overlay surface on .panel-parchment; new chrome joins the ledger, not a new material world.",
+      "Do use the three button voices (.btn-primary / .btn-secondary / .btn-quiet) and size them locally; one primary voice per region.",
+      "Do set panel headers in small-caps display Title with the mx-2 hairline rule beneath.",
+      "Do deliver confirmations in-world with a two-click pattern (button relabels to \"Erase all progress?\" / \"Overwrite …?\").",
+      "Do use border-wood/50 hairlines for every internal rule and section break.",
+      "Do keep containers pointer-events-none and re-enable on panels, so the city stays interactive."
+    ],
+    "donts": [
+      "Don't set text in prestige gold on parchment — icons only; use prestige ink (#8a6a1c) for gold-toned words.",
+      "Don't use native browser dialogs (confirm, alert) — they break the parchment world.",
+      "Don't add shadows for hover/active states; feedback is fill and ink shifts, rings for selection.",
+      "Don't introduce cool grays, pure black, or pure white; every neutral is a warm parchment/ink tone.",
+      "Don't use alarmist styling — no red error worlds, no pulsing badges; bad news is sienna ink on the same paper.",
+      "Don't add a fourth top-bar resource or move materials/favor onto the top bar (product constraint carried into UI)."
+    ]
+  }
+}
