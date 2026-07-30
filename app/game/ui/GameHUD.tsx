@@ -30,7 +30,7 @@ export function GameHUD() {
       <div className="pointer-events-none fixed right-6 top-16 z-40 flex flex-col items-end gap-2">
         <FactionBanner />
       </div>
-      {/* Materials rail: docked flush to the right screen edge, own width. */}
+      {/* Materials rail: docked flush to the left screen edge, own width. */}
       <div className="pointer-events-none fixed left-0 top-1/2 z-40 -translate-y-1/2">
         <MaterialsPanel />
       </div>

@@ -27,10 +27,24 @@ const MATERIAL_ICONS: Record<Material, LucideIcon> = {
  * city has stock or storage beyond the base yard, so a fresh city isn't
  * fronted with zeroes.
  */
+/**
+ * True once the city has stock or storage beyond the base yard — the rail's
+ * own show/hide condition, shared so left flyouts can clear the rail's width.
+ */
+export function useMaterialsRailVisible(): boolean {
+  const materials = useGameStore((s) => s.materials);
+  const tiles = useGameStore((s) => s.map.tiles);
+  return useMemo(() => {
+    const caps = materialCaps(tiles);
+    return MATERIALS.some((m) => caps[m] > MATERIAL_STORAGE_BASE || materials[m] > 0);
+  }, [materials, tiles]);
+}
+
 export function MaterialsPanel() {
   const materials = useGameStore((s) => s.materials);
   const tiles = useGameStore((s) => s.map.tiles);
   const population = useGameStore((s) => s.population);
+  const visible = useMaterialsRailVisible();
   const caps = useMemo(() => materialCaps(tiles), [tiles]);
 
   // Mirror of the tick's supplier loop (rate × staffing × plazaBoost) using
@@ -57,9 +71,7 @@ export function MaterialsPanel() {
     return rates;
   }, [tiles, population]);
 
-  // A cap above the base yard means a supplier or warehouse stands.
-  const built = MATERIALS.some((m) => caps[m] > MATERIAL_STORAGE_BASE);
-  if (!built && !MATERIALS.some((m) => materials[m] > 0)) return null;
+  if (!visible) return null;
 
   // Slim unfurl rail: icons + held counts at rest; hovering unfurls each row
   // sideways to reveal name, held/cap, and rate — the .hud-toggle grid-track

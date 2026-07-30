@@ -36,6 +36,8 @@ interface HudPanelProps {
   /** Badge background — defaults to ink; pass bg-sienna for attention counts. */
   countClassName?: string;
   widthClass?: string;
+  /** Horizontal offset for the floating card — override to dodge docked HUD chrome. */
+  cardClass?: string;
   className?: string;
   children: ReactNode;
 }
@@ -50,6 +52,7 @@ export function HudPanel({
   count,
   countClassName = "bg-ink",
   widthClass = "w-72",
+  cardClass = "left-0",
   className = "",
   children,
 }: HudPanelProps) {
@@ -77,7 +80,7 @@ export function HudPanel({
         )}
       </button>
       {open && (
-        <div className={`absolute left-0 top-full mt-2 ${widthClass}`}>
+        <div className={`absolute top-full mt-2 ${cardClass} ${widthClass}`}>
           <Panel
             header={
               <div className="flex items-center justify-between gap-2">

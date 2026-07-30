@@ -3,6 +3,7 @@ import { Hammer, Paintbrush, Palette, type LucideIcon } from "lucide-react";
 import { useGameStore } from "~/stores/useGameStore";
 import { nextRankXp, RANK_LABEL } from "~/game/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
+import { useMaterialsRailVisible } from "./MaterialsPanel";
 import { HudPanel } from "./Panel";
 import { capitalizeLabel } from "./format";
 
@@ -24,6 +25,8 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
   const artists = useGameStore((s) => s.artists);
   const tiles = useGameStore((s) => s.map.tiles);
   const commissions = useGameStore((s) => s.commissions);
+  // Leftmost toggle: its card would land on the materials rail, so step right of it.
+  const railVisible = useMaterialsRailVisible();
 
   const workshops = Object.values(tiles)
     .filter((t) => t.isOrigin && BUILDING_METADATA_BY_ID[t.buildingId]?.artistCapacity != null)
@@ -41,6 +44,7 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
           Artists &amp; Workshops{workshops.length > 0 && ` (${workshops.length})`}
         </span>
       }
+      cardClass={railVisible ? "left-12" : "left-0"}
       className="flex max-h-[60vh] flex-col gap-2.5 overflow-y-auto"
     >
         {workshops.length === 0 && (
