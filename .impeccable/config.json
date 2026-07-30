@@ -1,0 +1,14 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [
+      "/private/tmp/claude-501/-Users-nilaymodi-Codebase-rencitybuilder/e89473cb-3d14-4b4c-aa6d-9aea227d2910/scratchpad/palette-variants.html",
+      "/private/tmp/claude-501/-Users-nilaymodi-Codebase-rencitybuilder/e89473cb-3d14-4b4c-aa6d-9aea227d2910/scratchpad/palette-v4-explorations.html",
+      "/private/tmp/claude-501/-Users-nilaymodi-Codebase-rencitybuilder/e89473cb-3d14-4b4c-aa6d-9aea227d2910/scratchpad/palette-fullwidth-explorations.html",
+      "/private/tmp/claude-501/-Users-nilaymodi-Codebase-rencitybuilder/e89473cb-3d14-4b4c-aa6d-9aea227d2910/scratchpad/palette-final-pair.html",
+      "/private/tmp/claude-501/-Users-nilaymodi-Codebase-rencitybuilder/e89473cb-3d14-4b4c-aa6d-9aea227d2910/scratchpad/flyout-explorations.html",
+      "/private/tmp/claude-501/-Users-nilaymodi-Codebase-rencitybuilder/e89473cb-3d14-4b4c-aa6d-9aea227d2910/scratchpad/flyout-explorations-2.html"
+    ],
+    "ignoreValues": []
+  }
+}
