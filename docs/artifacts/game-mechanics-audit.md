@@ -1,5 +1,7 @@
 # Patronage — Game Mechanics Audit
-*Generated July 2026; refreshed after factions slice 1 landed. A complete rundown of every implemented game mechanic with code references, followed by an audit of the `docs/` folder: which planned mechanics are built and which are not.*
+*Generated July 2026; last refreshed after the material-stockpile rework and architects slice 1 (July 2026). A complete rundown of every implemented game mechanic with code references, followed by an audit of the `docs/` folder: which planned mechanics are built and which are not.*
+
+**Maintenance: update this doc whenever a feature is complete** — add/adjust its Part 1 rows and move it in Part 2, in the same change that deletes its [roadmap.md](../roadmap.md) entry and documents the system in the design doc.
 
 This is a snapshot of the code as it stands, cross-checked against the design docs. Line numbers are approximate (they drift with edits); the file + function names are the durable references. Balance constants are pulled from `app/game/constants.ts` unless noted — per-building stats live inline in `app/game/buildings.ts`.
 
@@ -11,7 +13,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Monthly tick** | One tick = one game month. Fixed pipeline each tick: gather staffable buildings → allocate workers → activate tiles → material blocking → plaza connectivity → display summary → city metrics + population drift → occupancy → diminishing returns → generation → artist arrival → commission reconcile/offer → artwork progress. Returns a `TickTransition`, preserving object identity for unchanged arrays. | `app/game/tick.ts` → `advanceTick()` |
+| **Monthly tick** | One tick = one game month. Fixed pipeline each tick: gather staffable buildings → allocate workers → activate tiles → plaza connectivity → display summary → city metrics + population drift → occupancy rent → diminishing returns → generation (florins/inspiration + material production) → artist arrival → commission reconcile/offer → artwork progress → funded-build collection → material pools clamp-add. Returns a `TickTransition`, preserving object identity for unchanged arrays. | `app/game/tick.ts` → `advanceTick()` |
 | **Clock / speed** | `BASE_TICK_INTERVAL = 1500`ms real time per tick; speed multipliers `[1, 2, 3]`. | `constants.ts`; store `tick()` in `app/stores/useGameStore.ts` |
 | **Calendar** | Month = `MONTH_NAMES[tick % 12]`, year = `1400 + floor(tick / 12)` → "May 1482". | `useGameStore.ts` → `formatMonth` |
 
@@ -23,14 +25,19 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Staffing efficiency** | Output scales linearly from 1× at minimum staff to `1 + MAX_STAFFING_BONUS` (**1.5×**, +50%) at max staff: `1 + 0.5·max(0, workers−required)/(maxWorkers−required)`. | `workers.ts` → `staffingEfficiency()` |
 | **Activation gate** | A tile is active only when `workers ≥ workersRequired`; workerless buildings (`workersRequired === 0`) are active on placement. Inactive → generates nothing, no amenities, desaturated in render. | `tick.ts`; placement default in `useGameStore.ts` → `placeTiles()` |
 
-## 3. Materials / suppliers (the core scarcity mechanic)
+## 3. Materials — accumulating stockpiles (the core scarcity mechanic)
+
+*(Rework, July 2026 — replaced the original supplier capacity-token model; a deliberate reversal of "materials are never a stockpile".)*
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Supplier capacity gating** | Materials are never a stockpile — a working workshop holds a supplier *slot* until its artwork completes. Capacity = Σ `supplies.capacity` over staffed suppliers, per material. When demand > capacity, oldest workshops (by `builtTick`, then key) keep slots; the rest are blocked. Keyed per material (marble vs bronze don't cross-allocate). | `app/game/materials.ts` → `computeSupply()`, `getSupply()` |
-| **Material blocking** | Each working artist checks its commission's material (or type default); if the workshop isn't in that material's `allowed` set, the workshop is deactivated this tick. | `tick.ts` |
-| **Material defaults** | painter→pigment, sculptor→marble; bronze only from an explicit commission material (rolled at offer time). | `materials.ts` → `MATERIAL_BY_ARTIST_TYPE`, `commissionMaterial()` |
-| **Blocked-reason strings** | "No X supplier" / "X at capacity" for tooltips. | `materials.ts` → `blockedReason()` |
+| **Five city-wide pools** | `pigment, marble, bronze, timber, stone` (`MATERIALS` drives caps/production/panel rows automatically). Persisted numbers, no routing, no per-building stores. Save v9 seeded the first three empty; v10 added timber/stone. | `app/game/materials.ts` → `MATERIALS`; `types.ts` `Material` union |
+| **Production** | Each staffed supplier accrues `supplies.rate (2) × staffingEfficiency × plazaBoost` of its material per tick. Deliberately **no diminishing returns** (more suppliers must never mean less stock — principle 6); escalating build cost prices duplicates instead. | `tick.ts` generation loop; supplier `supplies: { material, rate, storage }` in `buildings.ts` |
+| **Storage caps** | Per material: `MATERIAL_STORAGE_BASE (20)` + each supplier's `storage (20)` for its own material + each Warehouse's `materialStorage (50)` for **all** materials. Storage counts unstaffed; only production needs workers. Clamp-and-add is identity-stable. | `materials.ts` → `materialCaps()`, `addProduction()` |
+| **Commission cost** | Commissions stamp `materialCost = MATERIAL_COST_SCALE (5) × rankPrestige (1–10) × grandeur (1–2)` at offer time; the pool is deducted when the player **assigns** (no refund when a raze reopens the offer). Once assigned, work never stalls on materials — understaffing is now the only inactive cause. Pre-v9 offers read `?? 0` (stay free). | `commissions.ts` → `commissionMaterialCost()`; store `assignCommission()` |
+| **Construction cost** | Grand buildings carry `BuildingMetadata.buildCost` (cathedral 40 stone + 10 timber; palazzo, bell tower, warehouse; blueprint structures) — deducted lump-sum at placement. Houses/roads/workshops/suppliers stay florins-only (no bootstrap deadlock); salvage never refunds materials. | `placementRules.ts` → `planPlacement()`/`canPlaceAt()`; `placeTiles()` |
+| **Material defaults** | painter→pigment, sculptor→marble; bronze only from an explicit commission material (rolled at offer time, `BRONZE_COMMISSION_CHANCE = 1/3`). | `materials.ts` → `MATERIAL_BY_ARTIST_TYPE`, `commissionMaterial()` |
+| **UI** | Slim "Materials" rail docked to the right screen edge (held/cap + live `+N/mo` rate, hidden until a cap exceeds the base); supplier tooltips show rate + citywide stock; offer cards show cost + "Not enough marble — 14 / 30 in store". | `ui/MaterialsPanel.tsx`; `ui/BuildingTooltip.tsx`; `ui/CommissionsPanel.tsx` |
 
 ## 4. Plaza connectivity (soft spatial)
 
@@ -79,6 +86,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 |---|---|---|
 | **Passive arrival** | Each month, if inspiration > 0 and an active workshop has a free slot past its cooldown, chance `ARTIST_ARRIVAL_CHANCE = 0.1` an apprentice arrives (cooldown `ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2`). | `app/game/artists.ts` → `maybeArriveArtist()` |
 | **Continuous XP / teaching** | Every artist in an active workshop gains `practicePerMonth(2)·(taught ? teachingMultiplier(3) : 1)` XP/month; "taught" = ranked below a workshop-mate. Completing a work = `perCompletedWork(100)` for every member. | `artists.ts` → `progressArtworks()` XP block; `XP_RATES` in `constants.ts` |
+| **The city teaches architects** | Fourth XP source (architects slice 1): every placement grants architects in an active studio `perFlorinBuilt (0.05) × florins actually spent` (cathedral = 75 XP; fences floor to 0; funded 0ƒ builds teach 0). Computed against pre-placement state, so a studio never trains on its own construction. | `artists.ts` → `trainOnConstruction()`; called from `placeTiles()` |
 | **Rank thresholds** | Seven ranks by cumulative XP (never demotes): journeyman 400 / artisan 900 / virtuoso 1500 / master 2200 / renowned_master 3000 / grand_master 4000. One work = 100 XP. | `constants.ts` `RANK_XP`; `artists.ts` `nextRankXp()`, `RANK_ORDER` |
 | **Work durations by rank** | apprentice 6 → grand_master 3 months. | `constants.ts` `WORK_DURATION_MONTHS` |
 | **Artwork prestige by rank** | apprentice 1 → grand_master 10 (before requester skew). | `constants.ts` `ARTWORK_PRESTIGE` |
@@ -92,9 +100,10 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Reward calc** | `basePrestige = ARTWORK_PRESTIGE[bestRank] · COMMISSION_PRESTIGE_SCALE(1.5)`; florins compressed against rank (`FLORIN_RANK_COMPRESSION = 0.25`, `FLORINS_PER_PRESTIGE = 40`). Requester `mix` skews split by `REQUESTER_REWARD_SKEW = 2` (florins-mix doubles florins/halves prestige; prestige-mix the reverse). Favor grandeur multiplies on top. | `commissions.ts` |
 | **Requesters (patron pool)** | The Church (florins mix, devotional `CHURCH_TITLES`) + Medici/Strozzi/Pazzi (prestige mix). Guilds removed. Pool gated by admission: Chapel or Cathedral seats the Church; each Palazzo installs the next house in table order. | `commissions.ts` → `REQUESTERS`, `requesterPool()` |
 | **Decline** | An open offer can be declined from the panel: dropped immediately, −5 favor with the requester (same denunciation-crossing check as expiry). | store `declineCommission()` |
-| **Assignment guard** | Assign only if offer open, founder exists + type matches + idle, host is an active matching workshop, and a supplier slot is free. | `commissions.ts` → `canAssignCommission()`; store `assignCommission()` |
+| **Assignment guard** | Assign only if offer open, founder exists + type matches + idle, host is an active matching workshop, and the city stock covers `materialCost` (4th param `available`). The store deducts the pool on success. | `commissions.ts` → `canAssignCommission()`; store `assignCommission()` |
+| **Blueprint commissions** | Every architect-type offer is a building commission drawn from `BUILDING_COMMISSIONS` at the title draw (same single rng call — painter/sculptor draw order untouched), filtered by requester: Church → Baptistery, nobles → Loggia. No `materialCost` at assign (design work is free); completion mints a normal Artwork **plus** a funded-build token. The structure is `commissionOnly: true` — "Funded" badge in the Civic palette, placeable once per token at 0ƒ + its `buildCost` materials, salvage 0, no refund on raze-reopen. `SLOT_KINDS_BY_ARTIST.architect = []` keeps designs undisplayable. | `commissions.ts` → `BUILDING_COMMISSIONS`, `Commission.building`; `tick.ts` `fundedBuilds`; `placementRules.ts` |
 | **Reconciliation** | Each tick: commissions whose workshop vanished revert to open offers with fresh expiry; offers past expiry are dropped. | `commissions.ts` → `reconcileCommissions()`, `reopenCommission()` |
-| **Completion payout** | Mints a named `Artwork` (captures title, requester, prestige, material), pays florins + prestige, clears `workProgress`, grants all members 100 XP. | `artists.ts` → `progressArtworks()` |
+| **Completion payout** | Mints a named `Artwork` (captures title, requester, prestige, material), pays florins + prestige, clears `workProgress`, grants all members 100 XP. A completed blueprint additionally appends its building id to persisted `fundedBuilds`. | `artists.ts` → `progressArtworks()`; `tick.ts` |
 
 ## 10a. Faction favor (factions slice 1)
 
@@ -127,8 +136,8 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Mechanic | What it does | Code |
 |---|---|---|
 | **Building catalog** | Single frozen source-of-truth array of every placeable building + derived lookups (`BUILDING_METADATA_BY_ID/TYPE`, `BuildingId` union). Categories: `residential, artist, materials, service, road, city, decoration`. | `app/game/buildings.ts` → `BUILDING_TYPES` |
-| **`BuildingMetadata` shape** | `type, id, name, baseCost, size, color, footprint, generates?{income,inspiration}, housing?, amenities?, prestigeOnBuild?, isHub?, connectionBonus?, footTraffic?, placesOnRoads?, workersRequired?, maxWorkers?, artistCapacity?, artistType?, roadWidth?, linear?, paved?, supplies?, displaySlots?`. | `app/game/types.ts` |
-| **Effect flags** | `isHub` (plazas + bell_tower), `placesOnRoads` (market_stall), `footTraffic` (market_stall), `connectionBonus` (stall 1.0), `paved`, `linear` (colonnade/fence/stone_wall), `prestigeOnBuild` (cathedral 25), `roadWidth` (5 road variants). `costEscalates` is computed from `type`, not a field. | `buildings.ts` |
+| **`BuildingMetadata` shape** | `type, id, name, baseCost, size, color, footprint, generates?{income,inspiration}, housing?, amenities?, prestigeOnBuild?, isHub?, connectionBonus?, footTraffic?, placesOnRoads?, workersRequired?, maxWorkers?, artistCapacity?, artistType?, roadWidth?, linear?, paved?, supplies?, materialStorage?, buildCost?, commissionOnly?, displaySlots?`. | `app/game/types.ts` |
+| **Effect flags** | `isHub` (plazas + bell_tower), `placesOnRoads` (market_stall), `footTraffic` (market_stall), `connectionBonus` (stall 1.0), `paved`, `linear` (colonnade/fence/stone_wall), `prestigeOnBuild` (cathedral 25, baptistery 40), `roadWidth` (5 road variants), `buildCost` (landmarks + blueprint structures), `commissionOnly` (baptistery, loggia), `materialStorage` (warehouse 50). `costEscalates` is computed from `type`, not a field. | `buildings.ts` |
 | **Footprint mask** | Claimed grid cells + center offset per rotation; cardinal = axis-aligned rect (odd quarters swap w/d), cached per `dims×rotation`. | `buildings.ts` → `footprintMask()`, `footprintMaskFor()` |
 | **Diagonal (45°) mask** | Diagonal rotations claim cells whose centers fall inside the yaw-rotated rect (ε-shrunk), re-anchored row-major — a true diamond, not the bbox. R cycles 8 rotation steps. | `buildings.ts` → `rasterizeDiagonalMask()`; rotation encoding `quarterOf`, `isDiagonalRotation`, `yawOfRotation` |
 
@@ -138,7 +147,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 |---|---|---|
 | **Per-cell check** | Classifies each footprint cell `blocked/occupied/free`. Occupied blocks unless a decoration overlaps a non-origin cell, or a `placesOnRoads` building overwrites a plain cardinal road cell / plaza rim cell. Empty cells block on water unless the building is a bridge. | `app/game/placementRules.ts` → `checkCell()` |
 | **Plaza-rim guard** | A stall may only overwrite a plaza's outer-ring cells (mask-based) — never origin or interior, so stalls can't erode a plaza inward. | `placementRules.ts` → `isPlazaRimCell()` |
-| **Batch planner** | Authoritative batch validation: bounds, in-batch overlap, water gate, affordability via `Σ escalatedCost(startRank+i)`. | `placementRules.ts` → `planPlacement()`; per-frame probe `canPlaceAt()` |
+| **Batch planner** | Authoritative batch validation: bounds, in-batch overlap, water gate, affordability via `Σ escalatedCost(startRank+i)`, material affordability via the batch `materialCost` bill (`PlacementSnapshot` carries `materials` + optional `fundedBuilds`; `commissionOnly` structures need a token). | `placementRules.ts` → `planPlacement()`; per-frame probe `canPlaceAt()` |
 | **Linear/road drag** | Plans a road/linear-decoration drag in one pass; existing compatible cells join free, only new empty cells validated + charged; `totalCost = baseCost·newCells`. | `placementRules.ts` → `planLinearPlacement()` |
 
 ## 15. Roads
@@ -201,6 +210,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Display panel (per-building slot manager, store `inspectTarget`-driven) | `ui/DisplayPanel.tsx` |
 | Building tooltip (status reasons, computed active effects, plaza/traffic hints, raze salvage) | `ui/BuildingTooltip.tsx` |
 | Renaissance celebration card | `ui/RenaissanceCard.tsx` |
+| Materials rail (per-material held/cap + live monthly rate, right screen edge) | `ui/MaterialsPanel.tsx` |
 | Faction crest banner (per-patron favor/standing card) | `ui/FactionBanner.tsx` |
 | Offer-arrival + denunciation alert cards | `ui/OfferAlert.tsx` |
 | Raze confirm popover | `ui/RazeConfirm.tsx` |
@@ -212,25 +222,22 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 The `docs/` folder holds the main spec plus supplemental design/planning docs. Below, each doc's planned mechanics are sorted into **Built**, **Partially built**, and **Not built**.
 
-## `design-doc.md` — main spec (Phases 0–12 + graphics)
+## `design-doc.md` — main spec (systems reference)
 
-**Built (all numbered phases + most graphics):**
-- Phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, supplier capacity gating, commissions, work display, plaza connectivity, artist training/teaching, Renaissance milestone.
-- Graphics G1–G4 (model pipeline, terrain, ground dressing, life & polish) + generated kit pieces + category-identity pass.
-- G5 mostly: river + bridge, decorative citizens (population-scaled), obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu.
+*Restructured July 2026: the phase history and backlog moved out — the doc now holds only current-system design; [roadmap.md](../roadmap.md) holds what's ahead.*
 
-**Not built (explicitly "Later / stretch"):**
-- Richer economy system (Market → overflow supply repurpose).
-- Neighborhood zoning.
-- Housing tiers 3–5 (Villa, Palazzo-as-housing exists but not Villa/Grand Palazzo; named family palazzos).
-- Architects & building commissions (the whole third-discipline pipeline: Architect's Studio, city-teaches-architects XP, rank-gated commissions, building commissions).
-- Expanded building roster (River & Waterfront set, most Social/Religious/Trade categories).
-- Lungarno row housing.
-- More map archetypes (Lake); hiding grid tiles over water.
-- Campaign scenarios.
-- Diagonal row-house blending (the one 45° follow-up).
-- Per-plaza paving choice (all 3 drawers exist behind `?plaza=`, but no in-game picker / `Tile.variant` wiring).
-- Single-Town-Center-Plaza enforcement (still open, carried from Phase 10).
+**Built (everything the doc documents as a system):**
+- All numbered phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, commissions, work display, plaza connectivity, artist training/teaching, Renaissance milestone. (Phase 7's supplier capacity gating was superseded by the material stockpile rework — §3.)
+- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches XP, blueprint commissions funding Loggia/Baptistery).
+- Graphics G1–G4 + generated kit pieces + category-identity pass; G5 mostly: river + bridge, decorative citizens, obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu.
+
+**Cut (July 2026):** neighborhood zoning (individual placement is the permanent model); the diagonal row-house-blending follow-up (closed by construction — houses fill their footprint).
+
+**Not built:** see [roadmap.md](../roadmap.md) — the single source for open items.
+
+## `roadmap.md` — prioritized backlog
+
+**Status: the live planning doc (July 2026).** Everything in it is by definition not built; when an item ships it's deleted there, documented in design-doc.md, and reflected here. Headline open items: the capstone slice (signature chains + Town Hall/Dome + Commune + `minRank`), map resources, remaining faction slices, richer economy, housing tiers 3–5, audio.
 
 ## `building-effects.md` — non-art building effects
 
@@ -246,8 +253,11 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 **Built (factions slice 1, July 2026):**
 - **Requester-pool shaping** — Cathedral commission elevation (Church admission + upper favor rungs), Palazzo noble installs (`requesterPool` in `commissions.ts`).
 
+**Built (architects slice 1, July 2026):**
+- **Baptistery** — placeable via the Church's blueprint commission (`prestigeOnBuild: 40`, church display host, `commissionOnly`); the **Loggia** landed the same way (2 plinth slots, inspiration 2).
+
 **Not built:**
-- Effect-2/3/4/5 buildings not yet in the roster: Baptistery, Banking House, Wool Merchant, Glassblower, Monastery, Spice Trader, Library/Studiolo, School, Anatomical Theatre — none placeable.
+- Effect-2/3/4/5 buildings not yet in the roster: Banking House, Wool Merchant, Glassblower, Monastery, Spice Trader, Library/Studiolo, School, Anatomical Theatre — none placeable.
 - All **slight-negative trade-offs** (Banking House ±, Market inspiration drag, Tavern −inspiration, bell-ringer worker draw, cathedral clergy staffing, forgone-plaza-bonus exclusions) — none implemented.
 - Open-offer-cap bump on Palazzo.
 
@@ -262,7 +272,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## `map-resources.md` — seed-determined supplier availability
 
-**Status: not built.** No seed-rolled resource flags; all suppliers (pigment/marble/bronze) are always placeable. Not built: per-run resource booleans, substitute pairs (marble↔clay, timber↔lime), Terracotta Kiln/Lime Kiln/Goldsmith/Timber Yard/Glassblower buildings, offer-generator resource weighting, greyed-out "not found in this region" build menu, Market escape valve. (Water power *is* implicitly rolled — the dry archetype is that resource absent.)
+**Status: not built** (though its supplier roster grew: **Timber Yard** and **Stone Quarry** now exist via architects slice 1 — always placeable, not seed-rolled). No seed-rolled resource flags; all seven suppliers are always placeable. Not built: per-run resource booleans, substitute pairs (marble↔clay, timber↔lime), Terracotta Kiln/Lime Kiln/Goldsmith/Glassblower buildings, offer-generator resource weighting, greyed-out "not found in this region" build menu, Market escape valve. (Water power *is* implicitly rolled — the dry archetype is that resource absent.)
 
 ## `artifacts/artist-brief.md` — architectural fittings commission
 
@@ -285,9 +295,11 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## Summary — the biggest unbuilt planned systems
 
-1. **Factions, later slices** (taste profiles, seed-rolled roster, rivalry pairs, signature chains) — slice 1 (favor meter, patron admission) is built (see §10a); the rest of `factions.md` remains the largest designed-but-unbuilt system.
-2. **Architects & building commissions** — the entire third discipline and construction pipeline.
-3. **Map resources** — seed-rolled supplier availability + substitute pairs.
-4. **Expanded building roster** — most Civic/Religious/Trade/Social/Waterfront buildings; all the `building-effects.md` slight-negative trade-offs.
-5. **Neighborhood zoning** and **housing tiers 3–5**.
-6. **Per-plaza paving picker**, **single-plaza enforcement**, **diagonal row-house blending**, **Lake archetype**, **campaign scenarios** — smaller stretch items.
+*(Mirrors [roadmap.md](../roadmap.md)'s priority tiers — that file is the ranked version.)*
+
+1. **The capstone slice** — signature chains (`factions.md`) + Town Hall/Dome capstones + the Commune requester + `minRank` gating; converges the two half-built arcs (factions slice 1 and architects slice 1 are done).
+2. **Map resources** — seed-rolled supplier availability + substitute pairs.
+3. **Remaining faction slices** — taste profiles, seed-shuffled roster, rivalry pairs.
+4. **Richer economy** and **housing tiers 3–5** — both need design first.
+5. **Buildings overhaul** — more buildings (most Civic/Religious/Trade/Social/Waterfront, incl. the `building-effects.md` slight-negative trade-offs), value rebalance, category reorg, and building progression.
+6. **Audio** (music & SFX — parallel track), **per-plaza paving picker**, **single-plaza enforcement**, **Lake archetype**, **campaign scenarios** — smaller/parallel items.
