@@ -100,6 +100,8 @@ export type GameState = {
   setPaused: (value: boolean) => void;
   tickInterval: number;
   setTickInterval: (value: number) => void;
+  musicVolume: number;
+  setMusicVolume: (value: number) => void;
   setSelectedBuilding: (id: BuildingId | typeof RAZE_TOOL | null) => void;
   placeTile: (position: GridPos, buildingId: BuildingId, rotation?: number) => boolean;
   placeTiles: (positions: GridPos[], buildingId: BuildingId, rotation?: number) => boolean;
@@ -149,6 +151,7 @@ const createInitialState = (runSeed?: string) => {
     time: { tickCount: 0 },
     paused: false,
     tickInterval: BASE_TICK_INTERVAL,
+    musicVolume: 0.4,
   };
 };
 
@@ -270,6 +273,11 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setTickInterval: (value) =>
     set(() => ({
       tickInterval: Math.max(100, value),
+    })),
+
+  setMusicVolume: (value) =>
+    set(() => ({
+      musicVolume: Math.min(1, Math.max(0, value)),
     })),
 
   setSelectedBuilding: (id) =>
@@ -458,6 +466,8 @@ export const useGameStore = create<GameState>()(
       map: { tiles: s.map.tiles, selectedBuilding: null },
       time: s.time,
       tickInterval: s.tickInterval,
+      // Absent on old saves hydrates to the initial 0.4 — no migration.
+      musicVolume: s.musicVolume,
     }),
   }),
 );

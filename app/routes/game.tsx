@@ -6,6 +6,7 @@ import { GameHUD } from "~/game/ui/GameHUD";
 import { MainMenu } from "~/game/ui/MainMenu";
 import { useGameShortcuts } from "~/game/ui/useGameShortcuts";
 import { useGameLoop } from "~/game/ui/useGameLoop";
+import { startMusic, useMusic } from "~/game/ui/useMusic";
 import { seedDemoCity } from "~/game/demoCity";
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 
@@ -30,13 +31,24 @@ export default function GameRoute() {
     return "game";
   });
 
-  if (screen === "menu") return <MainMenu onStart={() => setScreen("game")} />;
+  // startMusic here, not in the hook alone: the click's own call stack is the
+  // one place every browser's autoplay policy accepts a first play().
+  if (screen === "menu")
+    return (
+      <MainMenu
+        onStart={() => {
+          startMusic();
+          setScreen("game");
+        }}
+      />
+    );
   return <GameWindow />;
 }
 
 function GameWindow() {
   useGameLoop();
   useGameShortcuts();
+  useMusic();
   // Remount the canvas when the run seed changes (New Game): the whole
   // seed-shaped world (terrain, water, scatter) rebuilds through the normal
   // mount path instead of needing selective rebuild plumbing.

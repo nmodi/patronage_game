@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, Store, Users } from "lucide-react";
+import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Music, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, Store, Users } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { getWater, type WaterArchetype } from "~/game/water";
@@ -48,6 +48,8 @@ export function TopBar() {
   const setCityName = useGameStore((s) => s.setCityName);
   const seed = useGameStore((s) => s.seed);
   const mapSeed = useGameStore((s) => s.mapSeed);
+  const musicVolume = useGameStore((s) => s.musicVolume);
+  const setMusicVolume = useGameStore((s) => s.setMusicVolume);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -248,6 +250,20 @@ export function TopBar() {
               <ScrollText className="h-4 w-4" />
               Credits
             </button>
+            {/* Slider doubles as mute: 0 = off. */}
+            <label className="flex items-center gap-2 px-1 text-ink-faint">
+              <Music className="h-4 w-4 shrink-0" />
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={musicVolume}
+                onChange={(e) => setMusicVolume(Number(e.target.value))}
+                className="w-full accent-sienna"
+                aria-label="Music volume"
+              />
+            </label>
             <button
               className="flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-ink-faint transition hover:text-ink"
               onClick={copySeed}

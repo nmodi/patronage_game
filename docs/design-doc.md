@@ -332,6 +332,14 @@ Left panel: artist roster (replaces the faction bars from earlier drafts). Right
 
 ---
 
+## Music *(built — July 2026)*
+
+The soundtrack is **sporadic, not constant**: single period tracks separated by minutes of silence (90–240 s between tracks; the first track starts right on city load, so a session never opens in silence), so music arrives like a street musician passing through rather than a loop. Which track plays follows the city's arc: tracks are tagged with an **era** and the era is chosen from **prestige** at play time (`ERA_PRESTIGE` in `app/game/music.ts` — Early 0+, Mid 200+, Late 450+, just under the Renaissance's 500), falling back to the nearest lower era that has tracks, so shipping new eras is just appending files to `TRACKS`. Currently two Early tracks (see `CREDITS.md`).
+
+Implementation is deliberately minimal: one `HTMLAudioElement` and one re-armed timer in a module singleton (`startMusic`/`useMusic` in `app/game/ui/useMusic.ts` — a singleton so stale React effects can never leave a second track playing). The menu click calls `startMusic()` inside its own gesture call stack — the one shape every browser's autoplay policy accepts — and a blocked `play()` (e.g. `?demo`, which skips the menu) retries on the next pointerdown. This is also the seam the ambience/SFX slice grows from: the same click-time bootstrap will resume the shared `AudioContext` when that lands. Music keeps playing while the sim is paused — it's ambience, not sim state — and stops on return to the Main Menu. No Babylon sound engine, no sim-RNG coupling. A single volume slider in Settings (`musicVolume` in the store, persisted; 0 = mute, no separate toggle).
+
+---
+
 ## Roadmap
 
 The prioritized backlog lives in [roadmap.md](roadmap.md). Shipped work is documented in the sections above; a per-mechanic rundown of every built system with code references lives in [artifacts/game-mechanics-audit.md](artifacts/game-mechanics-audit.md), kept current: it's updated whenever a feature completes. The old phase-history detail was retired July 2026 (git history keeps it).

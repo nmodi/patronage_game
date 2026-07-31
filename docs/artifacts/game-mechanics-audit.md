@@ -216,6 +216,14 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Raze confirm popover | `ui/RazeConfirm.tsx` |
 | Main menu / continue-save peek (no hydration until Continue) | `ui/MainMenu.tsx` |
 
+## 20. Music (sporadic era soundtrack)
+
+| Mechanic | What it does | Code |
+|---|---|---|
+| **Era pick** | Track era chosen from prestige at play time (`ERA_PRESTIGE` 0/200/450), falling back to the nearest lower era with tracks; avoids repeating the last track. Cosmetic `Math.random`, not the sim rng. | `app/game/music.ts` → `pickTrack()` |
+| **Sporadic playback** | One module-singleton `HTMLAudioElement` + one re-armed timer: first track right on city load (`startMusic()` in the menu click's gesture stack; blocked play — e.g. `?demo` — retries on next pointerdown), then 90–240 s silence between tracks. Plays through sim pause, stops on Main Menu. | `app/game/ui/useMusic.ts` |
+| **Volume** | Persisted `musicVolume` (0–1, default 0.4); Settings slider, 0 = mute (skips scheduling). | `useGameStore.ts`; `ui/TopBar.tsx` |
+
 ---
 
 # Part 2 — Docs folder audit: planned vs. implemented
@@ -228,7 +236,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 **Built (everything the doc documents as a system):**
 - All numbered phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, commissions, work display, plaza connectivity, artist training/teaching, Renaissance milestone. (Phase 7's supplier capacity gating was superseded by the material stockpile rework — §3.)
-- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches XP, blueprint commissions funding Loggia/Baptistery).
+- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches XP, blueprint commissions funding Loggia/Baptistery), sporadic era-based music (§20).
 - Graphics G1–G4 + generated kit pieces + category-identity pass; G5 mostly: river + bridge, decorative citizens, obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu.
 
 **Cut (July 2026):** neighborhood zoning (individual placement is the permanent model); the diagonal row-house-blending follow-up (closed by construction — houses fill their footprint).
@@ -237,7 +245,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## `roadmap.md` — prioritized backlog
 
-**Status: the live planning doc (July 2026).** Everything in it is by definition not built; when an item ships it's deleted there, documented in design-doc.md, and reflected here. Headline open items: the capstone slice (signature chains + Town Hall/Dome + Commune + `minRank`), map resources, remaining faction slices, richer economy, housing tiers 3–5, audio.
+**Status: the live planning doc (July 2026).** Everything in it is by definition not built; when an item ships it's deleted there, documented in design-doc.md, and reflected here. Headline open items: the capstone slice (signature chains + Town Hall/Dome + Commune + `minRank`), map resources, remaining faction slices, richer economy, housing tiers 3–5, ambience/SFX (music shipped — §20).
 
 ## `building-effects.md` — non-art building effects
 
@@ -302,4 +310,4 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 3. **Remaining faction slices** — taste profiles, seed-shuffled roster, rivalry pairs.
 4. **Richer economy** and **housing tiers 3–5** — both need design first.
 5. **Buildings overhaul** — more buildings (most Civic/Religious/Trade/Social/Waterfront, incl. the `building-effects.md` slight-negative trade-offs), value rebalance, category reorg, and building progression.
-6. **Audio** (music & SFX — parallel track), **per-plaza paving picker**, **single-plaza enforcement**, **Lake archetype**, **campaign scenarios** — smaller/parallel items.
+6. **Ambience & SFX** (the audio track's remaining slice — music shipped, §20), **per-plaza paving picker**, **single-plaza enforcement**, **Lake archetype**, **campaign scenarios** — smaller/parallel items.
