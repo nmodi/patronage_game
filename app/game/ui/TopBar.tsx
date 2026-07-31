@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Coins, Copy, Crown, Feather, Home, Info, Pause, Pencil, Play, RotateCcw, Settings, Store, Users } from "lucide-react";
+import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, Store, Users } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { getWater, type WaterArchetype } from "~/game/water";
@@ -49,6 +49,7 @@ export function TopBar() {
   const seed = useGameStore((s) => s.seed);
   const mapSeed = useGameStore((s) => s.mapSeed);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [creditsOpen, setCreditsOpen] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -154,6 +155,7 @@ export function TopBar() {
             className="rounded-full bg-parchment-deep p-2 text-ink transition hover:bg-wood/40"
             onClick={() => {
               setSettingsOpen((open) => !open);
+              setCreditsOpen(false);
               setConfirmRestart(false);
             }}
             aria-label="Settings"
@@ -162,7 +164,55 @@ export function TopBar() {
           </button>
         </div>
       </Panel>
-      {settingsOpen && (
+      {settingsOpen && creditsOpen && (
+        <div className="absolute right-4 top-full mt-2">
+          <Panel
+            header={
+              <div className="flex items-center gap-2">
+                <button
+                  className="rounded-full p-1 text-ink-faint transition hover:bg-parchment-deep hover:text-ink"
+                  onClick={() => setCreditsOpen(false)}
+                  aria-label="Back to settings"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+                Credits
+              </div>
+            }
+            className="flex w-72 flex-col gap-2.5 text-sm"
+          >
+            <CreditRow
+              what="3D models"
+              who="Kenney — Fantasy Town Kit & Nature Kit"
+              license="CC0"
+              href="https://kenney.nl"
+            />
+            {/* Full attributions with license terms live in CREDITS.md. */}
+            <div className="flex flex-col gap-1 leading-snug">
+              <span className="text-[10px] uppercase tracking-wide text-ink-faint">Music</span>
+              <a
+                href="https://www.jsayles.com/familypages/EarlyMusic.htm"
+                target="_blank"
+                rel="noreferrer"
+                className="text-ink transition hover:text-sienna"
+              >
+                Saltarello — Anonymous, 14th c.{" "}
+                <span className="text-xs text-ink-faint">perf. Jon Sayles</span>
+              </a>
+              <a
+                href="https://incompetech.com"
+                target="_blank"
+                rel="noreferrer"
+                className="text-ink transition hover:text-sienna"
+              >
+                Suonatore di Liuto — Kevin MacLeod{" "}
+                <span className="text-xs text-ink-faint">(CC BY 4.0)</span>
+              </a>
+            </div>
+          </Panel>
+        </div>
+      )}
+      {settingsOpen && !creditsOpen && (
         <div className="absolute right-4 top-full mt-2">
           <Panel header="Settings" className="flex w-48 flex-col gap-2 text-sm">
             <button
@@ -190,6 +240,13 @@ export function TopBar() {
             >
               <RotateCcw className="h-4 w-4" />
               {confirmRestart ? "Erase all progress?" : "Restart Game"}
+            </button>
+            <button
+              className="btn-secondary flex items-center gap-2 px-3 py-2"
+              onClick={() => setCreditsOpen(true)}
+            >
+              <ScrollText className="h-4 w-4" />
+              Credits
             </button>
             <button
               className="flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-ink-faint transition hover:text-ink"
@@ -322,6 +379,34 @@ function CheckRow({ label, met, detail }: { label: string; met: boolean; detail?
         {detail && <span className="truncate">{detail}</span>}
         {met && <Check className="h-3.5 w-3.5 shrink-0 self-center text-sienna" />}
       </span>
+    </div>
+  );
+}
+
+// All assets are CC0/open — shared as courtesy now, and the list is ready
+// the day something non-CC0 lands.
+function CreditRow({
+  what,
+  who,
+  license,
+  href,
+}: {
+  what: string;
+  who: string;
+  license: string;
+  href: string;
+}) {
+  return (
+    <div className="flex flex-col leading-snug">
+      <span className="text-[10px] uppercase tracking-wide text-ink-faint">{what}</span>
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="text-ink transition hover:text-sienna"
+      >
+        {who} <span className="text-xs text-ink-faint">({license})</span>
+      </a>
     </div>
   );
 }
