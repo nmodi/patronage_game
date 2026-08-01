@@ -4,6 +4,10 @@
 
 Kitbashed from [Kenney](https://kenney.nl)'s **Fantasy Town Kit** and **Nature Kit** (CC0).
 
+## Sound effects
+
+From [Kenney](https://kenney.nl)'s **Impact Sounds**, **RPG Audio**, and **Music Jingles** packs (all CC0), converted to AAC.
+
 ## Music
 
 ### Jon Sayles — [jsayles.com](https://www.jsayles.com/familypages/EarlyMusic.htm)

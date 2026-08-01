@@ -20,6 +20,7 @@ import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game
 import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
 import { getRazeImpact } from "~/game/raze";
 import { findRoadSnap } from "~/game/roadSnap";
+import { playSfx } from "~/game/sfx";
 import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/roadStretch";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
@@ -121,6 +122,7 @@ export function createPlacementController(scene: Scene) {
       // so the model needs a refit, not just a spin.
       const r = ghostRotation ?? 0;
       ghostRotation = r < 4 ? r + 4 : (r - 3) % 4;
+      playSfx("rotate");
     }
   }
   function handleKeyUp(event: KeyboardEvent) {
@@ -263,11 +265,18 @@ export function createPlacementController(scene: Scene) {
     if (!roadAnchor) {
       // Anchoring on an existing road is fine (newCells just starts empty).
       if (newCells) roadAnchor = { ...currentPosition };
+      else playSfx("deny");
       return;
     }
 
-    if (!newCells) return;
+    if (!newCells) {
+      playSfx("deny");
+      return;
+    }
     if (newCells.length === 0 || state.placeTiles(newCells, buildingId, rotation)) {
+      // Sounds attach to the input sites, not placeTiles itself, so the demo
+      // boot's programmatic placements stay silent.
+      if (newCells.length > 0) playSfx("place");
       roadAnchor = null;
       clearRoadPreview();
     }
@@ -448,8 +457,12 @@ export function createPlacementController(scene: Scene) {
       ghostBox.material = canPlaceHere ? validMat : invalidMat;
     }
 
-    if (pendingClick && canPlaceHere) {
-      state.placeTile(placeOrigin, selectedBuilding, effectiveRotation ?? undefined);
+    if (pendingClick) {
+      if (canPlaceHere && state.placeTile(placeOrigin, selectedBuilding, effectiveRotation ?? undefined)) {
+        playSfx("place");
+      } else {
+        playSfx("deny");
+      }
     }
     pendingClick = false;
   });

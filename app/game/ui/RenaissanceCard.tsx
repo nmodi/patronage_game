@@ -1,8 +1,9 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Crown } from "lucide-react";
 
 import { renaissanceProgress } from "~/game/renaissance";
+import { playSfx } from "~/game/sfx";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 
@@ -26,7 +27,11 @@ export function RenaissanceCard() {
     () => renaissanceProgress(prestige, artists, artworks),
     [prestige, artists, artworks]
   );
-  if (reached || !progress.all) return null;
+  const visible = !reached && progress.all;
+  useEffect(() => {
+    if (visible) playSfx("fanfare");
+  }, [visible]);
+  if (!visible) return null;
 
   return createPortal(
     <div

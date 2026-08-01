@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { X, type LucideIcon } from "lucide-react";
 
+import { playSfx } from "~/game/sfx";
+
 interface PanelProps {
   header?: ReactNode;
   children: ReactNode;
@@ -63,7 +65,10 @@ export function HudPanel({
         className={`hud-toggle panel-parchment pointer-events-auto relative h-11 rounded-full text-ink ${
           open ? "is-open ring-2 ring-sienna" : ""
         }`}
-        onClick={onToggle}
+        onClick={() => {
+          playSfx(open ? "close" : "open");
+          onToggle();
+        }}
         aria-label={label}
         title={label}
       >
@@ -87,7 +92,10 @@ export function HudPanel({
                 <span className="min-w-0 flex-1">{header}</span>
                 <button
                   className="rounded-full p-1 text-ink-faint transition hover:bg-parchment-deep"
-                  onClick={onToggle}
+                  onClick={() => {
+                    playSfx("close");
+                    onToggle();
+                  }}
                   aria-label={`Close ${label}`}
                 >
                   <X className="h-4 w-4" />

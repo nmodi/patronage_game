@@ -20,6 +20,7 @@ import {
 import { computeDisplaySummary } from "~/game/display";
 import { computeCityMetrics } from "~/game/metrics";
 import { razeBuilding } from "~/game/raze";
+import { playSfx } from "~/game/sfx";
 import { migrateSave, SAVE_VERSION } from "~/game/saveMigration";
 import { advanceTick } from "~/game/tick";
 import {
@@ -102,6 +103,8 @@ export type GameState = {
   setTickInterval: (value: number) => void;
   musicVolume: number;
   setMusicVolume: (value: number) => void;
+  sfxVolume: number;
+  setSfxVolume: (value: number) => void;
   setSelectedBuilding: (id: BuildingId | typeof RAZE_TOOL | null) => void;
   placeTile: (position: GridPos, buildingId: BuildingId, rotation?: number) => boolean;
   placeTiles: (positions: GridPos[], buildingId: BuildingId, rotation?: number) => boolean;
@@ -152,6 +155,7 @@ const createInitialState = (runSeed?: string) => {
     paused: false,
     tickInterval: BASE_TICK_INTERVAL,
     musicVolume: 0.4,
+    sfxVolume: 0.5,
   };
 };
 
@@ -172,6 +176,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     set((s) => {
       const artwork = s.artworks.find((w) => w.id === artworkId);
       if (!canDisplayWork(artwork, hostKey, slot, s.map.tiles, s.artworks)) return s;
+      playSfx("display");
       return {
         artworks: s.artworks.map((w) =>
           w === artwork ? { ...w, displayedAt: { key: hostKey, slot } } : w
@@ -183,6 +188,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     set((s) => {
       const artwork = s.artworks.find((w) => w.id === artworkId && w.displayedAt);
       if (!artwork) return s;
+      playSfx("display");
       return {
         artworks: s.artworks.map((w) => (w === artwork ? { ...w, displayedAt: undefined } : w)),
       };
@@ -196,6 +202,10 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const newOffer = next.commissions.find(
         (c) => !c.workshopKey && !s.commissions.some((p) => p.id === c.id)
       );
+      if (newOffer) playSfx("offer");
+      if (next.denounced[0]) playSfx("denounce");
+      // A grown artwork list = a completed work paid out this tick.
+      if (next.artworks.length > s.artworks.length) playSfx("payout");
       return {
         florins: next.florins,
         inspiration: next.inspiration,
@@ -227,6 +237,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const material = commissionMaterial(commission);
       const available = material ? s.materials[material] : Infinity;
       if (!canAssignCommission(commission, founder, s.map.tiles, available)) return s;
+      playSfx("assign");
       // Stock is spent up front, so assigned work never stalls on materials.
       // ponytail: no refund when a raze reopens the commission — spent is spent.
       const cost = commissionMaterialCost(commission);
@@ -247,6 +258,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const after = Math.max(0, before - FAVOR_SLIGHT);
       // Same denunciation crossing as the tick's expiry slights.
       const denounces = before >= FAVOR_AFFRONTED && after < FAVOR_AFFRONTED;
+      playSfx(denounces ? "denounce" : "decline");
       return {
         commissions: s.commissions.filter((c) => c !== commission),
         favor: { ...s.favor, [commission.requester]: after },
@@ -260,28 +272,39 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       };
     }),
 
-  togglePause: () =>
+  togglePause: () => {
+    playSfx("toggle");
     set((s) => ({
       paused: !s.paused,
-    })),
+    }));
+  },
 
   setPaused: (value) =>
     set(() => ({
       paused: value,
     })),
 
-  setTickInterval: (value) =>
+  setTickInterval: (value) => {
+    playSfx("toggle");
     set(() => ({
       tickInterval: Math.max(100, value),
-    })),
+    }));
+  },
 
   setMusicVolume: (value) =>
     set(() => ({
       musicVolume: Math.min(1, Math.max(0, value)),
     })),
 
-  setSelectedBuilding: (id) =>
-    set((s) => ({ map: { ...s.map, selectedBuilding: id }, razeTarget: null, inspectTarget: null })),
+  setSfxVolume: (value) =>
+    set(() => ({
+      sfxVolume: Math.min(1, Math.max(0, value)),
+    })),
+
+  setSelectedBuilding: (id) => {
+    if (id) playSfx("select"); // null = cancel/deselect, not a pick
+    set((s) => ({ map: { ...s.map, selectedBuilding: id }, razeTarget: null, inspectTarget: null }));
+  },
 
   placeTile: (position, buildingId, rotation) => get().placeTiles([position], buildingId, rotation),
 
@@ -387,6 +410,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     set((s) => {
       const next = razeBuilding(s, position);
       if (!next) return s;
+      playSfx("raze");
       return {
         florins: next.florins,
         artists: next.artists,
@@ -466,8 +490,9 @@ export const useGameStore = create<GameState>()(
       map: { tiles: s.map.tiles, selectedBuilding: null },
       time: s.time,
       tickInterval: s.tickInterval,
-      // Absent on old saves hydrates to the initial 0.4 — no migration.
+      // Absent on old saves hydrate to their initial values — no migration.
       musicVolume: s.musicVolume,
+      sfxVolume: s.sfxVolume,
     }),
   }),
 );

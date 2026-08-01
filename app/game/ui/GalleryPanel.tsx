@@ -6,13 +6,18 @@ import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { RANK_LABEL } from "~/game/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { artworkQuality, canDisplayWork } from "~/game/display";
+import { playSfx } from "~/game/sfx";
 import { Panel } from "./Panel";
 import { ArtworkThumbnail } from "./ArtworkThumbnail";
 import { capitalizeLabel } from "./format";
 
 // Circular HUD button (top-left row) + fullscreen codex modal.
 export function GalleryPanel() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpenRaw] = useState(false);
+  const setOpen = (next: boolean) => {
+    playSfx(next ? "open" : "close");
+    setOpenRaw(next);
+  };
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const artworks = useGameStore((s) => s.artworks);
   const artists = useGameStore((s) => s.artists);
