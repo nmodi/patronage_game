@@ -14,7 +14,7 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 - Renaissance = prestige milestone soft ending; play continues afterward.
 
 - When a roadmap item ships, delete its entry from docs/roadmap.md and document the built system in the design doc, marked *(built)*. Update docs/artifacts/game-mechanics-audit.md in the same change: its Part 1 mechanic rows and Part 2 built/not-built status must track every completed feature. 
-- Commit messages are one line. Add a body only when the change genuinely can't be understood without one — the docs carry the reasoning, not the git log.
+- Commit messages are one line, written via the /nilay-voice skill (technical register: lowercase, terse imperative, no conventional-commit prefixes). Add a body only when the change genuinely can't be understood without one — the docs carry the reasoning, not the git log.
 
 ## Current state vs. doc phases
 
