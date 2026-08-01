@@ -5,9 +5,13 @@ import { HemisphericLight } from "@babylonjs/core/Lights/hemisphericLight";
 import { ShadowGenerator } from "@babylonjs/core/Lights/Shadows/shadowGenerator";
 import { ColorCurves } from "@babylonjs/core/Materials/colorCurves";
 import { ImageProcessingConfiguration } from "@babylonjs/core/Materials/imageProcessingConfiguration";
+import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
 import { RenderTargetTexture } from "@babylonjs/core/Materials/Textures/renderTargetTexture";
+import { Texture } from "@babylonjs/core/Materials/Textures/texture";
 import { Color3, Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
+import { CreateSphere } from "@babylonjs/core/Meshes/Builders/sphereBuilder";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
 import { Scene } from "@babylonjs/core/scene";
@@ -31,11 +35,27 @@ export function createRenderScene(canvas: HTMLCanvasElement) {
   scene.preventDefaultOnPointerDown = false;
   scene.preventDefaultOnPointerUp = false;
   scene.useRightHandedSystem = true;
-  scene.clearColor = Color4.FromColor3(Color3.FromHexString("#e9c98f"), 1);
+  // Matches the skydome's just-above-horizon band so fogged geometry dissolves into sky.
+  const horizonColor = Color3.FromHexString("#b3c6f1");
+  scene.clearColor = Color4.FromColor3(horizonColor, 1);
   scene.fogMode = Scene.FOGMODE_LINEAR;
-  scene.fogColor = Color3.FromHexString("#e9c98f");
+  scene.fogColor = horizonColor;
   scene.fogStart = 90;
   scene.fogEnd = 115;
+
+  // Kenney day sky, a 2:1 equirect panorama — standard sphere UVs are equirectangular,
+  // so an inside-out sphere is the whole skybox.
+  const sky = CreateSphere("sky", { diameter: 1000, sideOrientation: Mesh.BACKSIDE }, scene);
+  sky.infiniteDistance = true;
+  sky.isPickable = false;
+  sky.applyFog = false;
+  const skyMaterial = new StandardMaterial("skyMat", scene);
+  // invertY=false: Babylon's default flip puts the panorama's below-horizon half at the zenith.
+  skyMaterial.emissiveTexture = new Texture("/sky/skybox-day.png", scene, false, false);
+  skyMaterial.disableLighting = true;
+  skyMaterial.diffuseColor = Color3.Black();
+  skyMaterial.specularColor = Color3.Black();
+  sky.material = skyMaterial;
 
   const camera = new ArcRotateCamera("camera", 0, 0, 10, Vector3.Zero(), scene);
   camera.setPosition(new Vector3(14, 12, 14));
