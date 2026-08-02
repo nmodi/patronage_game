@@ -2,7 +2,7 @@ import { Clock, Coins, Crown } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { DENOUNCE_PRESTIGE } from "~/game/constants";
-import { commissionMaterial, commissionMaterialCost } from "~/game/materials";
+import { commissionMaterial, commissionMaterialCost } from "~/game/art/materials";
 import { Panel } from "./Panel";
 import { capitalizeLabel } from "./format";
 

@@ -2,7 +2,7 @@
 
 *Planning doc — July 2026. Scales the decorative citizens (design doc G5) with the city's population, performantly.*
 
-**Status: implemented (July 2026).** The count curve landed as `app/game/crowd.ts` (+ `crowd.check.ts` — the test glob only covers `app/game/*.check.ts`, so it lives there rather than under `render/`), the thin-instance factory as `createThinInstanceFigureFactory` in `citizenFigures.ts`, and the `&crowd=<n>` dev flag is parsed in `citizens.ts`. One deviation: the walk-network clamp shipped as one figure per **2** cells (not 3) so it stays out of the way of exact matching in early cities.
+**Status: implemented (July 2026).** The count curve landed as `app/game/city/crowd.ts` (+ `crowd.check.ts` — the test glob only covers `app/game/*.check.ts`, so it lives there rather than under `render/`), the thin-instance factory as `createThinInstanceFigureFactory` in `citizenFigures.ts`, and the `&crowd=<n>` dev flag is parsed in `citizens.ts`. One deviation: the walk-network clamp shipped as one figure per **2** cells (not 3) so it stays out of the way of exact matching in early cities.
 
 ## Goal
 

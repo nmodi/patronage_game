@@ -1,4 +1,4 @@
-import { favorFromWorks } from "./commissions.ts";
+import { favorFromWorks } from "./art/commissions.ts";
 
 export const SAVE_VERSION = 10;
 

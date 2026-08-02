@@ -15,7 +15,7 @@ import {
   type BuildingId,
 } from "~/game/buildings";
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
-import { rotateSlotCell } from "~/game/display";
+import { rotateSlotCell } from "~/game/art/display";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import type { Artwork, BuildingMetadata, BuildingType } from "~/game/types";
 import {

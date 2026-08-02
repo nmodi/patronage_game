@@ -7,7 +7,7 @@ import { MainMenu } from "~/game/ui/MainMenu";
 import { useGameShortcuts } from "~/game/ui/useGameShortcuts";
 import { useGameLoop } from "~/game/ui/useGameLoop";
 import { startMusic, useMusic } from "~/game/ui/useMusic";
-import { seedDemoCity } from "~/game/demoCity";
+import { seedDemoCity } from "~/game/demo/demoCity";
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 
 export const meta: MetaFunction = () => {

@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { getRazeImpact, getRazeSalvage } from "~/game/raze";
+import { getRazeImpact, getRazeSalvage } from "~/game/placement/raze";
 import { useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 

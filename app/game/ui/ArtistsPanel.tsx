@@ -1,7 +1,7 @@
 import { Hammer, Paintbrush, Palette, type LucideIcon } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
-import { nextRankXp, RANK_LABEL } from "~/game/artists";
+import { nextRankXp, RANK_LABEL } from "~/game/art/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { useMaterialsRailVisible } from "./MaterialsPanel";
 import { HudPanel } from "./Panel";

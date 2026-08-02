@@ -55,7 +55,7 @@ Rolled availability must never produce a dead run:
 
 ## Interactions with existing systems
 
-- **Commission offers must respect the seed.** The offer generator weights toward available resources; commissions needing an absent resource appear rarely, as deliberate Market-premium opportunities — not as a stream of impossible offers. This is the one real sim change the feature needs (`maybeOfferCommission` in `app/game/commissions.ts`).
+- **Commission offers must respect the seed.** The offer generator weights toward available resources; commissions needing an absent resource appear rarely, as deliberate Market-premium opportunities — not as a stream of impossible offers. This is the one real sim change the feature needs (`maybeOfferCommission` in `app/game/art/commissions.ts`).
 - **Market as the escape valve.** The main doc's planned Market repurpose (overflow material capacity bought with florins) is exactly the bypass for absent resources: the lane exists, it just costs more. Scarcity stays a nudge (principle 6), never a wall.
 - **Build menu** — suppliers for absent resources are hidden or shown greyed with "not found in this region" flavor (lean toward shown-greyed: it teaches players that other seeds differ).
 - **Seed display** — Settings already shows the seed; resource availability could join the map-archetype info there.

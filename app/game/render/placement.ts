@@ -15,13 +15,13 @@ import {
   type BuildingId,
 } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
-import { plinthSlotAt } from "~/game/display";
+import { plinthSlotAt } from "~/game/art/display";
 import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game/grid";
-import { canPlaceAt, planLinearPlacement } from "~/game/placementRules";
-import { getRazeImpact } from "~/game/raze";
-import { findRoadSnap } from "~/game/roadSnap";
-import { playSfx } from "~/game/sfx";
-import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/roadStretch";
+import { canPlaceAt, planLinearPlacement } from "~/game/placement/placementRules";
+import { getRazeImpact } from "~/game/placement/raze";
+import { findRoadSnap } from "~/game/placement/roadSnap";
+import { playSfx } from "~/game/audio/sfx";
+import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/placement/roadStretch";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
   instantiateBuilding,

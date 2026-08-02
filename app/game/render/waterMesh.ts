@@ -17,7 +17,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { positionToneIndex } from "~/game/random";
-import type { WaterBody } from "~/game/water";
+import type { WaterBody } from "~/game/map/water";
 
 const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
 /** Rivers/sea render out to here; fog (end 95) hides the cutoff. */

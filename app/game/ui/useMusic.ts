@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { useGameStore } from "~/stores/useGameStore";
-import { TRACK_GAP, pickTrack, randomDelay, trackTitle } from "~/game/music";
+import { TRACK_GAP, pickTrack, randomDelay, trackTitle } from "~/game/audio/music";
 
 // Module-singleton playback engine — one element can ever exist, so a stale
 // React effect (StrictMode double-mount, HMR) can't leave a second track

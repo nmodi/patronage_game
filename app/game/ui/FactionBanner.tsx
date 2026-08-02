@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Church, Shield } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
-import { CHURCH, favorOf, favorRung, favorTier, requesterPool } from "~/game/commissions";
+import { CHURCH, favorOf, favorRung, favorTier, requesterPool } from "~/game/art/commissions";
 import { FAVOR_COOLED, FAVOR_RUNGS } from "~/game/constants";
 import { Panel } from "./Panel";
 

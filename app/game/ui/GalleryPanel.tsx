@@ -3,10 +3,10 @@ import { createPortal } from "react-dom";
 import { Crown, Images, X } from "lucide-react";
 
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
-import { RANK_LABEL } from "~/game/artists";
+import { RANK_LABEL } from "~/game/art/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { artworkQuality, canDisplayWork } from "~/game/display";
-import { playSfx } from "~/game/sfx";
+import { artworkQuality, canDisplayWork } from "~/game/art/display";
+import { playSfx } from "~/game/audio/sfx";
 import { Panel } from "./Panel";
 import { ArtworkThumbnail } from "./ArtworkThumbnail";
 import { capitalizeLabel } from "./format";

@@ -2,12 +2,12 @@ import { useMemo } from "react";
 import { Gem, Medal, Mountain, Palette, TreePine, type LucideIcon } from "lucide-react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { computePlazaConnectivity, connectionBonusOf } from "~/game/connectivity";
+import { computePlazaConnectivity, connectionBonusOf } from "~/game/city/connectivity";
 import { MATERIAL_STORAGE_BASE } from "~/game/constants";
-import { MATERIALS, materialCaps } from "~/game/materials";
-import { trafficFactor } from "~/game/traffic";
+import { MATERIALS, materialCaps } from "~/game/art/materials";
+import { trafficFactor } from "~/game/city/traffic";
 import type { Material } from "~/game/types";
-import { staffingEfficiency } from "~/game/workers";
+import { staffingEfficiency } from "~/game/city/workers";
 import { useGameStore } from "~/stores/useGameStore";
 import { capitalizeLabel } from "./format";
 

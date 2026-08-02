@@ -5,7 +5,7 @@
 
 ## The idea
 
-Factions are the commission requesters grown into **patrons with memory and taste** — while staying inside principle 4 (requesters are flavor, not a management layer). The cast is exactly two archetypes: **the Church**, and **the named noble families** (each family its own faction, with its own favor count). Three additions over today's flavor-string table (`REQUESTERS` in `app/game/commissions.ts`, which already carries a `ponytail:` note that a faction system takes over offer generation later):
+Factions are the commission requesters grown into **patrons with memory and taste** — while staying inside principle 4 (requesters are flavor, not a management layer). The cast is exactly two archetypes: **the Church**, and **the named noble families** (each family its own faction, with its own favor count). Three additions over today's flavor-string table (`REQUESTERS` in `app/game/art/commissions.ts`, which already carries a `ponytail:` note that a faction system takes over offer generation later):
 
 1. A **taste profile** — shapes *what* a faction asks for
 2. A **favor ladder** — a per-faction count that only goes up
@@ -80,7 +80,7 @@ Rarely, an offer arrives as a **pair**: two factions bidding for the same artist
 
 ## Interactions with existing systems
 
-- **Offer generation** — `maybeOfferCommission` (`app/game/commissions.ts`) now takes the admitted pool (`requesterPool`) and favor; taste profiles become a further input in a future slice. The guild entries are removed.
+- **Offer generation** — `maybeOfferCommission` (`app/game/art/commissions.ts`) now takes the admitted pool (`requesterPool`) and favor; taste profiles become a further input in a future slice. The guild entries are removed.
 - **[building-effects.md](building-effects.md)** — requester-pool shaping has exactly two sources: Palazzo → next family (roster growth, atop the seed-dealt starters) and Cathedral → the always-present Church's upper rungs (elevation, not admission); every other unlock building adds a *lane* the existing patrons draw from. The "requester personality trade-offs" rejection is honored via the taste-profile hard line above.
 - **[map-resources.md](map-resources.md)** — resource rolls gate lanes; a faction asking for an absent material follows that doc's rule (rare, deliberate Market-premium opportunities — never a stream of impossible offers).
 - **Save shape** — one persisted `Record<factionName, favor>` (built: `favor` in the store, save v8 seeds it from per-requester completed works at +8 each).

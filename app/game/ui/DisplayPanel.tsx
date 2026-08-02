@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { Crown, Pencil, X } from "lucide-react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { RANK_LABEL } from "~/game/artists";
-import { artworkQuality, canDisplayWork, CHURCH_HOST_IDS } from "~/game/display";
+import { RANK_LABEL } from "~/game/art/artists";
+import { artworkQuality, canDisplayWork, CHURCH_HOST_IDS } from "~/game/art/display";
 import type { Artwork, DisplaySlotKind } from "~/game/types";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { ArtworkThumbnail } from "./ArtworkThumbnail";

@@ -2,7 +2,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
-import { crowdSize } from "~/game/crowd";
+import { crowdSize } from "~/game/city/crowd";
 import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
 import { useGameStore } from "~/stores/useGameStore";
 import {

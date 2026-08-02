@@ -1,5 +1,5 @@
 import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
-import { computePlazaConnectivity, connectionBonusOf } from "./connectivity.ts";
+import { computePlazaConnectivity, connectionBonusOf } from "./city/connectivity.ts";
 import {
   DENOUNCE_PRESTIGE,
   FAVOR_AFFRONTED,
@@ -8,15 +8,15 @@ import {
   INCOME_DIMINISHING_RETURNS,
   POPULATION_DRIFT_PER_MONTH,
 } from "./constants.ts";
-import { computeDisplaySummary, displayBoost } from "./display.ts";
+import { computeDisplaySummary, displayBoost } from "./art/display.ts";
 import type { TileMap } from "./grid.ts";
-import { addProduction, materialCaps, type MaterialPools } from "./materials.ts";
-import { computeCityMetrics } from "./metrics.ts";
-import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./artists.ts";
-import { favorOf, maybeOfferCommission, reconcileCommissions } from "./commissions.ts";
-import { trafficFactor } from "./traffic.ts";
+import { addProduction, materialCaps, type MaterialPools } from "./art/materials.ts";
+import { computeCityMetrics } from "./city/metrics.ts";
+import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./art/artists.ts";
+import { favorOf, maybeOfferCommission, reconcileCommissions } from "./art/commissions.ts";
+import { trafficFactor } from "./city/traffic.ts";
 import type { Artist, Artwork, BuildingMetadata, Commission, Material } from "./types.ts";
-import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./workers.ts";
+import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./city/workers.ts";
 
 export interface TickSnapshot {
   florins: number;

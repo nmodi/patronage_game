@@ -9,7 +9,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE } from "~/game/constants";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
-import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/roadStretch";
+import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/placement/roadStretch";
 import {
   getApronMaterial,
   getDirtPadMaterial,

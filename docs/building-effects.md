@@ -13,12 +13,12 @@ The building design test from the main doc is the whole constraint: **every buil
 
 Every effect below plugs into one of these existing anchor points — which is why most are ~10 lines:
 
-- **Requester pool / offer generation** — `REQUESTERS` + `maybeOfferCommission` in `app/game/commissions.ts` (offer chance, open-offer cap, expiry, reward mix, duration)
+- **Requester pool / offer generation** — `REQUESTERS` + `maybeOfferCommission` in `app/game/art/commissions.ts` (offer chance, open-offer cap, expiry, reward mix, duration)
 - **Tick generation sums** — the florin/inspiration loop in `app/game/tick.ts` (staffing efficiency and plaza boost already applied)
-- **Plaza connectivity** — `computePlazaConnectivity` + the `isHub` flag in `app/game/connectivity.ts`; the one spatial system
+- **Plaza connectivity** — `computePlazaConnectivity` + the `isHub` flag in `app/game/city/connectivity.ts`; the one spatial system
 - **Amenity ceiling** — the `amenities` field summed in the tick loop
 - **Teaching multiplier** — Phase 11 hook (planned)
-- **Work display sites** *(built — Phase 9)* — `displaySlots` on the building def; displayed works trickle inspiration (or prestige in churches) and boost the host, via `app/game/display.ts` `computeDisplaySummary`
+- **Work display sites** *(built — Phase 9)* — `displaySlots` on the building def; displayed works trickle inspiration (or prestige in churches) and boost the host, via `app/game/art/display.ts` `computeDisplaySummary`
 
 ---
 
@@ -86,13 +86,13 @@ School speeds apprentice XP; Anatomical Theatre gives a technique bump. Both plu
 
 The slots above say *what* each building does; these are the cheap levers that express them — each one line in an existing function. New buildings should pick from this list before inventing anything:
 
-1. **Requester-pool shaping** *(built — factions slice 1: `requesterPool` in `app/game/commissions.ts`)* — building existence shapes the patron pool. Three sources: Chapel/Cathedral → the Church is admitted, Palazzo → the next noble house in table order (seed-shuffled order is a future slice), and Cathedral → the Church's upper favor rungs (see [factions.md](factions.md)).
+1. **Requester-pool shaping** *(built — factions slice 1: `requesterPool` in `app/game/art/commissions.ts`)* — building existence shapes the patron pool. Three sources: Chapel/Cathedral → the Church is admitted, Palazzo → the next noble house in table order (seed-shuffled order is a future slice), and Cathedral → the Church's upper favor rungs (see [factions.md](factions.md)).
 2. **Offer-stream shaping** — derive `COMMISSION_OFFER_CHANCE` / `MAX_OPEN_OFFERS` / `OFFER_EXPIRY_MONTHS` from buildings (Banking House: longer offer expiry — "the bank underwrites patience").
 3. **Payout skewing** — flat % on commission completion (Banking House +15% florins; Baptistery +15% prestige on Church works).
 4. **Arrival shaping** — terms in `maybeArriveArtist` (a Loggia or "Osteria degli Artisti" raises artist arrival chance).
 5. **Connectivity relays** — `isHub` on non-plaza buildings (Bell Tower now; maybe Market later, piazza-del-mercato style).
 6. **XP multipliers** — Phase 11 hook (School: apprentice XP boost; Anatomical Theatre: one-time permanent work-speed bump once built).
-7. **Display sites** *(built — Phase 9)*: homes for finished works with different permanent trickles (plaza/most buildings = inspiration, church display = prestige) plus a small per-work host-effectiveness boost (+5% each, cap +25%). One choice per finished work, no management. `app/game/display.ts` (`displaySlots`, `computeDisplaySummary`, `canDisplayWork`).
+7. **Display sites** *(built — Phase 9)*: homes for finished works with different permanent trickles (plaza/most buildings = inspiration, church display = prestige) plus a small per-work host-effectiveness boost (+5% each, cap +25%). One choice per finished work, no management. `app/game/art/display.ts` (`displaySlots`, `computeDisplaySummary`, `canDisplayWork`).
 
 ---
 

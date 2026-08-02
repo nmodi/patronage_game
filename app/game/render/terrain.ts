@@ -6,7 +6,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { mulberry32, positionToneIndex, seededRng } from "~/game/random";
-import type { WaterBody } from "~/game/water";
+import type { WaterBody } from "~/game/map/water";
 
 const TERRAIN_SIZE = 320;
 // Raised from 110 when the water layer landed: the river carve needs vertices

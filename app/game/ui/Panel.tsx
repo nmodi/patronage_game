@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { X, type LucideIcon } from "lucide-react";
 
-import { playSfx } from "~/game/sfx";
+import { playSfx } from "~/game/audio/sfx";
 
 interface PanelProps {
   header?: ReactNode;

@@ -5,13 +5,13 @@ import {
   computePlazaConnectivity,
   connectionBonusOf,
   PLAZA_IDS,
-} from "~/game/connectivity";
-import { displayBoost } from "~/game/display";
-import { materialCaps } from "~/game/materials";
-import { getRazeSalvage } from "~/game/raze";
-import { trafficFactor } from "~/game/traffic";
+} from "~/game/city/connectivity";
+import { displayBoost } from "~/game/art/display";
+import { materialCaps } from "~/game/art/materials";
+import { getRazeSalvage } from "~/game/placement/raze";
+import { trafficFactor } from "~/game/city/traffic";
 import type { BuildingMetadata } from "~/game/types";
-import { staffingEfficiency } from "~/game/workers";
+import { staffingEfficiency } from "~/game/city/workers";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import { capitalizeLabel } from "./format";
 

@@ -3,7 +3,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import type { BuildingId } from "~/game/buildings";
 import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
-import { getWater } from "~/game/water";
+import { getWater } from "~/game/map/water";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
   countModelFiles,

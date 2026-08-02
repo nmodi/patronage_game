@@ -2,8 +2,8 @@ import { Clock, Coins, Crown, Scroll } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
-import { commissionMaterial, commissionMaterialCost } from "~/game/materials";
-import { canAssignCommission, requesterPool } from "~/game/commissions";
+import { commissionMaterial, commissionMaterialCost } from "~/game/art/materials";
+import { canAssignCommission, requesterPool } from "~/game/art/commissions";
 import { HudPanel } from "./Panel";
 import type { Commission } from "~/game/types";
 import { ArtworkThumbnail } from "./ArtworkThumbnail";

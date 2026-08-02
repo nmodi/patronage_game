@@ -5,22 +5,22 @@ import { createJSONStorage, persist, type StateStorage } from "zustand/middlewar
 import type { Artist, Artwork, Commission, Material } from "~/game/types";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
-import { planPlacement } from "~/game/placementRules";
-import { canAssignCommission, favorOf } from "~/game/commissions";
-import { canDisplayWork } from "~/game/display";
-import { createArtist, trainOnConstruction } from "~/game/artists";
-import { generateSeed, pickCityName } from "~/game/seed";
-import { DEMO_MAP_SEED } from "~/game/demoLayout";
+import { planPlacement } from "~/game/placement/placementRules";
+import { canAssignCommission, favorOf } from "~/game/art/commissions";
+import { canDisplayWork } from "~/game/art/display";
+import { createArtist, trainOnConstruction } from "~/game/art/artists";
+import { generateSeed, pickCityName } from "~/game/map/seed";
+import { DEMO_MAP_SEED } from "~/game/demo/demoLayout";
 import {
   commissionMaterial,
   commissionMaterialCost,
   EMPTY_POOLS,
   type MaterialPools,
-} from "~/game/materials";
-import { computeDisplaySummary } from "~/game/display";
-import { computeCityMetrics } from "~/game/metrics";
-import { razeBuilding } from "~/game/raze";
-import { playSfx } from "~/game/sfx";
+} from "~/game/art/materials";
+import { computeDisplaySummary } from "~/game/art/display";
+import { computeCityMetrics } from "~/game/city/metrics";
+import { razeBuilding } from "~/game/placement/raze";
+import { playSfx } from "~/game/audio/sfx";
 import { migrateSave, SAVE_VERSION } from "~/game/saveMigration";
 import { advanceTick } from "~/game/tick";
 import {

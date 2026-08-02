@@ -21,7 +21,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Two-pass allocation** | Stateless each tick. Pass 1 fills every building to `workersRequired` in priority order (a building the pool can't fully staff gets 0 — no partial staffing). Pass 2 distributes surplus up to `maxWorkers`. Priority `TYPE_PRIORITY`: service 0, materials 1, artist 2, city 3, else 9; ties by key. | `app/game/workers.ts` → `allocateWorkers()` |
+| **Two-pass allocation** | Stateless each tick. Pass 1 fills every building to `workersRequired` in priority order (a building the pool can't fully staff gets 0 — no partial staffing). Pass 2 distributes surplus up to `maxWorkers`. Priority `TYPE_PRIORITY`: service 0, materials 1, artist 2, city 3, else 9; ties by key. | `app/game/city/workers.ts` → `allocateWorkers()` |
 | **Staffing efficiency** | Output scales linearly from 1× at minimum staff to `1 + MAX_STAFFING_BONUS` (**1.5×**, +50%) at max staff: `1 + 0.5·max(0, workers−required)/(maxWorkers−required)`. | `workers.ts` → `staffingEfficiency()` |
 | **Activation gate** | A tile is active only when `workers ≥ workersRequired`; workerless buildings (`workersRequired === 0`) are active on placement. Inactive → generates nothing, no amenities, desaturated in render. | `tick.ts`; placement default in `useGameStore.ts` → `placeTiles()` |
 
@@ -31,7 +31,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Five city-wide pools** | `pigment, marble, bronze, timber, stone` (`MATERIALS` drives caps/production/panel rows automatically). Persisted numbers, no routing, no per-building stores. Save v9 seeded the first three empty; v10 added timber/stone. | `app/game/materials.ts` → `MATERIALS`; `types.ts` `Material` union |
+| **Five city-wide pools** | `pigment, marble, bronze, timber, stone` (`MATERIALS` drives caps/production/panel rows automatically). Persisted numbers, no routing, no per-building stores. Save v9 seeded the first three empty; v10 added timber/stone. | `app/game/art/materials.ts` → `MATERIALS`; `types.ts` `Material` union |
 | **Production** | Each staffed supplier accrues `supplies.rate (2) × staffingEfficiency × plazaBoost` of its material per tick. Deliberately **no diminishing returns** (more suppliers must never mean less stock — principle 6); escalating build cost prices duplicates instead. | `tick.ts` generation loop; supplier `supplies: { material, rate, storage }` in `buildings.ts` |
 | **Storage caps** | Per material: `MATERIAL_STORAGE_BASE (20)` + each supplier's `storage (20)` for its own material + each Warehouse's `materialStorage (50)` for **all** materials. Storage counts unstaffed; only production needs workers. Clamp-and-add is identity-stable. | `materials.ts` → `materialCaps()`, `addProduction()` |
 | **Commission cost** | Commissions stamp `materialCost = MATERIAL_COST_SCALE (5) × rankPrestige (1–10) × grandeur (1–2)` at offer time; the pool is deducted when the player **assigns** (no refund when a raze reopens the offer). Once assigned, work never stalls on materials — understaffing is now the only inactive cause. Pre-v9 offers read `?? 0` (stay free). | `commissions.ts` → `commissionMaterialCost()`; store `assignCommission()` |
@@ -43,7 +43,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Connectivity BFS** | The Main Plaza (`town_center_plaza`) radiates through roads via a 0–1 BFS (roads cost 1/cell, any plaza/hub cell resets distance to 0). Building strength = best adjacent network cell with linear falloff: `max(0, 1 − dist/PLAZA_REACH)`. `PLAZA_REACH = 30` road cells; `PLAZA_CONNECTION_BONUS = 0.25` at full strength. Memoized by tiles identity (WeakMap). A nudge, never a gate. | `app/game/connectivity.ts` → `computePlazaConnectivity()` |
+| **Connectivity BFS** | The Main Plaza (`town_center_plaza`) radiates through roads via a 0–1 BFS (roads cost 1/cell, any plaza/hub cell resets distance to 0). Building strength = best adjacent network cell with linear falloff: `max(0, 1 − dist/PLAZA_REACH)`. `PLAZA_REACH = 30` road cells; `PLAZA_CONNECTION_BONUS = 0.25` at full strength. Memoized by tiles identity (WeakMap). A nudge, never a gate. | `app/game/city/connectivity.ts` → `computePlazaConnectivity()` |
 | **Hubs / conductors** | Hub set = plazas + `isHub` buildings (bell tower), derived from metadata via `PLAZA_IDS`; road-cost conductors via `ROAD_OVERLAY_IDS` (e.g. market stall). | `connectivity.ts` |
 | **Plaza boost application** | `plazaBoost = 1 + connectionBonusOf(meta)·strength·trafficFactor`. Multiplies generation (tick), housing & amenities (metrics), commission pace (artists). Per-building bonus override via `connectionBonus` metadata (default 0.25). | `tick.ts` `plazaBoost`; `metrics.ts`; `artists.ts` `progressArtworks()` |
 
@@ -51,7 +51,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Traffic factor** | For `footTraffic`-flagged buildings only, the plaza bonus additionally scales by real traffic: `boost = 1 + connectionBonus·hubStrength·bustle·catchment`. Both factors 0–1 and monotonic non-decreasing (adding pop/roads/houses never lowers output). Unflagged buildings return factor 1. | `app/game/traffic.ts` → `trafficFactor()` |
+| **Traffic factor** | For `footTraffic`-flagged buildings only, the plaza bonus additionally scales by real traffic: `boost = 1 + connectionBonus·hubStrength·bustle·catchment`. Both factors 0–1 and monotonic non-decreasing (adding pop/roads/houses never lowers output). Unflagged buildings return factor 1. | `app/game/city/traffic.ts` → `trafficFactor()` |
 | **Bustle** (citywide) | `min(1, crowdCurve(pop)/BUSTLE_FULL)`, `BUSTLE_FULL = 60` — the visible crowd's own curve. | `traffic.ts` → `bustle()` |
 | **Catchment** (per stall) | FIFO BFS over network cells up to `CATCHMENT_REACH = 15`; sums housing of adjacent houses, normalized `min(1, cap/CATCHMENT_FULL)`, `CATCHMENT_FULL = 24`. Spatial only. Memoized by tiles identity. | `traffic.ts` → `computeCatchment()` |
 
@@ -59,14 +59,14 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Crowd curve** | Exact 1:1 with population up to 20; beyond, `20 + round(6·√(pop−20))`. This number feeds bustle. Figure count also clamps to a cap (240) and one figure per 2 walkable cells. | `app/game/crowd.ts` → `crowdCurve()`, `crowdSize()` |
+| **Crowd curve** | Exact 1:1 with population up to 20; beyond, `20 + round(6·√(pop−20))`. This number feeds bustle. Figure count also clamps to a cap (240) and one figure per 2 walkable cells. | `app/game/city/crowd.ts` → `crowdCurve()`, `crowdSize()` |
 
 ## 7. Population & city metrics
 
 | Mechanic | What it does | Code |
 |---|---|---|
 | **Housing / amenity caps + drift** | `populationCap = min(housing, amenities)`; population moves toward the cap by `POPULATION_DRIFT_PER_MONTH = 1`/month. | `tick.ts` |
-| **City metrics** | `housing = Σ round(meta.housing·boost)`; `amenities = BASE_POPULATION_CAP(15) + Σ round(meta.amenities·boost)` over active tiles, `boost = plazaBoost·displayBoost`. | `app/game/metrics.ts` → `computeCityMetrics()`; store `getHousing()` |
+| **City metrics** | `housing = Σ round(meta.housing·boost)`; `amenities = BASE_POPULATION_CAP(15) + Σ round(meta.amenities·boost)` over active tiles, `boost = plazaBoost·displayBoost`. | `app/game/city/metrics.ts` → `computeCityMetrics()`; store `getHousing()` |
 
 ## 8. Economy — income, rent, cost curves
 
@@ -76,7 +76,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Income diminishing returns** | Duplicate *non-housing* florin generators of the same id decay geometrically, oldest-first: the Nth yields `INCOME_DIMINISHING_RETURNS(0.85)^N`. Housing excluded (occupancy handles it). | `tick.ts` |
 | **Generation** | Per active origin: `efficiency = staffingEfficiency·plazaBoost·displayBoost`; `florinDelta += income·efficiency·incomeScale`; `inspirationDelta += inspiration·efficiency`. | `tick.ts` |
 | **Cost escalation** | Duplicate workshops/suppliers/services (`type` ∈ artist/materials/service) cost `round(baseCost·COST_ESCALATION(1.15)^rank)`, rank = build order among standing siblings. Landmarks/housing/roads/decorations stay flat. Priced live off the tile map, no persisted counter. | `app/game/buildings.ts` → `costEscalates()`, `escalatedCost()`, `buildOrderRank()` |
-| **Raze salvage** | Refund = `floor(escalatedCost(rank)·RAZE_SALVAGE_FRACTION(0.5))` — tracks the escalated price actually paid. | `app/game/raze.ts` → `getRazeSalvage()` |
+| **Raze salvage** | Refund = `floor(escalatedCost(rank)·RAZE_SALVAGE_FRACTION(0.5))` — tracks the escalated price actually paid. | `app/game/placement/raze.ts` → `getRazeSalvage()` |
 | **Starting economy** | `STARTING_FLORINS = 3000`; inspiration/prestige/population start at 0. | `constants.ts`; `useGameStore.ts` |
 | **Consecration lump** | Cathedral pays a one-time `prestigeOnBuild = 25` on placement. | `useGameStore.ts` → `placeTiles()` |
 
@@ -84,7 +84,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Passive arrival** | Each month, if inspiration > 0 and an active workshop has a free slot past its cooldown, chance `ARTIST_ARRIVAL_CHANCE = 0.1` an apprentice arrives (cooldown `ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2`). | `app/game/artists.ts` → `maybeArriveArtist()` |
+| **Passive arrival** | Each month, if inspiration > 0 and an active workshop has a free slot past its cooldown, chance `ARTIST_ARRIVAL_CHANCE = 0.1` an apprentice arrives (cooldown `ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2`). | `app/game/art/artists.ts` → `maybeArriveArtist()` |
 | **Continuous XP / teaching** | Every artist in an active workshop gains `practicePerMonth(2)·(taught ? teachingMultiplier(3) : 1)` XP/month; "taught" = ranked below a workshop-mate. Completing a work = `perCompletedWork(100)` for every member. | `artists.ts` → `progressArtworks()` XP block; `XP_RATES` in `constants.ts` |
 | **The city teaches architects** | Fourth XP source (architects slice 1): every placement grants architects in an active studio `perFlorinBuilt (0.05) × florins actually spent` (cathedral = 75 XP; fences floor to 0; funded 0ƒ builds teach 0). Computed against pre-placement state, so a studio never trains on its own construction. | `artists.ts` → `trainOnConstruction()`; called from `placeTiles()` |
 | **Rank thresholds** | Seven ranks by cumulative XP (never demotes): journeyman 400 / artisan 900 / virtuoso 1500 / master 2200 / renowned_master 3000 / grand_master 4000. One work = 100 XP. | `constants.ts` `RANK_XP`; `artists.ts` `nextRankXp()`, `RANK_ORDER` |
@@ -96,7 +96,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Offer generation** | Each month, if open offers < `MAX_OPEN_OFFERS = 3`, chance `COMMISSION_OFFER_CHANCE = 0.08` one arrives (rare-but-rich pacing — ~one a year, announced by a persistent arrival card). Requester drawn from the admitted patron pool (empty pool → no offers). Type drawn from artist types present (every offer actionable). Sculptor offers roll bronze at `BRONZE_COMMISSION_CHANCE = 1/3`. Best rank of that type scales duration/reward; the requester's favor rung multiplies duration/florins/prestige (see §10a). Expiry `OFFER_EXPIRY_MONTHS = 12`. | `app/game/commissions.ts` → `maybeOfferCommission()` |
+| **Offer generation** | Each month, if open offers < `MAX_OPEN_OFFERS = 3`, chance `COMMISSION_OFFER_CHANCE = 0.08` one arrives (rare-but-rich pacing — ~one a year, announced by a persistent arrival card). Requester drawn from the admitted patron pool (empty pool → no offers). Type drawn from artist types present (every offer actionable). Sculptor offers roll bronze at `BRONZE_COMMISSION_CHANCE = 1/3`. Best rank of that type scales duration/reward; the requester's favor rung multiplies duration/florins/prestige (see §10a). Expiry `OFFER_EXPIRY_MONTHS = 12`. | `app/game/art/commissions.ts` → `maybeOfferCommission()` |
 | **Reward calc** | `basePrestige = ARTWORK_PRESTIGE[bestRank] · COMMISSION_PRESTIGE_SCALE(1.5)`; florins compressed against rank (`FLORIN_RANK_COMPRESSION = 0.25`, `FLORINS_PER_PRESTIGE = 40`). Requester `mix` skews split by `REQUESTER_REWARD_SKEW = 2` (florins-mix doubles florins/halves prestige; prestige-mix the reverse). Favor grandeur multiplies on top. | `commissions.ts` |
 | **Requesters (patron pool)** | The Church (florins mix, devotional `CHURCH_TITLES`) + Medici/Strozzi/Pazzi (prestige mix). Guilds removed. Pool gated by admission: Chapel or Cathedral seats the Church; each Palazzo installs the next house in table order. | `commissions.ts` → `REQUESTERS`, `requesterPool()` |
 | **Decline** | An open offer can be declined from the panel: dropped immediately, −5 favor with the requester (same denunciation-crossing check as expiry). | store `declineCommission()` |
@@ -118,7 +118,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Display slots** | Buildings/plazas carry typed slots (`painting`/`statue` interior, `plinth` exterior with a footprint cell). Painters fill painting; sculptors fill statue+plinth; architects none. | `app/game/display.ts` → `slotAccepts`, `SLOT_KINDS_BY_ARTIST`, `DisplaySlotDef` in `types.ts` |
+| **Display slots** | Buildings/plazas carry typed slots (`painting`/`statue` interior, `plinth` exterior with a footprint cell). Painters fill painting; sculptors fill statue+plinth; architects none. | `app/game/art/display.ts` → `slotAccepts`, `SLOT_KINDS_BY_ARTIST`, `DisplaySlotDef` in `types.ts` |
 | **Host boost** | `displayBoost = 1 + DISPLAY_HOST_BONUS(0.05)·min(count, 5)` → +5%/work, cap +25%. | `display.ts` → `displayBoost()` |
 | **Per-tick trickle** | By quality `q` (captured commission prestige, default 2): church hosts (cathedral/chapel) add `q·0.02` prestige/tick; other hosts add `q·0.25` inspiration/tick. | `display.ts` → `computeDisplaySummary()` |
 | **Placement guard** | Artwork must be unassigned; host must be an origin with a matching free slot accepting the artist type. Shared by store + both assign UIs. | `display.ts` → `canDisplayWork()` |
@@ -128,7 +128,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Four/five derived gates** | Derived live, no tracking: prestige ≥ `RENAISSANCE_PRESTIGE(500)`; a Master-rank+ artist; a displayed Wonder (quality ≥ `WONDER_PRESTIGE(15)`); a completed work for The Church; and ≥ `RENAISSANCE_NOBLE_HOUSES(2)` distinct "House …" requesters with completed works. | `app/game/renaissance.ts` → `renaissanceProgress()` |
+| **Four/five derived gates** | Derived live, no tracking: prestige ≥ `RENAISSANCE_PRESTIGE(500)`; a Master-rank+ artist; a displayed Wonder (quality ≥ `WONDER_PRESTIGE(15)`); a completed work for The Church; and ≥ `RENAISSANCE_NOBLE_HOUSES(2)` distinct "House …" requesters with completed works. | `app/game/art/renaissance.ts` → `renaissanceProgress()` |
 | **Celebration** | One-shot `renaissanceReached` flag → title card once; the checklist rides the prestige chip's hover tooltip all game. Play continues (Golden Age). | store `useGameStore.ts`; `ui/RenaissanceCard.tsx`; `ui/TopBar.tsx` `PrestigeStat` |
 
 ## 13. Buildings — catalog & placement geometry
@@ -145,7 +145,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Per-cell check** | Classifies each footprint cell `blocked/occupied/free`. Occupied blocks unless a decoration overlaps a non-origin cell, or a `placesOnRoads` building overwrites a plain cardinal road cell / plaza rim cell. Empty cells block on water unless the building is a bridge. | `app/game/placementRules.ts` → `checkCell()` |
+| **Per-cell check** | Classifies each footprint cell `blocked/occupied/free`. Occupied blocks unless a decoration overlaps a non-origin cell, or a `placesOnRoads` building overwrites a plain cardinal road cell / plaza rim cell. Empty cells block on water unless the building is a bridge. | `app/game/placement/placementRules.ts` → `checkCell()` |
 | **Plaza-rim guard** | A stall may only overwrite a plaza's outer-ring cells (mask-based) — never origin or interior, so stalls can't erode a plaza inward. | `placementRules.ts` → `isPlazaRimCell()` |
 | **Batch planner** | Authoritative batch validation: bounds, in-batch overlap, water gate, affordability via `Σ escalatedCost(startRank+i)`, material affordability via the batch `materialCost` bill (`PlacementSnapshot` carries `materials` + optional `fundedBuilds`; `commissionOnly` structures need a token). | `placementRules.ts` → `planPlacement()`; per-frame probe `canPlaceAt()` |
 | **Linear/road drag** | Plans a road/linear-decoration drag in one pass; existing compatible cells join free, only new empty cells validated + charged; `totalCost = baseCost·newCells`. | `placementRules.ts` → `planLinearPlacement()` |
@@ -155,15 +155,15 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Mechanic | What it does | Code |
 |---|---|---|
 | **Widths & variants** | Path (1 cell), Road (2), Avenue (3) at 25ƒ/cell; Dirt Path (1, 10ƒ); Stone Bridge (2, 80ƒ, only structure on water). Cost per cell. All carry plaza connectivity identically. | `buildings.ts` road defs |
-| **Diagonal stretch** | Road drags snap to 8 octants (edges at 22.5°). Diagonal runs are a staircase of ordinary road cells with ribbon orientation stored in `rotation` (`ROAD_DIAG_NE = 1`, `ROAD_DIAG_NW = 3`; cardinal = undefined, so old saves untouched). Wider roads stamp offset rows to stay orthogonally contiguous. | `app/game/roadStretch.ts` → `buildRoadStretch()` |
-| **Snap-to-road (Shift)** | Snaps a building flush to the nearest road within `SNAP_RANGE = 6`, auto-facing it; diagonal ribbons rotate the building a true 45°. Purely an assist — no candidate falls through to free placement. | `app/game/roadSnap.ts` → `findRoadSnap()` |
+| **Diagonal stretch** | Road drags snap to 8 octants (edges at 22.5°). Diagonal runs are a staircase of ordinary road cells with ribbon orientation stored in `rotation` (`ROAD_DIAG_NE = 1`, `ROAD_DIAG_NW = 3`; cardinal = undefined, so old saves untouched). Wider roads stamp offset rows to stay orthogonally contiguous. | `app/game/placement/roadStretch.ts` → `buildRoadStretch()` |
+| **Snap-to-road (Shift)** | Snaps a building flush to the nearest road within `SNAP_RANGE = 6`, auto-facing it; diagonal ribbons rotate the building a true 45°. Purely an assist — no candidate falls through to free placement. | `app/game/placement/roadSnap.ts` → `findRoadSnap()` |
 | **Junction plates / ribbons** | Diagonal-owned crossings drop an unrotated junction plate; renderer draws diagonal cells as √2-stretched decals. | `app/game/render/roadRenderer.ts` |
 
 ## 16. Water & map archetypes (seed-rolled)
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Archetype roll** | From a `water:${seed}` RNG: dry 15% / inland 30% / coastal 30% / scenic-river 15% / scenic-coast 10%. Scenic water stays ≥1.5wu clear of the buildable grid (plays like dry). | `app/game/water.ts` → `generateWater()` |
+| **Archetype roll** | From a `water:${seed}` RNG: dry 15% / inland 30% / coastal 30% / scenic-river 15% / scenic-coast 10%. Scenic water stays ≥1.5wu clear of the buildable grid (plays like dry). | `app/game/map/water.ts` → `generateWater()` |
 | **River meander** | Centerline = two sine octaves with seeded amplitude/frequency jitter; width oscillates, floored at `MIN_RIVER_WIDTH = 1.2`; clamped `EDGE_MARGIN = 5` from edges. Slopes capped so raster rows overlap (no severed cells). | `water.ts` → `riverCenterAt`, `riverWidthAt`, `riverDistance` |
 | **Sea / estuary** | Coastal archetypes inset a wiggling coastline from a grid edge; estuary widens the river ~2× toward the mouth via smoothstep. | `water.ts` → `seaDistance`, `coastEdge` |
 | **Cell gating** | Water cells block building (mirrored in placement previews); the single sim gate is in `placeTiles`. Bridge is the one exception. Memoized on `mapSeed`. | `water.ts` → `getWaterCells()`; `placementRules.ts` |
@@ -172,7 +172,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Run seed** | Short 6-char lowercase alphanumeric, shareable, shown in Settings. | `app/game/seed.ts` → `generateSeed()` |
+| **Run seed** | Short 6-char lowercase alphanumeric, shareable, shown in Settings. | `app/game/map/seed.ts` → `generateSeed()` |
 | **Deterministic city name** | Picks from a fixed 16-name pool via `seededRng`. | `seed.ts` → `pickCityName()` |
 | **Archetype-targeted seed** | Map-archetype picker rejection-samples fresh seeds until the archetype rolls (seed stays the sole map truth). | `seed.ts` → `seedForArchetype()` |
 | **Seeded terrain** | `createTerrain(mapSeed)` derives namespaced streams (`hills:`, `scatter:`, `fields:`); null seed → legacy fixed constants. | `app/game/render/terrain.ts` |
@@ -220,9 +220,9 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Era pick** | Track era chosen from prestige at play time (`ERA_PRESTIGE` 0/200/450), falling back to the nearest lower era with tracks; avoids repeating the last track. Cosmetic `Math.random`, not the sim rng. | `app/game/music.ts` → `pickTrack()` |
+| **Era pick** | Track era chosen from prestige at play time (`ERA_PRESTIGE` 0/200/450), falling back to the nearest lower era with tracks; avoids repeating the last track. Cosmetic `Math.random`, not the sim rng. | `app/game/audio/music.ts` → `pickTrack()` |
 | **Sporadic playback** | One module-singleton `HTMLAudioElement` + one re-armed timer: first track right on city load (`startMusic()` in the menu click's gesture stack; blocked play — e.g. `?demo` — retries on next pointerdown), then 90–240 s silence between tracks. Plays through sim pause, stops on Main Menu. | `app/game/ui/useMusic.ts` |
-| **Interaction SFX** | 15 one-shot Kenney CC0 clips (AAC in `public/sfx/`): sim-event sounds hook store actions + the tick's diff signals (offer coin-purse, denounce bell, payout coins, assign/decline, display clink, pause/speed, palette select); interactive-only sounds (place/raze thunks, deny, rotate) hook the input sites in `render/placement.ts` so demo-boot placements stay silent; panel open/close on `HudPanel`/Gallery; Renaissance fanfare on card appear. Cloned elements per play, rejected autoplay dropped. | `app/game/sfx.ts` → `playSfx()`; `useGameStore.ts`; `render/placement.ts` |
+| **Interaction SFX** | 15 one-shot Kenney CC0 clips (AAC in `public/sfx/`): sim-event sounds hook store actions + the tick's diff signals (offer coin-purse, denounce bell, payout coins, assign/decline, display clink, pause/speed, palette select); interactive-only sounds (place/raze thunks, deny, rotate) hook the input sites in `render/placement.ts` so demo-boot placements stay silent; panel open/close on `HudPanel`/Gallery; Renaissance fanfare on card appear. Cloned elements per play, rejected autoplay dropped. | `app/game/audio/sfx.ts` → `playSfx()`; `useGameStore.ts`; `render/placement.ts` |
 | **Volume** | Persisted `musicVolume` (0–1, default 0.4) and `sfxVolume` (default 0.5); paired Settings sliders, 0 = mute. | `useGameStore.ts`; `ui/TopBar.tsx` |
 
 ---

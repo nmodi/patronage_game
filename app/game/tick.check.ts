@@ -2,8 +2,8 @@ import assert from "node:assert";
 
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
-import { XP_RATES } from "./artists.ts";
-import { materialCaps } from "./materials.ts";
+import { XP_RATES } from "./art/artists.ts";
+import { materialCaps } from "./art/materials.ts";
 import { advanceTick, type TickSnapshot } from "./tick.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
 

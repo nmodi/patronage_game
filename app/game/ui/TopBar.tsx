@@ -2,16 +2,16 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Music, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, SkipForward, Store, Users, Volume2 } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
-import { getWater, type WaterArchetype } from "~/game/water";
+import { getWater, type WaterArchetype } from "~/game/map/water";
 import {
   BASE_TICK_INTERVAL,
   GAME_SPEED_MULTIPLIERS,
   RENAISSANCE_NOBLE_HOUSES,
   RENAISSANCE_PRESTIGE,
 } from "~/game/constants";
-import { computeDisplaySummary } from "~/game/display";
-import { computeCityMetrics } from "~/game/metrics";
-import { renaissanceProgress } from "~/game/renaissance";
+import { computeDisplaySummary } from "~/game/art/display";
+import { computeCityMetrics } from "~/game/city/metrics";
+import { renaissanceProgress } from "~/game/art/renaissance";
 import type { Artwork } from "~/game/types";
 
 // Also the main menu's map-picker options (MainMenu.tsx).

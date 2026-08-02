@@ -2,8 +2,8 @@ import { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Crown } from "lucide-react";
 
-import { renaissanceProgress } from "~/game/renaissance";
-import { playSfx } from "~/game/sfx";
+import { renaissanceProgress } from "~/game/art/renaissance";
+import { playSfx } from "~/game/audio/sfx";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 
