@@ -1,10 +1,7 @@
-import { Clock, Coins, Crown } from "lucide-react";
-
 import { useGameStore } from "~/stores/useGameStore";
 import { DENOUNCE_PRESTIGE } from "~/game/constants";
-import { commissionMaterial, commissionMaterialCost } from "~/game/art/materials";
+import { CommissionMeta } from "./CommissionMeta";
 import { Panel } from "./Panel";
-import { capitalizeLabel } from "./format";
 
 /**
  * Persistent, non-blocking arrival card for a fresh commission offer (missing
@@ -21,7 +18,6 @@ export function OfferAlert({ onView }: { onView: () => void }) {
   // A meanwhile-assigned or expired offer renders nothing.
   const offer = commissions.find((c) => c.id === offerAlert && !c.workshopKey);
   if (!offer && !denounceAlert) return null;
-  const offerMaterial = offer ? commissionMaterial(offer) : undefined;
 
   return (
     <div className="pointer-events-none fixed bottom-24 right-3 z-40 flex w-72 flex-col gap-2">
@@ -42,22 +38,7 @@ export function OfferAlert({ onView }: { onView: () => void }) {
       {offer && (
         <Panel header="A commission is offered" className="flex flex-col gap-1.5 text-sm">
           <span className="font-display text-base font-semibold text-ink">{offer.title}</span>
-          <span className="flex flex-wrap items-center gap-1 text-ink-faint">
-            {offer.requester} ·
-            <Coins className="h-4 w-4 text-prestige-gold" /> {offer.florins}ƒ ·
-            <Crown className="h-4 w-4 text-prestige-gold" /> {offer.prestige} ·
-            <Clock className="h-4 w-4" /> {offer.durationMonths} mo
-          </span>
-          <span className="text-sm font-semibold text-sienna">
-            Requires: {capitalizeLabel(offer.artistType)}
-            {offerMaterial && (
-              <span>
-                {" "}
-                · {capitalizeLabel(offerMaterial)}
-                {commissionMaterialCost(offer) > 0 && ` ${commissionMaterialCost(offer)}`}
-              </span>
-            )}
-          </span>
+          <CommissionMeta commission={offer} />
           <div className="flex justify-end gap-2">
             <button
               className="btn-secondary px-2 py-1.5 text-sm"

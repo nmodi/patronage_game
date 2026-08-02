@@ -1,15 +1,13 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
-import { Crown, Images, X } from "lucide-react";
+import { Images, X } from "lucide-react";
 
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
-import { RANK_LABEL } from "~/game/art/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { artworkQuality, canDisplayWork } from "~/game/art/display";
+import { canDisplayWork } from "~/game/art/display";
 import { playSfx } from "~/game/audio/sfx";
 import { Panel } from "./Panel";
-import { ArtworkThumbnail } from "./ArtworkThumbnail";
-import { capitalizeLabel } from "./format";
+import { ArtworkRow } from "./ArtworkThumbnail";
 
 // Circular HUD button (top-left row) + fullscreen codex modal.
 export function GalleryPanel() {
@@ -71,7 +69,6 @@ export function GalleryPanel() {
                 </span>
               ) : (
                 [...artworks].reverse().map((w) => {
-                  const artist = artists.find((a) => a.id === w.artistId);
                   const host = w.displayedAt ? tiles[w.displayedAt.key] : undefined;
                   const slotKind = w.artistType === "painter" ? "painting" : "statue";
                   // Hosts with a free compatible slot; auto-pick the first such slot.
@@ -97,24 +94,11 @@ export function GalleryPanel() {
                       key={w.id}
                       className="flex flex-col gap-1.5 border-b border-wood/40 pb-3 last:border-0 last:pb-0"
                     >
-                      <div className="flex items-center gap-3">
-                        <ArtworkThumbnail title={w.name} variant="gallery" />
-                        <div className="flex min-w-0 flex-1 flex-col leading-tight">
-                          <span className="font-display text-sm font-semibold text-ink">
-                            {w.name}
-                          </span>
-                          <span className="text-xs text-ink-faint">
-                            {artist
-                              ? `${artist.name}, ${RANK_LABEL[artist.rank]} ${capitalizeLabel(w.artistType)}`
-                              : capitalizeLabel(w.artistType)}
-                          </span>
-                          <span className="flex items-center gap-1 text-[10px] text-ink-faint">
-                            <Crown className="h-3 w-3 text-prestige-gold" /> {artworkQuality(w)}
-                            {w.requester ? ` · For ${w.requester}` : ""} · Completed{" "}
-                            {formatMonth(w.completedTick)}
-                          </span>
-                        </div>
-                      </div>
+                      <ArtworkRow
+                        work={w}
+                        artists={artists}
+                        suffix={` · Completed ${formatMonth(w.completedTick)}`}
+                      />
                       {host ? (
                         <div className="flex items-center justify-between gap-2 text-xs">
                           <span className="text-ink-faint">

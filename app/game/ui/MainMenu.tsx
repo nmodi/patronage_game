@@ -1,9 +1,8 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { seedForArchetype } from "~/game/map/seed";
-import type { WaterArchetype } from "~/game/map/water";
+import { ARCHETYPE_LABELS, type WaterArchetype } from "~/game/map/water";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
-import { ARCHETYPE_LABELS } from "./TopBar";
 import { Panel } from "./Panel";
 import { GameTitle, NIGHT_SKY_BG, NightStars } from "./nightSky";
 

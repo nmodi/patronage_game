@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
-import { Crown, Pencil, X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { RANK_LABEL } from "~/game/art/artists";
-import { artworkQuality, canDisplayWork, CHURCH_HOST_IDS } from "~/game/art/display";
+import { canDisplayWork, CHURCH_HOST_IDS } from "~/game/art/display";
 import type { Artwork, DisplaySlotKind } from "~/game/types";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
-import { ArtworkThumbnail } from "./ArtworkThumbnail";
+import { ArtworkRow } from "./ArtworkThumbnail";
 import { Panel } from "./Panel";
-import { capitalizeLabel } from "./format";
 
 const SLOT_LABEL: Record<DisplaySlotKind, string> = {
   painting: "painting",
@@ -51,27 +49,6 @@ export function DisplayPanel() {
     if (w.displayedAt?.key === target.key) bySlot.set(w.displayedAt.slot, w);
   }
 
-  const workRow = (w: Artwork) => {
-    const artist = artists.find((a) => a.id === w.artistId);
-    return (
-      <>
-        <ArtworkThumbnail title={w.name} variant="gallery" />
-        <div className="flex min-w-0 flex-1 flex-col leading-tight">
-          <span className="font-display text-sm font-semibold text-ink">{w.name}</span>
-          <span className="text-xs text-ink-faint">
-            {artist
-              ? `${artist.name}, ${RANK_LABEL[artist.rank]} ${capitalizeLabel(w.artistType)}`
-              : capitalizeLabel(w.artistType)}
-          </span>
-          <span className="flex items-center gap-1 text-[10px] text-ink-faint">
-            <Crown className="h-3 w-3 text-prestige-gold" /> {artworkQuality(w)}
-            {w.requester ? ` · For ${w.requester}` : ""}
-          </span>
-        </div>
-      </>
-    );
-  };
-
   // A direct click on a filled plinth cell opens that work's detail view.
   const detailWork = target.slot != null ? bySlot.get(target.slot) : undefined;
   const outputBonus = Math.min(bySlot.size * 5, 25);
@@ -94,7 +71,7 @@ export function DisplayPanel() {
       <Panel header={header} className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
         {detailWork ? (
           <>
-            <div className="flex items-start gap-3">{workRow(detailWork)}</div>
+            <ArtworkRow work={detailWork} artists={artists} />
             <span className="text-[10px] text-ink-faint">
               Completed {formatMonth(detailWork.completedTick)}
             </span>
@@ -137,7 +114,7 @@ export function DisplayPanel() {
               >
                 {filled ? (
                   <>
-                    <div className="flex items-start gap-3">{workRow(filled)}</div>
+                    <ArtworkRow work={filled} artists={artists} />
                     <button
                       className="btn-secondary px-2 py-1 text-sm"
                       onClick={() => recallArtwork(filled.id)}

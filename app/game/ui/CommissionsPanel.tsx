@@ -1,4 +1,4 @@
-import { Clock, Coins, Crown, Scroll } from "lucide-react";
+import { Clock, Scroll } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
@@ -7,7 +7,8 @@ import { canAssignCommission, requesterPool } from "~/game/art/commissions";
 import { HudPanel } from "./Panel";
 import type { Commission } from "~/game/types";
 import { ArtworkThumbnail } from "./ArtworkThumbnail";
-import { capitalizeLabel, ordinal } from "./format";
+import { CommissionMeta } from "./CommissionMeta";
+import { ordinal } from "./format";
 
 export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const commissions = useGameStore((s) => s.commissions);
@@ -111,25 +112,16 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
               <ArtworkThumbnail title={c.title} variant="offer" />
               <div className="flex min-w-0 flex-1 flex-col gap-1 leading-tight">
                 <span className="font-display text-base font-semibold text-ink">{c.title}</span>
-                <span className="flex flex-wrap items-center gap-1 text-sm text-ink-faint">
-                  {c.requester}
-                  {nthWork(c.requester)} ·
-                  <Coins className="h-4 w-4 text-prestige-gold" /> {c.florins}ƒ ·
-                  <Crown className="h-4 w-4 text-prestige-gold" /> {c.prestige} ·
-                  <Clock className="h-4 w-4" /> {c.durationMonths} mo
-                </span>
-                <span className="text-sm font-semibold text-sienna">
-                  Requires: {capitalizeLabel(c.artistType)}
-                  {material && (
-                    <span>
-                      {" "}
-                      · {capitalizeLabel(material)}
-                      {cost > 0 && ` ${cost}`}
-                    </span>
-                  )}
-                  {blueprint && <span> · Funds a {blueprint.name}</span>}
-                  {monthsLeft < 4 && <span> · expires in {monthsLeft} mo</span>}
-                </span>
+                <CommissionMeta
+                  commission={c}
+                  nth={nthWork(c.requester)}
+                  requiresExtra={
+                    <>
+                      {blueprint && <span> · Funds a {blueprint.name}</span>}
+                      {monthsLeft < 4 && <span> · expires in {monthsLeft} mo</span>}
+                    </>
+                  }
+                />
                 {blueprint && (
                   <span className="text-sm text-ink-faint">
                     A blueprint — {c.requester} pays for construction

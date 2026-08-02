@@ -1,73 +1,27 @@
-import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Music, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, SkipForward, Store, Users, Volume2 } from "lucide-react";
+import { useState } from "react";
+import { Coins, Feather, Pause, Pencil, Play, Settings } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
-import { getWater, type WaterArchetype } from "~/game/map/water";
-import {
-  BASE_TICK_INTERVAL,
-  GAME_SPEED_MULTIPLIERS,
-  RENAISSANCE_NOBLE_HOUSES,
-  RENAISSANCE_PRESTIGE,
-} from "~/game/constants";
-import { computeDisplaySummary } from "~/game/art/display";
-import { computeCityMetrics } from "~/game/city/metrics";
-import { renaissanceProgress } from "~/game/art/renaissance";
-import type { Artwork } from "~/game/types";
-
-// Also the main menu's map-picker options (MainMenu.tsx).
-export const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
-  dry: "Dry plain",
-  inland: "Inland river",
-  coastal: "Coastal",
-  "scenic-river": "Distant river",
-  "scenic-coast": "Distant coast",
-};
+import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";
 import { Panel } from "./Panel";
-import { skipTrack } from "./useMusic";
 import { ResourceStat } from "./ResourceStat";
+import { SettingsMenu } from "./SettingsMenu";
+import { PopulationStat, PrestigeStat } from "./TopBarStats";
 
 export function TopBar() {
   const florins = useGameStore((s) => s.florins);
   const inspiration = useGameStore((s) => s.inspiration);
-  const prestige = useGameStore((s) => s.prestige);
   const addFlorins = useGameStore((s) => s.addFlorins);
   const calendarLabel = useGameStore((s) => s.getCalendarLabel());
   const paused = useGameStore((s) => s.paused);
   const togglePause = useGameStore((s) => s.togglePause);
   const tickInterval = useGameStore((s) => s.tickInterval);
   const setTickInterval = useGameStore((s) => s.setTickInterval);
-  const population = useGameStore((s) => s.population);
-  const tiles = useGameStore((s) => s.map.tiles);
-  const artworks = useGameStore((s) => s.artworks);
-  const { housing, amenities } = useMemo(
-    () =>
-      computeCityMetrics(tiles, undefined, computeDisplaySummary(tiles, artworks).counts, population),
-    [tiles, artworks, population]
-  );
-  const resetGame = useGameStore((s) => s.resetGame);
   const cityName = useGameStore((s) => s.cityName);
   const setCityName = useGameStore((s) => s.setCityName);
-  const seed = useGameStore((s) => s.seed);
-  const mapSeed = useGameStore((s) => s.mapSeed);
-  const musicVolume = useGameStore((s) => s.musicVolume);
-  const setMusicVolume = useGameStore((s) => s.setMusicVolume);
-  const sfxVolume = useGameStore((s) => s.sfxVolume);
-  const setSfxVolume = useGameStore((s) => s.setSfxVolume);
-  const nowPlaying = useGameStore((s) => s.nowPlaying);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [creditsOpen, setCreditsOpen] = useState(false);
-  const [confirmRestart, setConfirmRestart] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
-  const [seedCopied, setSeedCopied] = useState(false);
-
-  const copySeed = () => {
-    // ponytail: seeds are stored lowercase; shown/copied uppercase for readability.
-    // Harmless now (no seed-input UI) — a future "load seed" must lowercase on input.
-    navigator.clipboard?.writeText(seed.toUpperCase());
-    setSeedCopied(true);
-    setTimeout(() => setSeedCopied(false), 1200);
-  };
 
   const commitName = () => {
     const name = nameDraft.trim();
@@ -143,8 +97,8 @@ export function TopBar() {
           <div className="flex items-center gap-6 border-l border-wood/50 pl-4">
             <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} iconClassName="text-prestige-gold" />
             <ResourceStat icon={Feather} label="Inspiration" value={inspiration} iconClassName="text-sienna" />
-            <PrestigeStat prestige={prestige} artworks={artworks} />
-            <PopulationStat population={population} housing={housing} amenities={amenities} />
+            <PrestigeStat />
+            <PopulationStat />
           </div>
         </div>
 
@@ -159,316 +113,14 @@ export function TopBar() {
           )}
           <button
             className="rounded-full bg-parchment-deep p-2 text-ink transition hover:bg-wood/40"
-            onClick={() => {
-              setSettingsOpen((open) => !open);
-              setCreditsOpen(false);
-              setConfirmRestart(false);
-            }}
+            onClick={() => setSettingsOpen((open) => !open)}
             aria-label="Settings"
           >
             <Settings className="h-4 w-4" />
           </button>
         </div>
       </Panel>
-      {settingsOpen && creditsOpen && (
-        <div className="absolute right-4 top-full mt-2">
-          <Panel
-            header={
-              <div className="flex items-center gap-2">
-                <button
-                  className="rounded-full p-1 text-ink-faint transition hover:bg-parchment-deep hover:text-ink"
-                  onClick={() => setCreditsOpen(false)}
-                  aria-label="Back to settings"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </button>
-                Credits
-              </div>
-            }
-            className="flex w-72 flex-col gap-2.5 text-sm"
-          >
-            <CreditRow
-              what="3D models"
-              who="Kenney — Fantasy Town Kit & Nature Kit"
-              license="CC0"
-              href="https://kenney.nl"
-            />
-            <CreditRow
-              what="Sound effects"
-              who="Kenney — Impact, RPG Audio & Jingles packs"
-              license="CC0"
-              href="https://kenney.nl"
-            />
-            {/* Full attributions with license terms live in CREDITS.md. */}
-            <div className="flex flex-col gap-1 leading-snug">
-              <span className="text-[10px] uppercase tracking-wide text-ink-faint">Music</span>
-              <a
-                href="https://www.jsayles.com/familypages/EarlyMusic.htm"
-                target="_blank"
-                rel="noreferrer"
-                className="text-ink transition hover:text-sienna"
-              >
-                Early music recordings{" "}
-                <span className="text-xs text-ink-faint">perf. Jon Sayles</span>
-              </a>
-              <a
-                href="https://incompetech.com"
-                target="_blank"
-                rel="noreferrer"
-                className="text-ink transition hover:text-sienna"
-              >
-                Suonatore di Liuto — Kevin MacLeod{" "}
-                <span className="text-xs text-ink-faint">(CC BY 4.0)</span>
-              </a>
-            </div>
-          </Panel>
-        </div>
-      )}
-      {settingsOpen && !creditsOpen && (
-        <div className="absolute right-4 top-full mt-2">
-          <Panel header="Settings" className="flex w-60 flex-col gap-2 text-sm">
-            <button
-              className="btn-secondary flex items-center gap-2 px-3 py-2"
-              // ponytail: full reload = the one clean path back to the menu — drops
-              // transient UI state and exits ?demo mode uniformly; the save is
-              // already persisted (every set writes through).
-              onClick={() => window.location.assign("/")}
-            >
-              <Home className="h-4 w-4" />
-              Main Menu
-            </button>
-            {/* Two-click confirm in place — no native dialog breaking the parchment world. */}
-            <button
-              className="btn-secondary flex items-center gap-2 px-3 py-2"
-              onClick={() => {
-                if (!confirmRestart) {
-                  setConfirmRestart(true);
-                  return;
-                }
-                resetGame();
-                setConfirmRestart(false);
-                setSettingsOpen(false);
-              }}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {confirmRestart ? "Erase all progress?" : "Restart Game"}
-            </button>
-            {/* Now-playing + skip: for auditioning which tracks fit the game. */}
-            {nowPlaying && (
-              <div className="flex items-center gap-1.5 px-1 text-base leading-snug text-ink-faint">
-                {/* Title only — composer/performer live in TRACKS for the credits pass. */}
-                <span className="min-w-0 flex-1">{nowPlaying.split(" — ")[0]}</span>
-                <button
-                  className="shrink-0 rounded-full p-1 transition hover:bg-parchment-deep hover:text-ink"
-                  onClick={skipTrack}
-                  aria-label="Skip track"
-                >
-                  <SkipForward className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )}
-            {/* Slider doubles as mute: 0 = off. */}
-            <label className="flex items-center gap-2 px-1 text-ink-faint">
-              <Music className="h-4 w-4 shrink-0" />
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={musicVolume}
-                onChange={(e) => setMusicVolume(Number(e.target.value))}
-                className="w-full accent-sienna"
-                aria-label="Music volume"
-              />
-            </label>
-            <label className="flex items-center gap-2 px-1 text-ink-faint">
-              <Volume2 className="h-4 w-4 shrink-0" />
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={sfxVolume}
-                onChange={(e) => setSfxVolume(Number(e.target.value))}
-                className="w-full accent-sienna"
-                aria-label="Sound effects volume"
-              />
-            </label>
-            <button
-              className="btn-secondary flex items-center gap-2 px-3 py-2"
-              onClick={() => setCreditsOpen(true)}
-            >
-              <ScrollText className="h-4 w-4" />
-              Credits
-            </button>
-            <button
-              className="flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-ink-faint transition hover:text-ink"
-              onClick={copySeed}
-              title="Copy seed"
-            >
-              Seed: {seed.toUpperCase()}
-              {seedCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
-            </button>
-            {mapSeed != null && (
-              <span className="text-center text-xs text-ink-faint">
-                Map: {ARCHETYPE_LABELS[getWater(mapSeed)!.archetype]}
-              </span>
-            )}
-            <span className="text-center text-xs text-ink-faint">v0.1</span>
-          </Panel>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PopulationStat({
-  population,
-  housing,
-  amenities,
-}: {
-  population: number;
-  housing: number;
-  amenities: number;
-}) {
-  // The lower of the two caps is what growth is heading toward.
-  const limiter =
-    housing === amenities ? null : amenities < housing ? "amenities" : "housing";
-
-  return (
-    <div className="group relative flex items-center gap-2.5">
-      <Users className="h-6 w-6 text-sienna" strokeWidth={2} />
-      <div className="flex flex-col leading-tight">
-        <span className="text-xl font-semibold text-ink">{population}</span>
-        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-faint">
-          Population
-          <Info className="h-3 w-3" />
-        </span>
-      </div>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
-        <Panel className="w-56 text-sm">
-          <div className="flex flex-col gap-1.5 normal-case">
-            <Row label="Housing capacity" value={housing} />
-            <Row label="Amenity capacity" value={amenities} />
-          </div>
-          {limiter && (
-            <div className="mt-2.5 flex items-center gap-2 border-t border-wood/50 pt-2.5 text-xs italic text-ink-faint">
-              {limiter === "amenities" ? (
-                <Store className="h-4 w-4 shrink-0 text-sienna" />
-              ) : (
-                <Home className="h-4 w-4 shrink-0 text-sienna" />
-              )}
-              {limiter === "amenities" ? "Amenities are" : "Housing is"} limiting growth.
-            </div>
-          )}
-        </Panel>
-      </div>
-    </div>
-  );
-}
-
-// Prestige chip + the Renaissance milestone checklist on hover (Phase 12) —
-// the multi-gate goal stays visible instead of being a hidden wall.
-function PrestigeStat({ prestige, artworks }: { prestige: number; artworks: Artwork[] }) {
-  const artists = useGameStore((s) => s.artists);
-  const reached = useGameStore((s) => s.renaissanceReached);
-  const progress = useMemo(
-    () => renaissanceProgress(prestige, artists, artworks),
-    [prestige, artists, artworks]
-  );
-
-  return (
-    <div className="group relative flex items-center gap-2.5">
-      <Crown className="h-6 w-6 text-prestige-gold" strokeWidth={2} />
-      <div className="flex flex-col leading-tight">
-        <span className="text-xl font-semibold text-ink">{Math.floor(prestige)}</span>
-        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-faint">
-          Prestige
-          <Info className="h-3 w-3" />
-        </span>
-      </div>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
-        <Panel className="w-64 text-sm">
-          <div className="font-display font-semibold text-ink">
-            {reached ? "The Golden Age" : "The Renaissance"}
-          </div>
-          <div className="mt-1.5 flex flex-col gap-1.5 normal-case">
-            <CheckRow
-              label="Prestige"
-              met={progress.prestige}
-              detail={`${Math.floor(prestige)} / ${RENAISSANCE_PRESTIGE}`}
-            />
-            <CheckRow label="A Master among your artists" met={progress.master} />
-            <CheckRow
-              label="A Wonder on display"
-              met={progress.wonder != null}
-              detail={progress.wonder ? `“${progress.wonder.name}”` : undefined}
-            />
-            <CheckRow label="A work for the Church" met={progress.church} />
-            <CheckRow
-              label="Works for noble houses"
-              met={progress.nobleHouses >= RENAISSANCE_NOBLE_HOUSES}
-              detail={`${Math.min(progress.nobleHouses, RENAISSANCE_NOBLE_HOUSES)} / ${RENAISSANCE_NOBLE_HOUSES}`}
-            />
-          </div>
-          {reached && (
-            <div className="mt-2.5 border-t border-wood/50 pt-2.5 text-xs italic text-ink-faint">
-              The city lives its Golden Age.
-            </div>
-          )}
-        </Panel>
-      </div>
-    </div>
-  );
-}
-
-function CheckRow({ label, met, detail }: { label: string; met: boolean; detail?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className="shrink-0 text-ink-faint">{label}</span>
-      <span
-        className={`flex min-w-0 items-baseline gap-1 font-semibold ${met ? "text-ink" : "text-ink-faint"}`}
-      >
-        {detail && <span className="truncate">{detail}</span>}
-        {met && <Check className="h-3.5 w-3.5 shrink-0 self-center text-sienna" />}
-      </span>
-    </div>
-  );
-}
-
-// All assets are CC0/open — shared as courtesy now, and the list is ready
-// the day something non-CC0 lands.
-function CreditRow({
-  what,
-  who,
-  license,
-  href,
-}: {
-  what: string;
-  who: string;
-  license: string;
-  href: string;
-}) {
-  return (
-    <div className="flex flex-col leading-snug">
-      <span className="text-[10px] uppercase tracking-wide text-ink-faint">{what}</span>
-      <a
-        href={href}
-        target="_blank"
-        rel="noreferrer"
-        className="text-ink transition hover:text-sienna"
-      >
-        {who} <span className="text-xs text-ink-faint">({license})</span>
-      </a>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className="text-ink-faint">{label}</span>
-      <span className="font-semibold text-ink">{value}</span>
+      {settingsOpen && <SettingsMenu onClose={() => setSettingsOpen(false)} />}
     </div>
   );
 }

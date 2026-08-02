@@ -37,6 +37,15 @@ const MIN_RIVER_WIDTH = 1.2;
 export type WaterArchetype = "dry" | "inland" | "coastal" | "scenic-river" | "scenic-coast";
 export type CoastEdge = "north" | "south" | "east" | "west";
 
+// Player-facing names — the main menu's map picker and the settings readout.
+export const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
+  dry: "Dry plain",
+  inland: "Inland river",
+  coastal: "Coastal",
+  "scenic-river": "Distant river",
+  "scenic-coast": "Distant coast",
+};
+
 export interface WaterBody {
   archetype: WaterArchetype;
   /** Every "x,y" grid cell covered by water (river ∪ sea strip). Always empty
