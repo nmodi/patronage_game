@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
-import { Pencil, X } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { canDisplayWork, CHURCH_HOST_IDS } from "~/game/art/display";
-import type { Artwork, DisplaySlotKind } from "~/game/types";
+import type { Artwork } from "~/game/types";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { ArtworkRow } from "./ArtworkThumbnail";
-import { Panel } from "./Panel";
-
-const SLOT_LABEL: Record<DisplaySlotKind, string> = {
-  painting: "painting",
-  statue: "statue",
-  plinth: "statue",
-};
+import { SLOT_LABEL } from "./labels";
+import { CloseButton, Panel } from "./Panel";
 
 /**
  * Work-display panel for a building clicked in the 3D city (driven by the
@@ -56,13 +51,7 @@ export function DisplayPanel() {
   const header = (
     <div className="flex items-center justify-between">
       <span>{manage || detailWork ? `${metadata.name} — Works` : metadata.name}</span>
-      <button
-        className="rounded-full p-1 text-ink-faint transition hover:bg-parchment-deep"
-        onClick={() => setInspectTarget(null)}
-        aria-label="Close"
-      >
-        <X className="h-4 w-4" />
-      </button>
+      <CloseButton label="Close" onClick={() => setInspectTarget(null)} />
     </div>
   );
 

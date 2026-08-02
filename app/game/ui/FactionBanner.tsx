@@ -4,16 +4,8 @@ import { Church, Shield } from "lucide-react";
 import { useGameStore } from "~/stores/useGameStore";
 import { CHURCH, favorOf, favorRung, favorTier, requesterPool } from "~/game/art/commissions";
 import { FAVOR_COOLED, FAVOR_RUNGS } from "~/game/constants";
-import { Panel } from "./Panel";
-
-const RUNG_LABELS = ["Neutral", "Favored", "Esteemed", "Exalted"];
-
-const BANNER_COLORS: Record<string, string> = {
-  [CHURCH]: "var(--color-verde)",
-  "House Medici": "var(--color-sienna)",
-  "House Strozzi": "var(--color-prestige-gold)",
-  "House Pazzi": "var(--color-crest-blue)",
-};
+import { BANNER_COLORS, RUNG_LABELS } from "./labels";
+import { Panel, Row } from "./Panel";
 
 /**
  * One hanging pennant per admitted patron (Civ-style diplomacy banners); click
@@ -93,14 +85,8 @@ function FactionCard({ name, value }: { name: string; value: number }) {
 
   return (
     <Panel header={name} className="flex w-60 flex-col gap-1.5 text-sm">
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="text-ink-faint">Favor</span>
-        <span className="font-semibold text-ink">{value}%</span>
-      </div>
-      <div className="flex items-baseline justify-between gap-4">
-        <span className="text-ink-faint">Standing</span>
-        <span className="font-semibold text-ink">{standing}</span>
-      </div>
+      <Row label="Favor" value={`${value}%`} />
+      <Row label="Standing" value={standing} />
       {tier === "neutral" && nextRung != null && (
         <span className="text-xs italic text-ink-faint">
           Grander commissions at {nextRung}% favor.

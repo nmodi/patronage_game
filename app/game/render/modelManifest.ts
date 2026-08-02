@@ -1,4 +1,5 @@
 import type { BuildingId } from "~/game/buildings";
+import { CELL_SIZE } from "~/game/constants";
 
 import { BIF_OPENING, DOOR_T, ROSE_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
 
@@ -303,14 +304,26 @@ const SHUTTER_BACK = 0.006; // leaf back, just proud of the reveal front
 const SURROUND_OUT = 0.5005 + WIN_T / 2; // jamb back kisses the wall
 const DOOR_OUT = 0.5005 + DOOR_T / 2; // same near-flush stack as the windows
 
+/** Shared face-frame math for every opening helper below: whether the face
+ * runs along local X, the yaw turning an authored-at-+X piece onto it, and
+ * `at(out, y, along)` mapping wall-normal distance + height + along-wall
+ * offset into a local position. */
+function faceFrame(face: LocalSide) {
+  const sign = face === "posX" || face === "posZ" ? 1 : -1;
+  const onX = face === "posX" || face === "negX";
+  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const at = (out: number, y: number, along: number): [number, number, number] =>
+    onX ? [sign * out, y, along] : [along, y, sign * out];
+  return { onX, rotationY, at };
+}
+
 /** One window on a local face, `along` = its offset across that wall. Scale is
  * local and applies before rotationY, so the leaf's own Z (its width) narrows
  * whichever world axis the face turns it onto. `wall` is the face plane's
  * distance from the origin (the houses' 0.5 by default) — the depth stack
  * (reveal/leaf/frame) rides it like archWindow's does. */
 function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[] {
-  const sign = face === "posX" || face === "posZ" ? 1 : -1;
-  const onX = face === "posX" || face === "negX";
+  const { onX, rotationY, at } = faceFrame(face);
   const revealPlane = wall + (REVEAL_PLANE - 0.5);
   const surroundOut = wall + (SURROUND_OUT - 0.5);
   const shutterOut = wall + SHUTTER_BACK + SHUTTER_T / 2;
@@ -318,25 +331,18 @@ function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[]
     file: "proc:block",
     tint: "reveal",
     scale: onX ? [REVEAL_T, WIN_H + 0.02, WIN_W + 0.02] : [WIN_W + 0.02, WIN_H + 0.02, REVEAL_T],
-    position: onX
-      ? [sign * revealPlane, y + 0.29, along]
-      : [along, y + 0.29, sign * revealPlane],
+    position: at(revealPlane, y + 0.29, along),
   };
-  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
   const surround: Part = {
     file: "proc:surround-rect",
-    position: onX
-      ? [sign * surroundOut, y + 0.3 - SILL_H, along]
-      : [along, y + 0.3 - SILL_H, sign * surroundOut],
+    position: at(surroundOut, y + 0.3 - SILL_H, along),
     rotationY,
   };
   // Generated leaf, authored to the opening: base at its bottom edge, so it
   // just lands on the opening bottom plus the clearance gap.
   const leaf: Part = {
     file: "proc:shutter",
-    position: onX
-      ? [sign * shutterOut, y + 0.305, along]
-      : [along, y + 0.305, sign * shutterOut],
+    position: at(shutterOut, y + 0.305, along),
     rotationY,
   };
   return [reveal, surround, leaf];
@@ -355,9 +361,7 @@ function archWindow(
   s = ARCH_WIN_S,
   tint?: string // surround only; reveal/leaf keep theirs
 ): Part[] {
-  const sign = face === "posX" || face === "posZ" ? 1 : -1;
-  const onX = face === "posX" || face === "negX";
-  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const { onX, rotationY, at } = faceFrame(face);
   const out = wall + 0.004 + (WIN_SILL_T / 2) * s; // sill = deepest course; frame back kisses the wall
   const rev = wall - 0.01; // reveal front wall+0.005, just behind the leaf back
 
@@ -369,14 +373,12 @@ function archWindow(
     file: "proc:block",
     tint: "reveal",
     scale: onX ? [REVEAL_T, h, w] : [w, h, REVEAL_T],
-    position: onX ? [sign * rev, yOpen - 0.005, along] : [along, yOpen - 0.005, sign * rev],
+    position: at(rev, yOpen - 0.005, along),
   };
   const surround: Part = {
     file: "proc:surround-arch",
     scale: s,
-    position: onX
-      ? [sign * out, yOpen - SILL_H * s, along]
-      : [along, yOpen - SILL_H * s, sign * out],
+    position: at(out, yOpen - SILL_H * s, along),
     rotationY,
     tint,
   };
@@ -389,9 +391,7 @@ function archWindow(
   const leaf: Part = {
     file: "proc:arch-leaf",
     scale: s,
-    position: onX
-      ? [sign * leafOut, yOpen + 0.005 * s, along]
-      : [along, yOpen + 0.005 * s, sign * leafOut],
+    position: at(leafOut, yOpen + 0.005 * s, along),
     rotationY,
   };
   return [reveal, surround, leaf];
@@ -409,9 +409,7 @@ function biforaWindow(
   s = 1,
   tint?: string // surround only, like archWindow's
 ): Part[] {
-  const sign = face === "posX" || face === "posZ" ? 1 : -1;
-  const onX = face === "posX" || face === "negX";
-  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const { onX, rotationY, at } = faceFrame(face);
   const out = wall + 0.004 + (WIN_SILL_T / 2) * s;
   const rev = wall - 0.01;
   // Reveal to just past the intrados apex (h + w/2); BIF_BORDER is sized so
@@ -422,14 +420,12 @@ function biforaWindow(
     file: "proc:block",
     tint: "reveal",
     scale: onX ? [REVEAL_T, h, w] : [w, h, REVEAL_T],
-    position: onX ? [sign * rev, yOpen - 0.005, along] : [along, yOpen - 0.005, sign * rev],
+    position: at(rev, yOpen - 0.005, along),
   };
   const frame: Part = {
     file: "proc:bifora",
     scale: s,
-    position: onX
-      ? [sign * out, yOpen - SILL_H * s, along]
-      : [along, yOpen - SILL_H * s, sign * out],
+    position: at(out, yOpen - SILL_H * s, along),
     rotationY,
     tint,
   };
@@ -453,22 +449,20 @@ function roseWindow(
   tint?: string, // ring only — the glass keeps its own colours
   sy = 1
 ): Part[] {
-  const sign = face === "posX" || face === "posZ" ? 1 : -1;
-  const onX = face === "posX" || face === "negX";
-  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
+  const { rotationY, at } = faceFrame(face);
   const ringOut = wall + 0.0005 + (ROSE_T / 2) * s; // ring back kisses the wall
   const glassOut = wall + SHUTTER_BACK + (SHUTTER_T / 2) * s;
   const scale: [number, number, number] = [s, s * sy, s];
   const glass: Part = {
     file: "proc:rose-glass",
     scale,
-    position: onX ? [sign * glassOut, yCenter, along] : [along, yCenter, sign * glassOut],
+    position: at(glassOut, yCenter, along),
     rotationY,
   };
   const ring: Part = {
     file: "proc:rose",
     scale,
-    position: onX ? [sign * ringOut, yCenter, along] : [along, yCenter, sign * ringOut],
+    position: at(ringOut, yCenter, along),
     rotationY,
     tint,
   };
@@ -485,16 +479,12 @@ function doorOn(
   wall = 0.5,
   scale: number | [number, number, number] = 1
 ): Part[] {
-  const sign = face === "posX" || face === "posZ" ? 1 : -1;
-  const onX = face === "posX" || face === "negX";
-  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
-  const at = (out: number): [number, number, number] =>
-    onX ? [sign * out, 0, along] : [along, 0, sign * out];
+  const { rotationY, at } = faceFrame(face);
   return [
-    { file: "proc:door-frame", position: at(wall + (DOOR_OUT - 0.5)), rotationY, scale },
+    { file: "proc:door-frame", position: at(wall + (DOOR_OUT - 0.5), 0, along), rotationY, scale },
     // Leaf sunk so its rail fronts stay behind the slimmed frame front; the
     // plank backs bury inside the wall, which never shows.
-    { file: "proc:door-leaf", position: at(wall - 0.002), rotationY, scale },
+    { file: "proc:door-leaf", position: at(wall - 0.002, 0, along), rotationY, scale },
   ];
 }
 
@@ -504,14 +494,10 @@ function doorOn(
  * door (leaf recessed inside the frame), scaled by `s`. `tint` recolors the
  * stone surround only; the bronze doors keep their color. */
 function portalOn(face: LocalSide, wall: number, along: number, s = 1, tint?: string): Part[] {
-  const sign = face === "posX" || face === "posZ" ? 1 : -1;
-  const onX = face === "posX" || face === "negX";
-  const rotationY = { posX: 0, negX: Math.PI, posZ: -Math.PI / 2, negZ: Math.PI / 2 }[face];
-  const at = (out: number): [number, number, number] =>
-    onX ? [sign * out, 0, along] : [along, 0, sign * out];
+  const { rotationY, at } = faceFrame(face);
   return [
-    { file: "proc:portal-frame", position: at(wall + 0.023 * s), scale: s, rotationY, tint },
-    { file: "proc:portal-leaf", position: at(wall + 0.008 * s), scale: s, rotationY },
+    { file: "proc:portal-frame", position: at(wall + 0.023 * s, 0, along), scale: s, rotationY, tint },
+    { file: "proc:portal-leaf", position: at(wall + 0.008 * s, 0, along), scale: s, rotationY },
   ];
 }
 
@@ -1428,6 +1414,26 @@ export function hashPosition(x: number, y: number) {
 /** Local direction the building's entrance faces at rotation 0 (placement arrow). */
 export function getFrontDirection(buildingId: BuildingId): [number, number] | null {
   return MODEL_MANIFEST[buildingId]?.front ?? null;
+}
+
+/** Rotate a local front direction by yaw θ (+X → −Z for positive θ) into a
+ * world [dirX, dirZ]. Shared by the ghost's facing arrow and the placed
+ * building's easel row — the two must agree. */
+export function frontVector(front: [number, number], theta: number): [number, number] {
+  return [
+    front[0] * Math.cos(theta) + front[1] * Math.sin(theta),
+    -front[0] * Math.sin(theta) + front[1] * Math.cos(theta),
+  ];
+}
+
+/** World half-extent of the facade `front` points along. front is a local
+ * direction, so this is the local axis it points down — exact at every
+ * rotation, 45° included. */
+export function facadeHalfExtent(
+  front: [number, number],
+  footprint: { width: number; depth: number }
+): number {
+  return ((front[0] !== 0 ? footprint.width : footprint.depth) * CELL_SIZE) / 2;
 }
 
 /** Footprint-fill fraction the model was scaled to (default matches assetLibrary). */

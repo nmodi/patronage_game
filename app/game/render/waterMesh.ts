@@ -16,7 +16,7 @@ import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
-import { positionToneIndex } from "~/game/random";
+import { positionToneIndex, smoothstep01 } from "~/game/random";
 import type { WaterBody } from "~/game/map/water";
 
 const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
@@ -32,11 +32,6 @@ const RIM_IN_Y = -0.005;
 const GRASS_TONES = ["#98a861", "#91a15d", "#9fac66"].map(Color3.FromHexString);
 const BANK_TONES = ["#b89d68", "#b09566"].map(Color3.FromHexString);
 const BED_TONES = ["#6b6a4e", "#636347"].map(Color3.FromHexString);
-
-function smoothstep01(t: number) {
-  const c = Math.min(1, Math.max(0, t));
-  return c * c * (3 - 2 * c);
-}
 
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 

@@ -1,5 +1,5 @@
 import { COST_ESCALATION } from "./constants.ts";
-import type { TileMap } from "./grid.ts";
+import type { Tile, TileMap } from "./grid.ts";
 import type { BuildingType, BuildingMetadata } from "./types";
 
 export const BUILDING_TYPES = [
@@ -739,6 +739,20 @@ export const BUILDING_METADATA_BY_ID = BUILDING_TYPES.reduce(
   },
   {} as Record<BuildingId, BuildingMetadata>
 );
+
+/** Iterate origin tiles with resolved metadata — the shared skeleton of every
+ * per-building scan (tick, metrics, material caps, panels). The yielded key is
+ * the origin's "x,y". */
+export function* origins(
+  tiles: TileMap
+): Generator<[key: string, tile: Tile, metadata: BuildingMetadata]> {
+  for (const [key, tile] of Object.entries(tiles)) {
+    if (!tile.isOrigin) continue;
+    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+    if (!metadata) continue;
+    yield [key, tile, metadata];
+  }
+}
 
 /** Repeatable-capacity buildings whose Nth duplicate costs progressively more:
  * workshops, suppliers, and services. Landmarks, housing, roads, and

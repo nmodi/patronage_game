@@ -1,7 +1,6 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { Matrix, Quaternion, Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
-import { MultiMaterial } from "@babylonjs/core/Materials/multiMaterial";
 import type { Material } from "@babylonjs/core/Materials/material";
 import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
@@ -14,11 +13,9 @@ import { prepareThinInstanceHost } from "./thinInstanceHost";
 // *looks like* — geometry, colors, and how a locomotion state becomes a pose.
 // citizens.ts owns the walk graph and feeds each figure a FigureLocomotion.
 //
-// Two factories share the same variant builders and pose math:
-// - createThinInstanceFigureFactory (the live one) batches the whole crowd
-//   into thin-instance hosts — draw calls stay flat as the crowd grows.
-// - createPrimitiveFigureFactory (one clone per figure) remains as the simple
-//   reference implementation.
+// createThinInstanceFigureFactory batches the whole crowd into thin-instance
+// hosts — draw calls stay flat as the crowd grows. (A one-clone-per-figure
+// reference factory used to live here; git history has it.)
 // The FigureFactory / CitizenFigure seam is deliberate: a later pass can add a
 // createKenneyFigureFactory (loading rigged GLB characters + AnimationGroups)
 // beside these without touching citizens.ts. A rigged figure would map
@@ -245,99 +242,6 @@ export function createStatueMesh(scene: Scene, variantIndex: number, material: M
   merged.material = material;
   merged.isPickable = false;
   return merged;
-}
-
-type Template = { mesh: Mesh; slots: Slots };
-
-export function createPrimitiveFigureFactory(scene: Scene): FigureFactory {
-  // Shared palette materials — one per color, reused across every citizen clone.
-  const robeMats = ROBE_COLORS.map((hex, i) => makeMat(scene, `citizen-robe-${i}`, hex));
-  const accentMats = ACCENT_COLORS.map((hex, i) => makeMat(scene, `citizen-accent-${i}`, hex));
-  const skinMat = makeMat(scene, "citizen-skin", SKIN_COLOR);
-
-  // Distinct placeholder slot materials — one set, tagged onto parts so the merge
-  // groups geometry into three submeshes. Each clone maps palette colors onto these
-  // slots by identity, so submaterial ordering never has to be assumed.
-  const slots: Slots = {
-    robe: makeMat(scene, "citizen-slot-robe", "#ffffff"),
-    accent: makeMat(scene, "citizen-slot-accent", "#ffffff"),
-    skin: makeMat(scene, "citizen-slot-skin", "#ffffff"),
-  };
-
-  const templates: Template[] = VARIANTS.map((build, vi) => {
-    const parts = build(scene, slots);
-    const merged = Mesh.MergeMeshes(parts, true, true, undefined, false, true)!;
-    merged.name = `citizen-template-${vi}`;
-    merged.isPickable = false;
-    merged.setEnabled(false);
-    return { mesh: merged, slots };
-  });
-
-  function pick<T>(arr: T[]): T {
-    return arr[Math.floor(Math.random() * arr.length)];
-  }
-
-  function create(): CitizenFigure {
-    const template = pick(templates);
-    const root = template.mesh.clone(`citizen-${Math.floor(Math.random() * 1e9)}`);
-    root.setEnabled(true);
-    root.isPickable = false;
-
-    // Two-tone: a robe color and an accent that differs from it.
-    const robeMat = pick(robeMats);
-    let accentMat = pick(accentMats);
-    let guard = 0;
-    while (accentMat.diffuseColor.equals(robeMat.diffuseColor) && guard++ < 8) {
-      accentMat = pick(accentMats);
-    }
-    // Map the palette onto whatever slot order the merge produced.
-    const templateMulti = template.mesh.material as MultiMaterial;
-    const clonePalette = new MultiMaterial(`citizen-mat-${root.uniqueId}`, scene);
-    clonePalette.subMaterials = templateMulti.subMaterials.map((sub) => {
-      if (sub === template.slots.robe) return robeMat;
-      if (sub === template.slots.accent) return accentMat;
-      return skinMat;
-    });
-    root.material = clonePalette;
-
-    const scale = CITIZEN_SCALE * (0.9 + Math.random() * 0.2);
-    root.scaling.setAll(scale);
-
-    let gaitWeight = 0;
-
-    return {
-      update(loco: FigureLocomotion, dt: number) {
-        const target = loco.moving ? 1 : 0;
-        gaitWeight += (target - gaitWeight) * Math.min(1, dt * GAIT_EASE);
-        const w = gaitWeight;
-        const bob = BOB_AMP * Math.sin(2 * loco.stridePhase) * w;
-        root.position.set(loco.x, loco.y + bob, loco.z);
-        // Babylon applies rotation as YawPitchRoll(y, x, z): yaw first, then pitch
-        // and roll in the already-yawed local frame, so z is true lateral sway and
-        // x is true forward lean relative to the walk direction.
-        root.rotation.set(LEAN * w, loco.yaw, SWAY_AMP * Math.sin(loco.stridePhase) * w);
-      },
-      dispose() {
-        root.dispose();
-        clonePalette.dispose();
-      },
-    };
-  }
-
-  function dispose() {
-    for (const t of templates) {
-      (t.mesh.material as MultiMaterial | null)?.dispose();
-      t.mesh.dispose();
-    }
-    slots.robe.dispose();
-    slots.accent.dispose();
-    slots.skin.dispose();
-    for (const m of robeMats) m.dispose();
-    for (const m of accentMats) m.dispose();
-    skinMat.dispose();
-  }
-
-  return { create, dispose };
 }
 
 // --- Thin-instance factory ---------------------------------------------------

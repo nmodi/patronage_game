@@ -1,11 +1,10 @@
 import { useEffect, useMemo } from "react";
-import { createPortal } from "react-dom";
 import { Crown } from "lucide-react";
 
 import { renaissanceProgress } from "~/game/art/renaissance";
 import { playSfx } from "~/game/audio/sfx";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
-import { Panel } from "./Panel";
+import { ModalBackdrop, Panel } from "./Panel";
 
 /**
  * The Renaissance milestone card (Phase 12) — shown once when all four gates
@@ -33,11 +32,8 @@ export function RenaissanceCard() {
   }, [visible]);
   if (!visible) return null;
 
-  return createPortal(
-    <div
-      data-hud="true"
-      className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-    >
+  return (
+    <ModalBackdrop>
       <Panel className="w-[26rem] text-center">
         <Crown className="mx-auto h-8 w-8 text-prestige-gold" strokeWidth={1.75} />
         <div className="mt-2 font-display text-2xl font-semibold text-ink">
@@ -55,7 +51,6 @@ export function RenaissanceCard() {
           Enter the Golden Age
         </button>
       </Panel>
-    </div>,
-    document.body
+    </ModalBackdrop>
   );
 }

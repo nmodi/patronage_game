@@ -1,3 +1,7 @@
+/** Integer as-is, otherwise one decimal — for per-month rate displays. */
+export const formatAmount = (value: number) =>
+  Number.isInteger(value) ? String(value) : value.toFixed(1);
+
 export const capitalizeLabel = (value: string) =>
   value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
 

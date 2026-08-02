@@ -1,4 +1,4 @@
-import { BUILDING_METADATA_BY_ID } from "../buildings.ts";
+import { BUILDING_METADATA_BY_ID, origins } from "../buildings.ts";
 import {
   AFFRONTED_SKIP_CHANCE,
   BRONZE_COMMISSION_CHANCE,
@@ -70,8 +70,7 @@ export const REQUESTERS: { name: string; mix: RewardMix }[] = [
 export function requesterPool(tiles: TileMap): typeof REQUESTERS {
   let churchSeat = false;
   let palazzos = 0;
-  for (const tile of Object.values(tiles)) {
-    if (!tile.isOrigin) continue;
+  for (const [, tile] of origins(tiles)) {
     if (tile.buildingId === "chapel" || tile.buildingId === "cathedral") churchSeat = true;
     if (tile.buildingId === "palazzo") palazzos++;
   }
@@ -106,12 +105,31 @@ export function favorRung(name: string, value: number, tiles: TileMap): number {
   return rung;
 }
 
+/**
+ * Clamp-move one faction's favor (0–100). The denunciation crossing lives
+ * here — ≥AFFRONTED before, <AFFRONTED after fires once, re-armed only by
+ * recovering above the line — so the tick's expiry slights and the store's
+ * declines can't drift apart. Returns the same object when nothing moved.
+ */
+export function applyFavor(
+  favor: Record<string, number>,
+  name: string,
+  delta: number
+): { favor: Record<string, number>; denounced: boolean } {
+  const before = favorOf(favor, name);
+  const after = Math.max(0, Math.min(100, before + delta));
+  if (after === before) return { favor, denounced: false };
+  return {
+    favor: { ...favor, [name]: after },
+    denounced: before >= FAVOR_AFFRONTED && after < FAVOR_AFFRONTED,
+  };
+}
+
 /** Favor a set of completed works has earned (v8 save seeding + demo city). */
 export function favorFromWorks(works: { requester?: string }[]): Record<string, number> {
-  const favor: Record<string, number> = {};
+  let favor: Record<string, number> = {};
   for (const w of works) {
-    if (!w.requester) continue;
-    favor[w.requester] = Math.min(100, (favor[w.requester] ?? FAVOR_START) + FAVOR_PER_WORK);
+    if (w.requester) favor = applyFavor(favor, w.requester, FAVOR_PER_WORK).favor;
   }
   return favor;
 }

@@ -95,9 +95,11 @@ export function razeBuilding(
     if (cell?.origin.x === originX && cell.origin.y === originY) delete tiles[key];
   }
 
-  const evicting = state.artists.some((artist) => artist.homeTileKey === originKey);
-  const reopening = state.commissions.some((item) => item.workshopKey === originKey);
-  const recalling = state.artworks.some((work) => work.displayedAt?.key === originKey);
+  // Same predicates the confirmation dialog showed — the two must agree.
+  const impact = getRazeImpact(state.artists, state.commissions, state.artworks, originKey);
+  const evicting = impact.artistCount > 0;
+  const reopening = impact.commission != null;
+  const recalling = impact.displayedWorkCount > 0;
 
   return {
     florins: state.florins + getRazeSalvage(state.map.tiles, tile.buildingId, originKey),

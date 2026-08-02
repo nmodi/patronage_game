@@ -1,6 +1,6 @@
 import type { ArtistType, Commission, Material } from "../types.ts";
 import type { TileMap } from "../grid.ts";
-import { BUILDING_METADATA_BY_ID } from "../buildings.ts";
+import { origins } from "../buildings.ts";
 import { MATERIAL_STORAGE_BASE } from "../constants.ts";
 
 // Materials are an accumulating city-wide stock (July 2026, deliberate reversal
@@ -42,10 +42,7 @@ export function commissionMaterialCost(c: Commission): number {
 export function materialCaps(tiles: TileMap): MaterialPools {
   const caps: MaterialPools = { ...EMPTY_POOLS };
   for (const material of MATERIALS) caps[material] = MATERIAL_STORAGE_BASE;
-  for (const tile of Object.values(tiles)) {
-    if (!tile.isOrigin) continue;
-    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-    if (!metadata) continue;
+  for (const [, , metadata] of origins(tiles)) {
     if (metadata.supplies) caps[metadata.supplies.material] += metadata.supplies.storage;
     if (metadata.materialStorage) {
       for (const material of MATERIALS) caps[material] += metadata.materialStorage;

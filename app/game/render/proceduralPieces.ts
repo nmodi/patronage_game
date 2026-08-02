@@ -511,11 +511,12 @@ const arcPt = (r: number, a: number, cy: number): [number, number] => [
   cy + r * Math.sin(a),
 ];
 
-/** Sill + jambs shared by both window surrounds. The sill projects sideways and
- * stands deeper than the frame; per-course shades read as stone joints. */
-function surroundBase(scene: Scene): Mesh[] {
+/** Sill + jambs shared by the window surrounds and the bifora. The sill
+ * projects sideways and stands deeper than the frame; per-course shades read
+ * as stone joints. */
+function surroundBase(scene: Scene, opening: { w: number; h: number } = WIN_OPENING): Mesh[] {
   const t = WIN_T / 2;
-  const hw = WIN_OPENING.w / 2;
+  const hw = opening.w / 2;
   return [
     shadedBox(
       "sill",
@@ -525,9 +526,42 @@ function surroundBase(scene: Scene): Mesh[] {
       0.88,
       scene
     ),
-    shadedBox("jamb-l", [-t, t], [SILL_H, SILL_H + WIN_OPENING.h], [-(hw + BORDER), -hw], 1, scene),
-    shadedBox("jamb-r", [-t, t], [SILL_H, SILL_H + WIN_OPENING.h], [hw, hw + BORDER], 1, scene),
+    shadedBox("jamb-l", [-t, t], [SILL_H, SILL_H + opening.h], [-(hw + BORDER), -hw], 1, scene),
+    shadedBox("jamb-r", [-t, t], [SILL_H, SILL_H + opening.h], [hw, hw + BORDER], 1, scene),
   ];
+}
+
+/** Alternating-shade voussoir wedge fan over a half-circle arc springing at
+ * `spring` — the arch grammar shared by the arched surround, the bifora's
+ * outer ring, and the landmark portal. */
+function voussoirRing(
+  hw: number,
+  border: number,
+  spring: number,
+  segs: number,
+  t: number,
+  scene: Scene
+): Mesh[] {
+  const parts: Mesh[] = [];
+  for (let i = 0; i < segs; i++) {
+    const a0 = (Math.PI * i) / segs;
+    const a1 = (Math.PI * (i + 1)) / segs;
+    parts.push(
+      wedge(
+        `vouss-${i}`,
+        [
+          arcPt(hw, a0, spring),
+          arcPt(hw, a1, spring),
+          arcPt(hw + border, a1, spring),
+          arcPt(hw + border, a0, spring),
+        ],
+        t,
+        i % 2 ? 0.88 : 1, // alternating wedge shades are the voussoir joints
+        scene
+      )
+    );
+  }
+  return parts;
 }
 
 function buildSurroundRect(scene: Scene) {
@@ -551,24 +585,7 @@ function buildSurroundArch(scene: Scene) {
   const hw = WIN_OPENING.w / 2;
   const spring = SILL_H + WIN_OPENING.h;
   const parts = surroundBase(scene);
-  for (let i = 0; i < ARCH_SEGS; i++) {
-    const a0 = (Math.PI * i) / ARCH_SEGS;
-    const a1 = (Math.PI * (i + 1)) / ARCH_SEGS;
-    parts.push(
-      wedge(
-        `vouss-${i}`,
-        [
-          arcPt(hw, a0, spring),
-          arcPt(hw, a1, spring),
-          arcPt(hw + ARCH_BORDER, a1, spring),
-          arcPt(hw + ARCH_BORDER, a0, spring),
-        ],
-        t,
-        i % 2 ? 0.88 : 1, // alternating wedge shades are the voussoir joints
-        scene
-      )
-    );
-  }
+  parts.push(...voussoirRing(hw, ARCH_BORDER, spring, ARCH_SEGS, t, scene));
   const mesh = Mesh.MergeMeshes(parts, true, true)!;
   mesh.name = "proc-surround-arch";
   return { mesh, material: "stone", color: SURROUND };
@@ -599,16 +616,7 @@ function buildBifora(scene: Scene) {
   const spring = SILL_H + BIF_OPENING.h;
   const spring2 = SILL_H + BIF_SPRING2;
   const parts = [
-    shadedBox(
-      "sill",
-      [-WIN_SILL_T / 2, WIN_SILL_T / 2],
-      [0, SILL_H],
-      [-(hw + BORDER + 0.02), hw + BORDER + 0.02],
-      0.88,
-      scene
-    ),
-    shadedBox("jamb-l", [-t, t], [SILL_H, spring], [-(hw + BORDER), -hw], 1, scene),
-    shadedBox("jamb-r", [-t, t], [SILL_H, spring], [hw, hw + BORDER], 1, scene),
+    ...surroundBase(scene, BIF_OPENING),
     shadedBox("col-base", [-ti, ti], [SILL_H, SILL_H + 0.02], [-0.02, 0.02], 0.9, scene),
     shadedBox(
       "colonnette",
@@ -621,24 +629,7 @@ function buildBifora(scene: Scene) {
     shadedBox("col-cap", [-ti, ti], [spring2 - 0.02, spring2], [-0.02, 0.02], 0.9, scene),
   ];
   // Outer ring: 8 facets on the grander arc (6 reads chunky at this radius).
-  for (let i = 0; i < 8; i++) {
-    const a0 = (Math.PI * i) / 8;
-    const a1 = (Math.PI * (i + 1)) / 8;
-    parts.push(
-      wedge(
-        `vouss-${i}`,
-        [
-          arcPt(hw, a0, spring),
-          arcPt(hw, a1, spring),
-          arcPt(hw + BIF_BORDER, a1, spring),
-          arcPt(hw + BIF_BORDER, a0, spring),
-        ],
-        t,
-        i % 2 ? 0.88 : 1,
-        scene
-      )
-    );
-  }
+  parts.push(...voussoirRing(hw, BIF_BORDER, spring, 8, t, scene));
   // Twin light arches: 4-facet fans between jamb and colonnette; their band
   // tips bury inside the jambs (depth differs, so no coplanar faces).
   for (const side of [-1, 1]) {
@@ -770,33 +761,45 @@ const MUNTIN = Color3.FromHexString("#8d7f6b"); // grey-tan casement wood
 // One brightness per pane (2 cols × 3 rows, bottom-up) — a hair of sky sparkle.
 const PANE_SHADES = [0.86, 1, 0.93, 0.8, 1.04, 0.9];
 
-function buildShutter(scene: Scene) {
-  const hw = (WIN_OPENING.w - 0.01) / 2;
-  const H = WIN_OPENING.h - 0.01;
-  const xMid = -SHUTTER_T / 2 + 0.0025; // glass in the back, woodwork proud
-  const tint = (c: Color3, s: number) => new Color4(c.r * s, c.g * s, c.b * s, 1);
-  const parts: Mesh[] = [];
+/** Per-part brightness over a base colour — the vertex-tint grammar the glazed
+ * pieces share (one white material, colours ride the tints). */
+const tintC = (c: Color3, s: number) => new Color4(c.r * s, c.g * s, c.b * s, 1);
+
+/** The casement core both leaves share: 2×3 sparkle panes in the back slab +
+ * stiles, bottom rail, centre mullion, and two transoms proud. Returns the
+ * `wood` helper so the caller adds its own top member (flat rail vs
+ * springline rail) and any extras in the same grammar. */
+function casementCore(parts: Mesh[], hw: number, H: number, T: number, xMid: number, scene: Scene) {
   for (let row = 0; row < 3; row++)
     for (let col = 0; col < 2; col++)
       parts.push(
         shadedBox(
           `pane-${row}${col}`,
-          [-SHUTTER_T / 2, xMid],
+          [-T / 2, xMid],
           [(row * H) / 3, ((row + 1) * H) / 3],
           [(col - 1) * hw, col * hw],
-          tint(GLASS, PANE_SHADES[row * 2 + col]!),
+          tintC(GLASS, PANE_SHADES[row * 2 + col]!),
           scene
         )
       );
   const wood = (name: string, y: readonly [number, number], z: readonly [number, number], s = 1) =>
-    parts.push(shadedBox(name, [xMid, SHUTTER_T / 2], y, z, tint(MUNTIN, s), scene));
+    parts.push(shadedBox(name, [xMid, T / 2], y, z, tintC(MUNTIN, s), scene));
   wood("stile-l", [0, H], [-hw, -hw + 0.01], 0.96);
   wood("stile-r", [0, H], [hw - 0.01, hw], 0.96);
   wood("rail-b", [0, 0.012], [-hw, hw]);
-  wood("rail-t", [H - 0.012, H], [-hw, hw]);
   wood("mullion", [0, H], [-0.004, 0.004]);
   wood("transom-1", [H / 3 - 0.004, H / 3 + 0.004], [-hw, hw]);
   wood("transom-2", [(2 * H) / 3 - 0.004, (2 * H) / 3 + 0.004], [-hw, hw]);
+  return wood;
+}
+
+function buildShutter(scene: Scene) {
+  const hw = (WIN_OPENING.w - 0.01) / 2;
+  const H = WIN_OPENING.h - 0.01;
+  const xMid = -SHUTTER_T / 2 + 0.0025; // glass in the back, woodwork proud
+  const parts: Mesh[] = [];
+  const wood = casementCore(parts, hw, H, SHUTTER_T, xMid, scene);
+  wood("rail-t", [H - 0.012, H], [-hw, hw]);
   const mesh = Mesh.MergeMeshes(parts, true, true)!;
   mesh.name = "proc-shutter";
   // White base: the vertex tints above ARE the colours (GLASS/MUNTIN the knobs).
@@ -817,23 +820,14 @@ function buildArchLeaf(scene: Scene) {
   const S = WIN_OPENING.h - 0.005; // springline (the leaf sits 0.005 up the opening)
   const T = SHUTTER_T;
   const xMid = -T / 2 + 0.0025; // glass back slab / woodwork front, as the shutter
-  const tintC = (c: Color3, s: number) => new Color4(c.r * s, c.g * s, c.b * s, 1);
   const parts: Mesh[] = [];
-  // Glass: the shutter's 2x3 sparkle fields below the spring + a lunette fan
-  // above (tiny inner radius instead of a degenerate apex — the spring rail
-  // covers the hole; ComputeNormals chokes on zero-area facets).
-  for (let row = 0; row < 3; row++)
-    for (let col = 0; col < 2; col++)
-      parts.push(
-        shadedBox(
-          `pane-${row}${col}`,
-          [-T / 2, xMid],
-          [(row * S) / 3, ((row + 1) * S) / 3],
-          [(col - 1) * A, col * A],
-          tintC(GLASS, PANE_SHADES[row * 2 + col]!),
-          scene
-        )
-      );
+  // Glass: the shutter's casement core below the spring (its 2×3 sparkle
+  // fields + heavy members) topped by a springline rail instead of a flat
+  // rail-t, plus a lunette fan above (tiny inner radius instead of a
+  // degenerate apex — the spring rail covers the hole; ComputeNormals chokes
+  // on zero-area facets).
+  const wood = casementCore(parts, A, S, T, xMid, scene);
+  wood("rail-spring", [S - 0.008, S], [-A, A]);
   const fan = (name: string, r0: number, r1: number, i: number, t: number, shade: Color4) => {
     const a0 = (Math.PI * i) / 8;
     const a1 = (Math.PI * (i + 1)) / 8;
@@ -889,18 +883,8 @@ function buildArchLeaf(scene: Scene) {
       parts.push(bar);
     }
   }
-  // Heavy members over the lattice: casement stiles, bottom rail, centre
-  // mullion, two transoms, a rail at the springline (the reference's bar where
-  // the arch begins), and the wood ring carrying the casement round the arc.
-  const wood = (name: string, y: readonly [number, number], z: readonly [number, number], s = 1) =>
-    parts.push(shadedBox(name, [xMid, T / 2], y, z, tintC(MUNTIN, s), scene));
-  wood("stile-l", [0, S], [-A, -A + 0.01], 0.96);
-  wood("stile-r", [0, S], [A - 0.01, A], 0.96);
-  wood("rail-b", [0, 0.012], [-A, A]);
-  wood("rail-spring", [S - 0.008, S], [-A, A]);
-  wood("mullion", [0, S], [-0.004, 0.004]);
-  wood("transom-1", [S / 3 - 0.004, S / 3 + 0.004], [-A, A]);
-  wood("transom-2", [(2 * S) / 3 - 0.004, (2 * S) / 3 + 0.004], [-A, A]);
+  // The wood ring carrying the casement round the arc (the heavy members
+  // themselves came from casementCore above; lattice bars recess behind them).
   for (let i = 0; i < 8; i++) {
     const r = fan(`ring-${i}`, A - 0.008, A, i, (T / 2 - xMid) / 2, tintC(MUNTIN, 0.96));
     r.bakeTransformIntoVertices(Matrix.Translation((xMid + T / 2) / 2, 0, 0));
@@ -954,7 +938,6 @@ function buildRoseGlass(scene: Scene) {
   const Rg = ROSE_R - ROSE_BAND + 0.005; // rim tucks under the ring band
   const T = SHUTTER_T;
   const xMid = -T / 2 + 0.0025; // glass back slab / tracery proud, as the leaves
-  const tintC = (c: Color3, s: number) => new Color4(c.r * s, c.g * s, c.b * s, 1);
   const parts: Mesh[] = [];
   const fan = (
     name: string,
@@ -1064,24 +1047,7 @@ function buildPortalFrame(scene: Scene) {
       scene
     ),
   ];
-  for (let i = 0; i < PORTAL_SEGS; i++) {
-    const a0 = (Math.PI * i) / PORTAL_SEGS;
-    const a1 = (Math.PI * (i + 1)) / PORTAL_SEGS;
-    parts.push(
-      wedge(
-        `vouss-${i}`,
-        [
-          arcPt(hw, a0, spring),
-          arcPt(hw, a1, spring),
-          arcPt(hw + PORTAL_B, a1, spring),
-          arcPt(hw + PORTAL_B, a0, spring),
-        ],
-        t,
-        i % 2 ? 0.88 : 1,
-        scene
-      )
-    );
-  }
+  parts.push(...voussoirRing(hw, PORTAL_B, spring, PORTAL_SEGS, t, scene));
   // Stone tympanum filling the lunette — part of the FRAME so it reads as
   // carved stone over rectangular metal doors (bronze read as a void; matching
   // the doors read as one arch-tall door). Radius overruns the opening by

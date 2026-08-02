@@ -24,6 +24,12 @@ export function seededRng(seed: string): () => number {
   return mulberry32(hashString(seed));
 }
 
+/** Clamped smoothstep on 0..1, shared by terrain and water shaping. */
+export function smoothstep01(t: number) {
+  const c = Math.min(1, Math.max(0, t));
+  return c * c * (3 - 2 * c);
+}
+
 /** Stable color-tone choice shared by terrain faces and water-bank geometry. */
 export function positionToneIndex(x: number, z: number, toneCount: number): number {
   const hash = Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453);

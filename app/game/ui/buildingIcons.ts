@@ -1,4 +1,4 @@
-// Pure data: the palette's category tabs and per-building icons.
+// Pure data: the palette's category tabs and per-building/material/artist icons.
 import {
   Beer,
   Bell,
@@ -18,6 +18,7 @@ import {
   Hammer,
   Home,
   Landmark,
+  Medal,
   Milestone,
   Mountain,
   Palette,
@@ -39,7 +40,22 @@ import {
 } from "lucide-react";
 
 import type { BuildingId } from "~/game/buildings";
-import type { BuildingType } from "~/game/types";
+import type { BuildingType, Material } from "~/game/types";
+
+// ponytail: placeholder glyphs until materials get bespoke art.
+export const MATERIAL_ICONS: Record<Material, LucideIcon> = {
+  pigment: Palette,
+  marble: Gem,
+  bronze: Medal,
+  timber: TreePine,
+  stone: Mountain,
+};
+
+export const ARTIST_ICONS: Record<string, LucideIcon> = {
+  painter: Palette,
+  sculptor: Hammer,
+  architect: DraftingCompass,
+};
 
 export const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }> = [
   { type: "road", label: "Roads", icon: Route },

@@ -13,7 +13,7 @@ import {
 
 import { useGameStore } from "~/stores/useGameStore";
 import { ARCHETYPE_LABELS, getWater } from "~/game/map/water";
-import { Panel } from "./Panel";
+import { CloseButton, Panel } from "./Panel";
 import { skipTrack } from "./useMusic";
 
 /**
@@ -48,13 +48,11 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
         <Panel
           header={
             <div className="flex items-center gap-2">
-              <button
-                className="rounded-full p-1 text-ink-faint transition hover:bg-parchment-deep hover:text-ink"
+              <CloseButton
+                icon={ArrowLeft}
+                label="Back to settings"
                 onClick={() => setCreditsOpen(false)}
-                aria-label="Back to settings"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
+              />
               Credits
             </div>
           }

@@ -116,7 +116,10 @@ function getColormaps(scene: Scene) {
   return { on: townColormap, off: desatColormap! };
 }
 
-function desaturate(color: Color3) {
+/** Inactive-building tint: desaturate toward luminance, slightly darkened.
+ * Exported for mapRenderer's placeholder boxes so both twins match
+ * (wallTexture.ts mirrors this per-pixel — keep the three in step). */
+export function desaturate(color: Color3) {
   const luminance = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
   return Color3.Lerp(color, new Color3(luminance, luminance, luminance), 0.75).scale(0.85);
 }

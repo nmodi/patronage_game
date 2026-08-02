@@ -10,6 +10,7 @@ import {
   rotatedFootprint,
   type BuildingId,
 } from "../buildings.ts";
+import { NEIGHBORS } from "../city/connectivity.ts";
 import type { GridPos, TileMap } from "../grid.ts";
 import { canPlaceAt, type PlacementSnapshot } from "./placementRules.ts";
 import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "./roadStretch.ts";
@@ -77,14 +78,7 @@ function maskTouchesRibbon(
   for (const c of cells) {
     const x = ax + c.x;
     const y = ay + c.y;
-    if (
-      isRibbonAt(x + 1, y) ||
-      isRibbonAt(x - 1, y) ||
-      isRibbonAt(x, y + 1) ||
-      isRibbonAt(x, y - 1)
-    ) {
-      return true;
-    }
+    if (NEIGHBORS.some(([dx, dy]) => isRibbonAt(x + dx, y + dy))) return true;
   }
   return false;
 }

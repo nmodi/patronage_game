@@ -1,4 +1,5 @@
 import type { BuildingId } from "../buildings.ts";
+import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "../placement/roadStretch.ts";
 
 // The demo run's map seed. "toscana" rolls an *inland* archetype whose river
 // runs down the east of the grid (gx ~80-93, full height) — clear of the hand-
@@ -19,7 +20,7 @@ export function road(x0: number, y0: number, x1: number, y1: number, id: Buildin
 }
 
 // Diagonal run: one cell per ±(1,±1) step, wider roads offset +1 along x per
-// row; the 4th tuple element is Tile.rotation (1 = NE, 3 = NW — roadStretch.ts).
+// row; the 4th tuple element is Tile.rotation — roadStretch.ts's octant rule.
 export function diagRoad(
   x0: number,
   y0: number,
@@ -32,7 +33,7 @@ export function diagRoad(
   const cells: Array<[number, number, BuildingId, number]> = [];
   for (let i = 0; i <= steps; i += 1) {
     for (let w = 0; w < width; w += 1) {
-      cells.push([x0 + i * sx + w, y0 + i * sy, id, sx === sy ? 1 : 3]);
+      cells.push([x0 + i * sx + w, y0 + i * sy, id, sx === sy ? ROAD_DIAG_NE : ROAD_DIAG_NW]);
     }
   }
   return cells;

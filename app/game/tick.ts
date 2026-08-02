@@ -1,8 +1,7 @@
-import { BUILDING_METADATA_BY_ID } from "./buildings.ts";
-import { computePlazaConnectivity, connectionBonusOf } from "./city/connectivity.ts";
+import { BUILDING_METADATA_BY_ID, origins } from "./buildings.ts";
+import { computePlazaConnectivity } from "./city/connectivity.ts";
 import {
   DENOUNCE_PRESTIGE,
-  FAVOR_AFFRONTED,
   FAVOR_PER_WORK,
   FAVOR_SLIGHT,
   INCOME_DIMINISHING_RETURNS,
@@ -11,10 +10,10 @@ import {
 import { computeDisplaySummary, displayBoost } from "./art/display.ts";
 import type { TileMap } from "./grid.ts";
 import { addProduction, materialCaps, type MaterialPools } from "./art/materials.ts";
-import { computeCityMetrics } from "./city/metrics.ts";
+import { computeCityMetrics, supplierRate } from "./city/metrics.ts";
 import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./art/artists.ts";
-import { favorOf, maybeOfferCommission, reconcileCommissions } from "./art/commissions.ts";
-import { trafficFactor } from "./city/traffic.ts";
+import { applyFavor, maybeOfferCommission, reconcileCommissions } from "./art/commissions.ts";
+import { plazaBoost } from "./city/traffic.ts";
 import type { Artist, Artwork, BuildingMetadata, Commission, Material } from "./types.ts";
 import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./city/workers.ts";
 
@@ -57,12 +56,9 @@ export function advanceTick(
   const tiles = state.map.tiles;
 
   const staffables: StaffableBuilding[] = [];
-  for (const tile of Object.values(tiles)) {
-    if (!tile.isOrigin) continue;
-    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-    if (!metadata) continue;
+  for (const [key, , metadata] of origins(tiles)) {
     staffables.push({
-      key: `${tile.position.x},${tile.position.y}`,
+      key,
       type: metadata.type,
       workersRequired: metadata.workersRequired ?? 0,
       maxWorkers: Math.max(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0),
@@ -87,11 +83,8 @@ export function advanceTick(
   const connected = computePlazaConnectivity(updatedTiles);
   // Start-of-month population feeds the foot-traffic factor — consistent with
   // the computeCityMetrics call below.
-  const plazaBoost = (key: string, metadata: BuildingMetadata) =>
-    1 +
-    connectionBonusOf(metadata) *
-      (connected.get(key) ?? 0) *
-      trafficFactor(metadata, key, updatedTiles, state.population);
+  const boostOf = (key: string, metadata: BuildingMetadata) =>
+    plazaBoost(metadata, key, connected.get(key) ?? 0, updatedTiles, state.population);
 
   // Displayed works: a per-tick trickle plus a per-host effectiveness boost.
   const display = computeDisplaySummary(updatedTiles, state.artworks);
@@ -115,10 +108,9 @@ export function advanceTick(
   // (by build order) yields DR^N.
   const drByKey = new Map<string, number>();
   const genByBuilding = new Map<string, { key: string; builtTick: number }[]>();
-  for (const [key, tile] of Object.entries(updatedTiles)) {
-    if (!tile.isOrigin || !tile.isActive) continue;
-    const m = BUILDING_METADATA_BY_ID[tile.buildingId];
-    if (!m?.generates?.income || m.housing) continue; // housing handled by occupancy
+  for (const [key, tile, m] of origins(updatedTiles)) {
+    if (!tile.isActive) continue;
+    if (!m.generates?.income || m.housing) continue; // housing handled by occupancy
     const list = genByBuilding.get(tile.buildingId) ?? [];
     list.push({ key, builtTick: tile.builtTick ?? 0 });
     genByBuilding.set(tile.buildingId, list);
@@ -131,27 +123,32 @@ export function advanceTick(
   let florinDelta = 0;
   let inspirationDelta = 0;
   const produced: { material: Material; amount: number }[] = [];
-  for (const [key, tile] of Object.entries(updatedTiles)) {
-    if (!tile.isOrigin || !tile.isActive) continue;
-    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-    if (!metadata) continue;
-    const staffing = staffingEfficiency(
-      metadata.workersRequired ?? 0,
-      metadata.maxWorkers ?? 0,
-      tile.workers
-    );
+  for (const [key, tile, metadata] of origins(updatedTiles)) {
+    if (!tile.isActive) continue;
     // Supplier output rides staffing and plaza connection like any generator,
     // but takes no diminishing returns: more suppliers must never mean less
     // stock (principle 6). Escalating build cost already prices duplicates.
     if (metadata.supplies) {
       produced.push({
         material: metadata.supplies.material,
-        amount: metadata.supplies.rate * staffing * plazaBoost(key, metadata),
+        amount: supplierRate(
+          metadata,
+          tile.workers,
+          key,
+          connected.get(key) ?? 0,
+          updatedTiles,
+          state.population
+        ),
       });
     }
     if (!metadata.generates) continue;
+    const staffing = staffingEfficiency(
+      metadata.workersRequired ?? 0,
+      metadata.maxWorkers ?? 0,
+      tile.workers
+    );
     const efficiency =
-      staffing * plazaBoost(key, metadata) * displayBoost(display.counts.get(key) ?? 0);
+      staffing * boostOf(key, metadata) * displayBoost(display.counts.get(key) ?? 0);
     const incomeScale = metadata.housing ? occupancy : (drByKey.get(key) ?? 1);
     florinDelta += (metadata.generates.income ?? 0) * efficiency * incomeScale;
     inspirationDelta += (metadata.generates.inspiration ?? 0) * efficiency;
@@ -169,12 +166,10 @@ export function advanceTick(
   let artistsChanged = artists.length !== state.artists.length;
 
   const workshops: WorkshopSlot[] = [];
-  for (const tile of Object.values(updatedTiles)) {
-    if (!tile.isOrigin) continue;
-    const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-    if (metadata?.artistCapacity == null) continue;
+  for (const [key, tile, metadata] of origins(updatedTiles)) {
+    if (metadata.artistCapacity == null) continue;
     workshops.push({
-      key: `${tile.position.x},${tile.position.y}`,
+      key,
       capacity: metadata.artistCapacity,
       artistType: metadata.artistType ?? "painter",
       isActive: tile.isActive,
@@ -208,12 +203,9 @@ export function advanceTick(
   let favor = state.favor;
   const denounced: string[] = [];
   const moveFavor = (name: string, delta: number) => {
-    const before = favorOf(favor, name);
-    const after = Math.max(0, Math.min(100, before + delta));
-    if (after === before) return;
-    if (favor === state.favor) favor = { ...state.favor };
-    favor[name] = after;
-    if (before >= FAVOR_AFFRONTED && after < FAVOR_AFFRONTED) denounced.push(name);
+    const moved = applyFavor(favor, name, delta);
+    favor = moved.favor;
+    if (moved.denounced) denounced.push(name);
   };
   for (const name of reconciled.expiredRequesters) moveFavor(name, -FAVOR_SLIGHT);
 

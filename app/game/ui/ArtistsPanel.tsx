@@ -1,16 +1,12 @@
-import { Hammer, Paintbrush, Palette, type LucideIcon } from "lucide-react";
+import { Paintbrush } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { nextRankXp, RANK_LABEL } from "~/game/art/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
+import { ARTIST_ICONS } from "./buildingIcons";
 import { useMaterialsRailVisible } from "./MaterialsPanel";
 import { HudPanel } from "./Panel";
 import { capitalizeLabel } from "./format";
-
-const ARTIST_ICONS: Record<string, LucideIcon> = {
-  painter: Palette,
-  sculptor: Hammer,
-};
 
 function ArtistThumb({ type }: { type?: string }) {
   const Icon = (type && ARTIST_ICONS[type]) || Paintbrush;

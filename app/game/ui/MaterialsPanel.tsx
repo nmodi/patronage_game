@@ -1,24 +1,14 @@
 import { useMemo } from "react";
-import { Gem, Medal, Mountain, Palette, TreePine, type LucideIcon } from "lucide-react";
 
-import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { computePlazaConnectivity, connectionBonusOf } from "~/game/city/connectivity";
+import { origins } from "~/game/buildings";
+import { computePlazaConnectivity } from "~/game/city/connectivity";
 import { MATERIAL_STORAGE_BASE } from "~/game/constants";
 import { MATERIALS, materialCaps } from "~/game/art/materials";
-import { trafficFactor } from "~/game/city/traffic";
+import { supplierRate } from "~/game/city/metrics";
 import type { Material } from "~/game/types";
-import { staffingEfficiency } from "~/game/city/workers";
 import { useGameStore } from "~/stores/useGameStore";
-import { capitalizeLabel } from "./format";
-
-// ponytail: placeholder glyphs until materials get bespoke art.
-const MATERIAL_ICONS: Record<Material, LucideIcon> = {
-  pigment: Palette,
-  marble: Gem,
-  bronze: Medal,
-  timber: TreePine,
-  stone: Mountain,
-};
+import { MATERIAL_ICONS } from "./buildingIcons";
+import { capitalizeLabel, formatAmount } from "./format";
 
 /**
  * Material stock, docked flush to the left screen edge as its own rail —
@@ -47,26 +37,21 @@ export function MaterialsPanel() {
   const visible = useMaterialsRailVisible();
   const caps = useMemo(() => materialCaps(tiles), [tiles]);
 
-  // Mirror of the tick's supplier loop (rate × staffing × plazaBoost) using
-  // last-tick worker counts, same as the building tooltip does.
+  // The tick's own supplier math (supplierRate), off last-tick worker counts —
+  // same as the building tooltip.
   const rates = useMemo(() => {
     const connected = computePlazaConnectivity(tiles);
     const rates = Object.fromEntries(MATERIALS.map((m) => [m, 0])) as Record<Material, number>;
-    for (const [key, tile] of Object.entries(tiles)) {
-      if (!tile.isOrigin || !tile.isActive) continue;
-      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
-      if (!metadata?.supplies) continue;
-      const staffing = staffingEfficiency(
-        metadata.workersRequired ?? 0,
-        metadata.maxWorkers ?? 0,
-        tile.workers
+    for (const [key, tile, metadata] of origins(tiles)) {
+      if (!tile.isActive || !metadata.supplies) continue;
+      rates[metadata.supplies.material] += supplierRate(
+        metadata,
+        tile.workers,
+        key,
+        connected.get(key) ?? 0,
+        tiles,
+        population
       );
-      const boost =
-        1 +
-        connectionBonusOf(metadata) *
-          (connected.get(key) ?? 0) *
-          trafficFactor(metadata, key, tiles, population);
-      rates[metadata.supplies.material] += metadata.supplies.rate * staffing * boost;
     }
     return rates;
   }, [tiles, population]);
@@ -85,7 +70,7 @@ export function MaterialsPanel() {
         const Icon = MATERIAL_ICONS[material];
         const held = Math.floor(materials[material]);
         const rate = rates[material];
-        const rateLabel = `+${Number.isInteger(rate) ? rate : rate.toFixed(1)}`;
+        const rateLabel = `+${formatAmount(rate)}`;
         return (
           <div key={material} className="mat-row">
             <span className="mat-cell">

@@ -30,6 +30,8 @@ import {
 } from "./assetLibrary";
 import {
   effectiveRotation as resolveRotation,
+  facadeHalfExtent,
+  frontVector,
   getFrontDirection,
   usesQuarterRotation,
 } from "./modelManifest";
@@ -437,14 +439,8 @@ export function createPlacementController(scene: Scene) {
       }
       const front = getFrontDirection(selectedBuilding);
       if (front) {
-        // Rotate the local front by the ghost's yaw (+X → −Z for positive θ).
-        const theta = ghostModel.root.rotation.y;
-        const dirX = front[0] * Math.cos(theta) + front[1] * Math.sin(theta);
-        const dirZ = -front[0] * Math.sin(theta) + front[1] * Math.cos(theta);
-        // front is local, so the facade half-extent is the local axis it
-        // points along — exact at every rotation, 45° included.
-        const half =
-          ((front[0] !== 0 ? metadata.footprint.width : metadata.footprint.depth) * CELL_SIZE) / 2;
+        const [dirX, dirZ] = frontVector(front, ghostModel.root.rotation.y);
+        const half = facadeHalfExtent(front, metadata.footprint);
         arrow.position.set(xPos + dirX * (half + 0.3), 0.05, zPos + dirZ * (half + 0.3));
         arrow.rotation.y = Math.atan2(-dirZ, dirX);
         arrow.setEnabled(true);

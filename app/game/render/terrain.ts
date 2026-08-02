@@ -5,7 +5,7 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
-import { mulberry32, positionToneIndex, seededRng } from "~/game/random";
+import { mulberry32, positionToneIndex, seededRng, smoothstep01 } from "~/game/random";
 import type { WaterBody } from "~/game/map/water";
 
 const TERRAIN_SIZE = 320;
@@ -49,11 +49,6 @@ function makeHillHeight(mapSeed: string | null) {
       0.45 * Math.sin(x * f3 + p3) * Math.cos(z * f4 + p4);
     return Math.max(0, ramp * (3.0 + n * 2.6));
   };
-}
-
-function smoothstep01(t: number) {
-  const c = Math.min(1, Math.max(0, t));
-  return c * c * (3 - 2 * c);
 }
 
 /** Analytic ground height including the water valley/channel/sea shaping. */

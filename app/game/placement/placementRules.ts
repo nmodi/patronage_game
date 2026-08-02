@@ -7,7 +7,7 @@ import {
   type BuildingId,
 } from "../buildings.ts";
 import { GRID_SIZE } from "../constants.ts";
-import { PLAZA_IDS } from "../city/connectivity.ts";
+import { NEIGHBORS, PLAZA_IDS } from "../city/connectivity.ts";
 import type { GridPos, Tile, TileMap } from "../grid.ts";
 import type { MaterialPools } from "../art/materials.ts";
 import type { BuildingMetadata, Material } from "../types.ts";
@@ -55,12 +55,31 @@ function planMaterials(
   return bill;
 }
 
-const CELL_NEIGHBORS = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-] as const;
+/**
+ * The affordability trio — funded token, escalated florins, construction
+ * materials — shared by the batch planner and the per-frame ghost check so a
+ * new cost rule can't land in one and miss the other. A funded blueprint
+ * build costs no florins (the requester funds construction); its buildCost
+ * materials are the whole bill. Null = can't afford / no token.
+ */
+function planCosts(
+  state: PlacementSnapshot,
+  metadata: BuildingMetadata,
+  buildingId: BuildingId,
+  count: number
+): { totalCost: number; materialCost: Partial<Record<Material, number>> } | null {
+  const funded = metadata.commissionOnly === true;
+  if (funded && (count !== 1 || !(state.fundedBuilds ?? []).includes(buildingId))) return null;
+  let totalCost = 0;
+  if (!funded) {
+    const startRank = buildOrderRank(state.map.tiles, buildingId);
+    for (let i = 0; i < count; i += 1) totalCost += escalatedCost(metadata, startRank + i);
+  }
+  if (state.florins < totalCost) return null;
+  const materialCost = planMaterials(state, metadata, count);
+  if (!materialCost) return null;
+  return { totalCost, materialCost };
+}
 
 /** A plaza-footprint cell on the plaza's outer ring: some 4-neighbor offset
  * falls outside the plaza's footprint mask. Mask-based (not ownership-based)
@@ -75,7 +94,7 @@ function isPlazaRimCell(tile: Tile, x: number, y: number): boolean {
     cells.some((c) => c.x === dx && c.y === dy);
   const relX = x - tile.origin.x;
   const relY = y - tile.origin.y;
-  return CELL_NEIGHBORS.some(([nx, ny]) => !inMask(relX + nx, relY + ny));
+  return NEIGHBORS.some(([nx, ny]) => !inMask(relX + nx, relY + ny));
 }
 
 /** One footprint cell, shared by the batch planner and the preview check:
@@ -125,11 +144,8 @@ export function planPlacement(
 ): PlacementPlan | null {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
   if (!metadata || positions.length === 0) return null;
-  // Funded blueprint builds only: one token, one structure per placement.
-  const funded = metadata.commissionOnly === true;
-  if (funded && (positions.length !== 1 || !(state.fundedBuilds ?? []).includes(buildingId))) {
-    return null;
-  }
+  const costs = planCosts(state, metadata, buildingId, positions.length);
+  if (!costs) return null;
 
   const footprint = rotatedFootprint(metadata, rotation);
   const { cells } = footprintMask(metadata, rotation);
@@ -165,17 +181,7 @@ export function planPlacement(
     }
   }
 
-  // "The requester funds construction": a funded build costs no florins —
-  // its buildCost materials (below) are the only bill.
-  const startRank = buildOrderRank(state.map.tiles, buildingId);
-  let totalCost = 0;
-  if (!funded) {
-    for (let i = 0; i < positions.length; i += 1) totalCost += escalatedCost(metadata, startRank + i);
-  }
-  if (state.florins < totalCost) return null;
-  const materialCost = planMaterials(state, metadata, positions.length);
-  if (!materialCost) return null;
-  return { metadata, footprint, cells, positions, freeCells, totalCost, materialCost };
+  return { metadata, footprint, cells, positions, freeCells, ...costs };
 }
 
 /** planPlacement for a single origin as a boolean, allocation-free — safe to
@@ -188,12 +194,7 @@ export function canPlaceAt(
 ): boolean {
   const metadata = BUILDING_METADATA_BY_ID[buildingId];
   if (!metadata) return false;
-  if (metadata.commissionOnly) {
-    if (!(state.fundedBuilds ?? []).includes(buildingId)) return false;
-  } else if (state.florins < escalatedCost(metadata, buildOrderRank(state.map.tiles, buildingId))) {
-    return false;
-  }
-  if (!planMaterials(state, metadata, 1)) return false;
+  if (!planCosts(state, metadata, buildingId, 1)) return false;
 
   const { cells } = footprintMask(metadata, rotation);
   const water = getWaterCells(state.mapSeed);

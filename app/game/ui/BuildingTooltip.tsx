@@ -8,33 +8,38 @@ import {
 } from "~/game/city/connectivity";
 import { displayBoost } from "~/game/art/display";
 import { materialCaps } from "~/game/art/materials";
+import { supplierRate } from "~/game/city/metrics";
 import { getRazeSalvage } from "~/game/placement/raze";
-import { trafficFactor } from "~/game/city/traffic";
+import { plazaBoost } from "~/game/city/traffic";
+import type { TileMap } from "~/game/grid";
 import type { BuildingMetadata } from "~/game/types";
 import { staffingEfficiency } from "~/game/city/workers";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
-import { capitalizeLabel } from "./format";
-
-function formatAmount(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
-}
+import { capitalizeLabel, formatAmount } from "./format";
 
 function getActiveEffects(
   metadata: BuildingMetadata,
   workers: number,
+  originKey: string,
   plazaStrength: number,
   displayedCount: number,
-  traffic: number
+  tiles: TileMap,
+  population: number
 ) {
   const effects: string[] = [];
+  const boost = plazaBoost(metadata, originKey, plazaStrength, tiles, population);
   const displayMult = displayBoost(displayedCount);
-  const hostBoost = (1 + connectionBonusOf(metadata) * plazaStrength * traffic) * displayMult;
+  const hostBoost = boost * displayMult;
   const multiplier =
     staffingEfficiency(metadata.workersRequired ?? 0, metadata.maxWorkers ?? 0, workers) * hostBoost;
 
   if (metadata.supplies) {
+    // supplierRate, not `multiplier`: the tick gives supplier output no
+    // display boost, and this row must match the tick.
     effects.push(
-      `+${formatAmount(metadata.supplies.rate * multiplier)} ${metadata.supplies.material} / month`
+      `+${formatAmount(
+        supplierRate(metadata, workers, originKey, plazaStrength, tiles, population)
+      )} ${metadata.supplies.material} / month`
     );
   }
   if (metadata.generates?.income) {
@@ -50,7 +55,7 @@ function getActiveEffects(
     effects.push(`+${Math.round(metadata.housing * hostBoost)} housing`);
   }
   if (plazaStrength > 0) {
-    const pct = Math.round(connectionBonusOf(metadata) * plazaStrength * traffic * 100);
+    const pct = Math.round((boost - 1) * 100);
     if (!metadata.footTraffic) {
       effects.push(`Plaza connection: +${pct}%`);
     } else if (pct > 0) {
@@ -113,12 +118,19 @@ export function BuildingTooltip() {
   const displayedCount = metadata.displaySlots
     ? artworks.filter((w) => w.displayedAt?.key === originKey).length
     : 0;
-  const traffic = metadata.footTraffic
-    ? trafficFactor(metadata, originKey, tiles, population)
-    : 1;
-  const trafficPct = Math.round(connectionBonusOf(metadata) * plazaStrength * traffic * 100);
+  const trafficPct = Math.round(
+    (plazaBoost(metadata, originKey, plazaStrength, tiles, population) - 1) * 100
+  );
   const activeEffects = isActive
-    ? getActiveEffects(metadata, tile.workers, plazaStrength, displayedCount, traffic)
+    ? getActiveEffects(
+        metadata,
+        tile.workers,
+        originKey,
+        plazaStrength,
+        displayedCount,
+        tiles,
+        population
+      )
     : [];
 
   // Material stock: a supplier also reads the citywide pool it feeds (its own

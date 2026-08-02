@@ -6,6 +6,7 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
+import { hashString } from "~/game/random";
 import type { Artwork } from "~/game/types";
 import { createStatueMesh } from "./citizenFigures";
 
@@ -20,15 +21,6 @@ const STATUE_SCALE = 2.6; // ~1.5× a citizen — heroic but under a cottage's h
 
 // Warm Renaissance grounds/pigments for the procedural canvases.
 const CANVAS_PALETTE = ["#7a5c44", "#a8503a", "#8c9178", "#4f6b7a", "#b3936a", "#6b5335"];
-
-function hash(s: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
-}
 
 export type DisplayArtHandle = { mesh: Mesh; dispose?: () => void };
 
@@ -83,7 +75,7 @@ export function createDisplayArt(scene: Scene) {
 
   function createStatue(artwork: Artwork): Mesh {
     const mat = artwork.material === "bronze" ? bronzeMat() : marbleMat(); // undefined = marble
-    const statue = createStatueMesh(scene, hash(artwork.id) % 5, mat);
+    const statue = createStatueMesh(scene, hashString(artwork.id) % 5, mat);
     statue.scaling.setAll(STATUE_SCALE);
     return statue; // feet at local y=0
   }
@@ -96,7 +88,7 @@ export function createDisplayArt(scene: Scene) {
   function createPainting(artwork: Artwork): DisplayArtHandle {
     const tex = new DynamicTexture(`painting-${artwork.id}`, { width: 192, height: 240 }, scene, true);
     const ctx = tex.getContext();
-    const h = hash(artwork.id);
+    const h = hashString(artwork.id);
     const pick = (shift: number) => CANVAS_PALETTE[(h >>> shift) % CANVAS_PALETTE.length]!;
 
     ctx.fillStyle = "#b8912f"; // gilt frame

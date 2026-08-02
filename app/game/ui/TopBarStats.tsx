@@ -1,12 +1,13 @@
 import { useMemo } from "react";
-import { Check, Crown, Home, Info, Store, Users } from "lucide-react";
+import { Check, Crown, Home, Store, Users } from "lucide-react";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { RENAISSANCE_NOBLE_HOUSES, RENAISSANCE_PRESTIGE } from "~/game/constants";
 import { computeDisplaySummary } from "~/game/art/display";
 import { renaissanceProgress } from "~/game/art/renaissance";
 import { computeCityMetrics } from "~/game/city/metrics";
-import { Panel } from "./Panel";
+import { Panel, Row } from "./Panel";
+import { ResourceStat } from "./ResourceStat";
 
 // The top bar's population chip + its housing/amenities hover tooltip.
 export function PopulationStat() {
@@ -24,16 +25,12 @@ export function PopulationStat() {
     housing === amenities ? null : amenities < housing ? "amenities" : "housing";
 
   return (
-    <div className="group relative flex items-center gap-2.5">
-      <Users className="h-6 w-6 text-sienna" strokeWidth={2} />
-      <div className="flex flex-col leading-tight">
-        <span className="text-xl font-semibold text-ink">{population}</span>
-        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-faint">
-          Population
-          <Info className="h-3 w-3" />
-        </span>
-      </div>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
+    <ResourceStat
+      icon={Users}
+      label="Population"
+      value={population}
+      iconClassName="text-sienna"
+      tooltip={
         <Panel className="w-56 text-sm">
           <div className="flex flex-col gap-1.5 normal-case">
             <Row label="Housing capacity" value={housing} />
@@ -50,8 +47,8 @@ export function PopulationStat() {
             </div>
           )}
         </Panel>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -68,16 +65,11 @@ export function PrestigeStat() {
   );
 
   return (
-    <div className="group relative flex items-center gap-2.5">
-      <Crown className="h-6 w-6 text-prestige-gold" strokeWidth={2} />
-      <div className="flex flex-col leading-tight">
-        <span className="text-xl font-semibold text-ink">{Math.floor(prestige)}</span>
-        <span className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-ink-faint">
-          Prestige
-          <Info className="h-3 w-3" />
-        </span>
-      </div>
-      <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
+    <ResourceStat
+      icon={Crown}
+      label="Prestige"
+      value={Math.floor(prestige)}
+      tooltip={
         <Panel className="w-64 text-sm">
           <div className="font-display font-semibold text-ink">
             {reached ? "The Golden Age" : "The Renaissance"}
@@ -107,8 +99,8 @@ export function PrestigeStat() {
             </div>
           )}
         </Panel>
-      </div>
-    </div>
+      }
+    />
   );
 }
 
@@ -122,15 +114,6 @@ function CheckRow({ label, met, detail }: { label: string; met: boolean; detail?
         {detail && <span className="truncate">{detail}</span>}
         {met && <Check className="h-3.5 w-3.5 shrink-0 self-center text-sienna" />}
       </span>
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4">
-      <span className="text-ink-faint">{label}</span>
-      <span className="font-semibold text-ink">{value}</span>
     </div>
   );
 }

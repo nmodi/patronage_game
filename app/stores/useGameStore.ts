@@ -3,10 +3,10 @@ import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
 import type { Artist, Artwork, Commission, Material } from "~/game/types";
-import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";
+import { origins, type BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { planPlacement } from "~/game/placement/placementRules";
-import { canAssignCommission, favorOf } from "~/game/art/commissions";
+import { applyFavor, canAssignCommission } from "~/game/art/commissions";
 import { canDisplayWork } from "~/game/art/display";
 import { createArtist, trainOnConstruction } from "~/game/art/artists";
 import { generateSeed, pickCityName } from "~/game/map/seed";
@@ -26,7 +26,6 @@ import { advanceTick } from "~/game/tick";
 import {
   BASE_TICK_INTERVAL,
   DENOUNCE_PRESTIGE,
-  FAVOR_AFFRONTED,
   FAVOR_SLIGHT,
   STARTING_FLORINS,
 } from "~/game/constants";
@@ -259,16 +258,14 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     set((s) => {
       const commission = s.commissions.find((c) => c.id === commissionId);
       if (!commission || commission.workshopKey) return s;
-      const before = favorOf(s.favor, commission.requester);
-      const after = Math.max(0, before - FAVOR_SLIGHT);
-      // Same denunciation crossing as the tick's expiry slights.
-      const denounces = before >= FAVOR_AFFRONTED && after < FAVOR_AFFRONTED;
-      playSfx(denounces ? "denounce" : "decline");
+      // Same clamp + denunciation crossing as the tick's expiry slights.
+      const { favor, denounced } = applyFavor(s.favor, commission.requester, -FAVOR_SLIGHT);
+      playSfx(denounced ? "denounce" : "decline");
       return {
         commissions: s.commissions.filter((c) => c !== commission),
-        favor: { ...s.favor, [commission.requester]: after },
+        favor,
         offerAlert: s.offerAlert === commissionId ? null : s.offerAlert,
-        ...(denounces
+        ...(denounced
           ? {
               prestige: Math.max(0, s.prestige - DENOUNCE_PRESTIGE),
               denounceAlert: commission.requester,
@@ -326,16 +323,10 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       // The city teaches architects: XP per florin spent, computed against
       // pre-placement tiles/artists so a studio never trains on its own
       // construction and new founders are excluded.
-      const activeStudios = new Set(
-        Object.values(s.map.tiles)
-          .filter(
-            (t) =>
-              t.isOrigin &&
-              t.isActive &&
-              BUILDING_METADATA_BY_ID[t.buildingId]?.artistType === "architect"
-          )
-          .map((t) => `${t.position.x},${t.position.y}`)
-      );
+      const activeStudios = new Set<string>();
+      for (const [k, t, m] of origins(s.map.tiles)) {
+        if (t.isActive && m.artistType === "architect") activeStudios.add(k);
+      }
       const trained = trainOnConstruction(s.artists, activeStudios, totalCost);
 
       const newTiles = { ...s.map.tiles };

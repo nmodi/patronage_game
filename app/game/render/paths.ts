@@ -160,28 +160,43 @@ function plazaStyle(): PlazaStyle {
   return p === "travertine" || p === "herringbone" ? p : "cobble";
 }
 
-const plazaMaterials = new Map<string, StandardMaterial>();
+// One cache for every ground material below; disposePathMaterials clears it.
+const pathMaterials = new Map<string, StandardMaterial>();
+
+/** DynamicTexture → matte StandardMaterial, drawn once and cached by key. */
+function texturedMaterial(
+  key: string,
+  width: number,
+  height: number,
+  draw: (ctx: CanvasRenderingContext2D) => void,
+  scene: Scene
+) {
+  let mat = pathMaterials.get(key);
+  if (mat) return mat;
+  const tex = new DynamicTexture(`${key}-tex`, { width, height }, scene, true);
+  draw(tex.getContext() as CanvasRenderingContext2D);
+  tex.update();
+  mat = new StandardMaterial(`${key}-mat`, scene);
+  mat.specularColor = Color3.Black();
+  mat.diffuseTexture = tex;
+  pathMaterials.set(key, mat);
+  return mat;
+}
 
 /** Showpiece paving for plaza pads (cached per style+size; size in world units). */
 export function getPlazaMaterial(worldUnits: number, scene: Scene) {
   const style = plazaStyle();
-  const key = `${style}-${worldUnits}`;
-  let mat = plazaMaterials.get(key);
-  if (mat) return mat;
   const cells = Math.round(worldUnits / CELL_SIZE);
   const cellPx = Math.min(128, Math.floor(2048 / cells));
   const size = cells * cellPx;
-  const tex = new DynamicTexture(`plaza-${key}-tex`, { width: size, height: size }, scene, true);
-  PLAZA_DRAWERS[style](tex.getContext() as CanvasRenderingContext2D, size, cellPx);
-  tex.update();
-  mat = new StandardMaterial(`plaza-${key}-mat`, scene);
-  mat.specularColor = Color3.Black();
-  mat.diffuseTexture = tex;
-  plazaMaterials.set(key, mat);
-  return mat;
+  return texturedMaterial(
+    `plaza-${style}-${worldUnits}`,
+    size,
+    size,
+    (ctx) => PLAZA_DRAWERS[style](ctx, size, cellPx),
+    scene
+  );
 }
-
-let roadMaterial: StandardMaterial | null = null;
 
 function pavingMaterial(
   name: string,
@@ -192,21 +207,19 @@ function pavingMaterial(
   tones: string[],
   scene: Scene
 ) {
-  const tex = new DynamicTexture(`${name}-tex`, { width, height }, scene, true);
-  drawPaving(tex.getContext() as CanvasRenderingContext2D, width, height, n, grout, tones);
-  tex.update();
-  const mat = new StandardMaterial(`${name}-mat`, scene);
-  mat.specularColor = Color3.Black();
-  mat.diffuseTexture = tex;
-  return mat;
+  return texturedMaterial(
+    name,
+    width,
+    height,
+    (ctx) => drawPaving(ctx, width, height, n, grout, tones),
+    scene
+  );
 }
 
 /** Non-plaza pads (market) share the aprons' mottled stone (sizes in world units). */
 export function getPadMaterial(worldW: number, worldD: number, scene: Scene) {
   return getApronMaterial(Math.round(worldW / CELL_SIZE), Math.round(worldD / CELL_SIZE), scene);
 }
-
-const apronMaterials = new Map<string, StandardMaterial>();
 
 // Aprons: the dirt-path mottling recolored to the street limestone — quiet
 // stone ground with no slab grid, so buildings don't sit on lighter flagstone
@@ -216,65 +229,35 @@ const APRON_TONES = [...ROAD_TONES.slice(1), ROAD_GROUT];
 
 /** Mottled-stone ground for a building's full w×d-cell footprint apron (cached per size). */
 export function getApronMaterial(widthCells: number, depthCells: number, scene: Scene) {
-  const key = `${widthCells}x${depthCells}`;
-  let mat = apronMaterials.get(key);
-  if (mat) return mat;
   const px = Math.min(128, Math.floor(1024 / Math.max(widthCells, depthCells)));
-  const tex = new DynamicTexture(
-    `apron-${key}-tex`,
-    { width: widthCells * px, height: depthCells * px },
-    scene,
-    true
+  return texturedMaterial(
+    `apron-${widthCells}x${depthCells}`,
+    widthCells * px,
+    depthCells * px,
+    // The dirt texture fills a square; max dimension covers the rectangle, crop is harmless.
+    (ctx) => drawDirtTexture(ctx, Math.max(widthCells, depthCells) * px, APRON_BASE, APRON_TONES),
+    scene
   );
-  // The dirt texture fills a square; max dimension covers the rectangle, crop is harmless.
-  drawDirtTexture(
-    tex.getContext() as CanvasRenderingContext2D,
-    Math.max(widthCells, depthCells) * px,
-    APRON_BASE,
-    APRON_TONES
-  );
-  tex.update();
-  mat = new StandardMaterial(`apron-${key}-mat`, scene);
-  mat.specularColor = Color3.Black();
-  mat.diffuseTexture = tex;
-  apronMaterials.set(key, mat);
-  return mat;
 }
 
 /** Full-tile street paving — same slab size as the plazas, a shade darker. */
 export function getRoadMaterial(scene: Scene) {
-  roadMaterial ??= pavingMaterial("road", 128, 128, STONES_PER_CELL, ROAD_GROUT, ROAD_TONES, scene);
-  return roadMaterial;
+  return pavingMaterial("road", 128, 128, STONES_PER_CELL, ROAD_GROUT, ROAD_TONES, scene);
 }
-
-let pavedRibbonMaterial: StandardMaterial | null = null;
 
 /** Diagonal paved ribbon: 3 slab courses across U so the quad's √2 X-scale
  * yields near-cardinal slab length (0.236 vs 0.25 wu) while quad seams still
  * land on grout — a plain uScale of √2 would cut slabs mid-brick at every
  * staircase seam. */
 export function getPavedRibbonMaterial(scene: Scene) {
-  pavedRibbonMaterial ??= pavingMaterial("paved-ribbon", 192, 128, 3, ROAD_GROUT, ROAD_TONES, scene);
-  return pavedRibbonMaterial;
+  return pavingMaterial("paved-ribbon", 192, 128, 3, ROAD_GROUT, ROAD_TONES, scene);
 }
-
-let dirtPadMaterial: StandardMaterial | null = null;
 
 /** Rimless packed earth for dirt-ribbon junction pads (the ribbon texture minus
  * its grass rim — a rim across a crossing would fence it off). */
 export function getDirtPadMaterial(scene: Scene) {
-  if (dirtPadMaterial) return dirtPadMaterial;
-  const size = 128;
-  const tex = new DynamicTexture("dirt-pad-tex", { width: size, height: size }, scene, true);
-  drawDirtTexture(tex.getContext() as CanvasRenderingContext2D, size);
-  tex.update();
-  dirtPadMaterial = new StandardMaterial("dirt-pad-mat", scene);
-  dirtPadMaterial.specularColor = Color3.Black();
-  dirtPadMaterial.diffuseTexture = tex;
-  return dirtPadMaterial;
+  return texturedMaterial("dirt-pad", 128, 128, (ctx) => drawDirtTexture(ctx, 128), scene);
 }
-
-let dirtRibbonMaterial: StandardMaterial | null = null;
 
 /** Packed earth for diagonal dirt ribbons. Cardinal dirt paths draw through the
  * raster overlay (`dirtPathOverlay.ts`), which is grid-axis-aligned and can't
@@ -282,39 +265,26 @@ let dirtRibbonMaterial: StandardMaterial | null = null;
  * diagonals. The overlay's darker grass rim is baked onto the long (v) edges;
  * symmetric top/bottom so the DynamicTexture invertV orientation is moot. */
 export function getDirtRibbonMaterial(scene: Scene) {
-  if (dirtRibbonMaterial) return dirtRibbonMaterial;
   const size = 128;
-  const tex = new DynamicTexture("dirt-ribbon-tex", { width: size, height: size }, scene, true);
-  const ctx = tex.getContext() as CanvasRenderingContext2D;
-  drawDirtTexture(ctx, size);
-  const rim = Math.round(size * 0.18); // matches the overlay's 18%-of-cell rim
-  ctx.fillStyle = DIRT_EDGE;
-  ctx.fillRect(0, 0, size, rim);
-  ctx.fillRect(0, size - rim, size, rim);
-  tex.update();
-  dirtRibbonMaterial = new StandardMaterial("dirt-ribbon-mat", scene);
-  dirtRibbonMaterial.specularColor = Color3.Black();
-  dirtRibbonMaterial.diffuseTexture = tex;
-  return dirtRibbonMaterial;
+  return texturedMaterial(
+    "dirt-ribbon",
+    size,
+    size,
+    (ctx) => {
+      drawDirtTexture(ctx, size);
+      const rim = Math.round(size * 0.18); // matches the overlay's 18%-of-cell rim
+      ctx.fillStyle = DIRT_EDGE;
+      ctx.fillRect(0, 0, size, rim);
+      ctx.fillRect(0, size - rim, size, rim);
+    },
+    scene
+  );
 }
 
 export function disposePathMaterials() {
-  for (const mat of [...apronMaterials.values(), ...plazaMaterials.values()]) {
+  for (const mat of pathMaterials.values()) {
     mat.diffuseTexture?.dispose();
     mat.dispose();
   }
-  apronMaterials.clear();
-  plazaMaterials.clear();
-  roadMaterial?.diffuseTexture?.dispose();
-  roadMaterial?.dispose();
-  roadMaterial = null;
-  pavedRibbonMaterial?.diffuseTexture?.dispose();
-  pavedRibbonMaterial?.dispose();
-  pavedRibbonMaterial = null;
-  dirtPadMaterial?.diffuseTexture?.dispose();
-  dirtPadMaterial?.dispose();
-  dirtPadMaterial = null;
-  dirtRibbonMaterial?.diffuseTexture?.dispose();
-  dirtRibbonMaterial?.dispose();
-  dirtRibbonMaterial = null;
+  pathMaterials.clear();
 }

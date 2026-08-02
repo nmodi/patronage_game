@@ -20,6 +20,7 @@ import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import type { Artwork, BuildingMetadata, BuildingType } from "~/game/types";
 import {
   createBuildingBatcher,
+  desaturate,
   expectsModel,
   hasModel,
   type PlacedBuilding,
@@ -32,6 +33,8 @@ import {
 } from "./displayArt";
 import {
   effectiveFullRotation,
+  facadeHalfExtent,
+  frontVector,
   getFrontDirection,
   getModelFit,
   hasExtensions,
@@ -62,12 +65,6 @@ function createGridLines(scene: Scene) {
   grid.alpha = GRID_ALPHA_IDLE;
   grid.isPickable = false;
   return grid;
-}
-
-function desaturate(color: Color3) {
-  const luminance = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
-  const gray = new Color3(luminance, luminance, luminance);
-  return Color3.Lerp(color, gray, 0.75);
 }
 
 type TileMeshEntry = {
@@ -273,13 +270,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       }
     }
     if (front && filled.length > 0) {
-      const theta = yawOfRotation(r);
-      const dirX = front[0] * Math.cos(theta) + front[1] * Math.sin(theta);
-      const dirZ = -front[0] * Math.sin(theta) + front[1] * Math.cos(theta);
-      // front is a local direction, so the facade half-extent is the local
-      // axis it points along — exact at every rotation, 45° included.
-      const half =
-        ((front[0] !== 0 ? metadata.footprint.width : metadata.footprint.depth) * CELL_SIZE) / 2;
+      const [dirX, dirZ] = frontVector(front, yawOfRotation(r));
+      const half = facadeHalfExtent(front, metadata.footprint);
       // The painting stands free in the open just in front of the facade, so it
       // never hides in the busy kit relief; the stand carries its own height.
       const standDist = half * getModelFit(tile.buildingId) + 0.3;

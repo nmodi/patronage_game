@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { createPortal } from "react-dom";
-import { Images, X } from "lucide-react";
+import { Images } from "lucide-react";
 
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { canDisplayWork } from "~/game/art/display";
 import { playSfx } from "~/game/audio/sfx";
-import { Panel } from "./Panel";
+import { CloseButton, HudToggleButton, ModalBackdrop, Panel } from "./Panel";
 import { ArtworkRow } from "./ArtworkThumbnail";
 
 // Circular HUD button (top-left row) + fullscreen codex modal.
@@ -25,40 +24,15 @@ export function GalleryPanel() {
 
   return (
     <>
-      <button
-        data-hud="true"
-        className={`hud-toggle panel-parchment pointer-events-auto relative h-11 rounded-full text-ink ${
-          open ? "is-open ring-2 ring-sienna" : ""
-        }`}
-        onClick={() => setOpen(true)}
-        aria-label="Gallery"
-        title="Gallery"
-      >
-        <Images className="h-5 w-5 text-sienna" strokeWidth={1.75} />
-        <span className="hud-toggle-label" aria-hidden="true">
-          <span className="pl-0.5 pr-3.5">Gallery</span>
-        </span>
-      </button>
-      {/* Portal: keeps the fixed modal out of the TopBar panel's stacking
-          context so it can't get pinned to the panel. */}
-      {open && createPortal(
-        <div
-          data-hud="true"
-          className="pointer-events-auto fixed inset-0 z-[60] flex items-center justify-center bg-black/40"
-          onClick={() => setOpen(false)}
-        >
+      <HudToggleButton icon={Images} label="Gallery" open={open} onClick={() => setOpen(true)} />
+      {open && (
+        <ModalBackdrop onDismiss={() => setOpen(false)}>
           <div className="w-[28rem]" onClick={(e) => e.stopPropagation()}>
             <Panel
               header={
                 <div className="flex items-center justify-between">
                   <span>Gallery of Works ({artworks.length})</span>
-                  <button
-                    className="rounded-full p-1 text-ink-faint transition hover:bg-parchment-deep"
-                    onClick={() => setOpen(false)}
-                    aria-label="Close gallery"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  <CloseButton label="Close gallery" onClick={() => setOpen(false)} />
                 </div>
               }
               className="flex max-h-[60vh] flex-col gap-3 overflow-y-auto"
@@ -146,8 +120,7 @@ export function GalleryPanel() {
               )}
             </Panel>
           </div>
-        </div>,
-        document.body,
+        </ModalBackdrop>
       )}
     </>
   );

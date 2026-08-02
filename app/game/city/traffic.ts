@@ -16,6 +16,7 @@
 
 import { BUILDING_METADATA_BY_ID } from "../buildings.ts";
 import {
+  connectionBonusOf,
   NEIGHBORS,
   NETWORK_NEIGHBORS,
   PLAZA_IDS,
@@ -106,6 +107,23 @@ function catchmentFrom(tiles: Record<string, ConnectivityTile>, seeds: string[])
   let capacity = 0;
   for (const housing of housed.values()) capacity += housing;
   return Math.min(1, capacity / CATCHMENT_FULL);
+}
+
+/** The full plaza/host multiplier every output rides:
+ * 1 + connectionBonus × hub strength × traffic. The one home of the formula —
+ * the tick, city metrics, and both UI mirrors all call this. Display boost is
+ * deliberately not folded in: the tick applies it to `generates` only, never
+ * supplier output. */
+export function plazaBoost(
+  metadata: BuildingMetadata,
+  originKey: string,
+  strength: number,
+  tiles: Record<string, ConnectivityTile>,
+  population: number
+): number {
+  return (
+    1 + connectionBonusOf(metadata) * strength * trafficFactor(metadata, originKey, tiles, population)
+  );
 }
 
 /** The 0..1 traffic factor multiplying a building's plaza bonus — 1 for
