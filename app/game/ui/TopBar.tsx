@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Music, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, Store, Users, Volume2 } from "lucide-react";
+import { ArrowLeft, Check, Coins, Copy, Crown, Feather, Home, Info, Music, Pause, Pencil, Play, RotateCcw, ScrollText, Settings, SkipForward, Store, Users, Volume2 } from "lucide-react";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { getWater, type WaterArchetype } from "~/game/water";
@@ -23,6 +23,7 @@ export const ARCHETYPE_LABELS: Record<WaterArchetype, string> = {
   "scenic-coast": "Distant coast",
 };
 import { Panel } from "./Panel";
+import { skipTrack } from "./useMusic";
 import { ResourceStat } from "./ResourceStat";
 
 export function TopBar() {
@@ -52,6 +53,7 @@ export function TopBar() {
   const setMusicVolume = useGameStore((s) => s.setMusicVolume);
   const sfxVolume = useGameStore((s) => s.sfxVolume);
   const setSfxVolume = useGameStore((s) => s.setSfxVolume);
+  const nowPlaying = useGameStore((s) => s.nowPlaying);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -206,7 +208,7 @@ export function TopBar() {
                 rel="noreferrer"
                 className="text-ink transition hover:text-sienna"
               >
-                Saltarello — Anonymous, 14th c.{" "}
+                Early music recordings{" "}
                 <span className="text-xs text-ink-faint">perf. Jon Sayles</span>
               </a>
               <a
@@ -224,7 +226,7 @@ export function TopBar() {
       )}
       {settingsOpen && !creditsOpen && (
         <div className="absolute right-4 top-full mt-2">
-          <Panel header="Settings" className="flex w-48 flex-col gap-2 text-sm">
+          <Panel header="Settings" className="flex w-60 flex-col gap-2 text-sm">
             <button
               className="btn-secondary flex items-center gap-2 px-3 py-2"
               // ponytail: full reload = the one clean path back to the menu — drops
@@ -237,7 +239,7 @@ export function TopBar() {
             </button>
             {/* Two-click confirm in place — no native dialog breaking the parchment world. */}
             <button
-              className="btn-primary flex items-center gap-2 px-3 py-2"
+              className="btn-secondary flex items-center gap-2 px-3 py-2"
               onClick={() => {
                 if (!confirmRestart) {
                   setConfirmRestart(true);
@@ -251,13 +253,20 @@ export function TopBar() {
               <RotateCcw className="h-4 w-4" />
               {confirmRestart ? "Erase all progress?" : "Restart Game"}
             </button>
-            <button
-              className="btn-secondary flex items-center gap-2 px-3 py-2"
-              onClick={() => setCreditsOpen(true)}
-            >
-              <ScrollText className="h-4 w-4" />
-              Credits
-            </button>
+            {/* Now-playing + skip: for auditioning which tracks fit the game. */}
+            {nowPlaying && (
+              <div className="flex items-center gap-1.5 px-1 text-base leading-snug text-ink-faint">
+                {/* Title only — composer/performer live in TRACKS for the credits pass. */}
+                <span className="min-w-0 flex-1">{nowPlaying.split(" — ")[0]}</span>
+                <button
+                  className="shrink-0 rounded-full p-1 transition hover:bg-parchment-deep hover:text-ink"
+                  onClick={skipTrack}
+                  aria-label="Skip track"
+                >
+                  <SkipForward className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
             {/* Slider doubles as mute: 0 = off. */}
             <label className="flex items-center gap-2 px-1 text-ink-faint">
               <Music className="h-4 w-4 shrink-0" />
@@ -285,6 +294,13 @@ export function TopBar() {
                 aria-label="Sound effects volume"
               />
             </label>
+            <button
+              className="btn-secondary flex items-center gap-2 px-3 py-2"
+              onClick={() => setCreditsOpen(true)}
+            >
+              <ScrollText className="h-4 w-4" />
+              Credits
+            </button>
             <button
               className="flex items-center justify-center gap-1.5 text-center text-xs tracking-wide text-ink-faint transition hover:text-ink"
               onClick={copySeed}

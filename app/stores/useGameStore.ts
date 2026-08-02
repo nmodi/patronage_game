@@ -91,6 +91,9 @@ export type GameState = {
   setOfferAlert: (id: string | null) => void;
   denounceAlert: string | null;
   setDenounceAlert: (name: string | null) => void;
+  // Title of the track the music engine is playing. Transient, same pattern.
+  nowPlaying: string | null;
+  setNowPlaying: (title: string | null) => void;
   displayArtwork: (artworkId: string, hostKey: string, slot: number) => void;
   recallArtwork: (artworkId: string) => void;
   tick: () => void;
@@ -149,6 +152,7 @@ const createInitialState = (runSeed?: string) => {
     razeTarget: null as string | null,
     offerAlert: null as string | null,
     denounceAlert: null as string | null,
+    nowPlaying: null as string | null,
     inspectTarget: null as { key: string; slot?: number } | null,
     map: { tiles: {}, selectedBuilding: null } as MapState,
     time: { tickCount: 0 },
@@ -171,6 +175,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setInspectTarget: (target) => set(() => ({ inspectTarget: target })),
   setOfferAlert: (id) => set(() => ({ offerAlert: id })),
   setDenounceAlert: (name) => set(() => ({ denounceAlert: name })),
+  setNowPlaying: (title) => set(() => ({ nowPlaying: title })),
 
   displayArtwork: (artworkId, hostKey, slot) =>
     set((s) => {

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 
 import { useGameStore } from "~/stores/useGameStore";
-import { TRACK_GAP, pickTrack, randomDelay } from "~/game/music";
+import { TRACK_GAP, pickTrack, randomDelay, trackTitle } from "~/game/music";
 
 // Module-singleton playback engine — one element can ever exist, so a stale
 // React effect (StrictMode double-mount, HMR) can't leave a second track
@@ -22,6 +22,7 @@ const playNext = () => {
   if (useGameStore.getState().musicVolume === 0) return schedule();
   lastSrc = pickTrack(useGameStore.getState().prestige, lastSrc);
   audio.src = lastSrc;
+  useGameStore.getState().setNowPlaying(trackTitle(lastSrc));
   const el = audio;
   el.play().catch(() => {
     // Blocked (no gesture yet) or aborted: retry on the next interaction —
@@ -31,9 +32,19 @@ const playNext = () => {
 };
 
 const schedule = () => {
+  useGameStore.getState().setNowPlaying(null);
   clearTimeout(timer);
   timer = setTimeout(playNext, randomDelay(TRACK_GAP));
 };
+
+// Settings-panel skip: end the current track (or the silence gap) and play
+// another immediately — for auditioning which tracks fit.
+export function skipTrack() {
+  if (!audio) return;
+  audio.pause();
+  clearTimeout(timer);
+  playNext();
+}
 
 // Idempotent — called from the menu click (gesture stack) and the hook mount.
 export function startMusic() {
@@ -51,6 +62,7 @@ function stopMusic() {
     audio.onended = null;
     audio.pause();
     audio = null;
+    useGameStore.getState().setNowPlaying(null);
   }
 }
 
