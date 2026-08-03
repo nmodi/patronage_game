@@ -3,7 +3,7 @@ import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import type { BuildingId } from "~/game/buildings";
 import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
-import { setAmbienceRadius } from "~/game/ui/useAmbience";
+import { setAmbienceLocal, setAmbienceRadius } from "~/game/ui/useAmbience";
 import { getWater } from "~/game/map/water";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
@@ -272,6 +272,7 @@ export function BabylonCanvas() {
     engine.runRenderLoop(() => {
       panCamera();
       setAmbienceRadius(camera.radius); // no-op unless the zoom moved
+      setAmbienceLocal(citizens.sampleBustle(camera.target.x, camera.target.z));
       scene.render();
     });
 

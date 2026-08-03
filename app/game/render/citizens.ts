@@ -2,6 +2,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
+import { createBustleField } from "~/game/city/bustleField";
 import { crowdSize } from "~/game/city/crowd";
 import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
 import { useGameStore } from "~/stores/useGameStore";
@@ -41,6 +42,7 @@ type Citizen = {
   speed: number; // world units per second
   yaw: number; // current smoothed heading, radians
   phase: number; // gait stride phase, radians
+  cell: string | null; // cell currently counted in the bustle field
 };
 
 const key = (p: GridPos) => `${p.x},${p.y}`;
@@ -85,6 +87,16 @@ export function createCitizens(scene: Scene) {
   let population = 0;
   const citizens: Citizen[] = [];
 
+  // Per-tile figure counts for the ambience (sampled at the camera focus).
+  // Every count change routes through setCell so the field can't drift.
+  // ponytail: counts by from-cell, updated on arrival — the one-cell snap is
+  // ≤~0.01 gain after the kernel + quantizer; interpolate if ever audible.
+  const field = createBustleField();
+  function setCell(citizen: Citizen, cell: string | null) {
+    field.move(citizen.cell, cell);
+    citizen.cell = cell;
+  }
+
   function pickDestination(citizen: Citizen, cameFrom: GridPos) {
     const { x, y } = citizen.from;
     const options = [
@@ -112,6 +124,7 @@ export function createCitizens(scene: Scene) {
   // paused must not sit at the origin, and yaw is snapped (not smoothed) so a
   // respawn doesn't pirouette from its old heading.
   function placeAt(citizen: Citizen, tile: GridPos) {
+    setCell(citizen, key(tile));
     citizen.from = tile;
     citizen.to = tile;
     citizen.t = 1; // forces a destination pick on the next frame
@@ -140,6 +153,7 @@ export function createCitizens(scene: Scene) {
       speed: 0.3 + Math.random() * 0.2, // a stroll, with a little variety
       yaw: Math.random() * Math.PI * 2,
       phase: 0,
+      cell: null,
     };
     placeAt(citizen, randomTile());
     return citizen;
@@ -159,6 +173,7 @@ export function createCitizens(scene: Scene) {
         if (citizen.t >= 1) {
           const cameFrom = citizen.from;
           citizen.from = citizen.to;
+          setCell(citizen, key(citizen.from));
           pickDestination(citizen, cameFrom);
         }
         const a = gridToWorld(citizen.from.x, citizen.from.y);
@@ -201,7 +216,11 @@ export function createCitizens(scene: Scene) {
   function retarget() {
     const desired =
       spawnTiles.length === 0 ? 0 : (override ?? crowdSize(population, spawnTiles.length));
-    while (citizens.length > desired) citizens.pop()!.figure.dispose();
+    while (citizens.length > desired) {
+      const citizen = citizens.pop()!;
+      setCell(citizen, null);
+      citizen.figure.dispose();
+    }
     while (citizens.length < desired) citizens.push(spawn());
   }
 
@@ -235,8 +254,12 @@ export function createCitizens(scene: Scene) {
     scene.onBeforeRenderObservable.remove(observer);
     for (const citizen of citizens) citizen.figure.dispose();
     citizens.length = 0;
+    field.clear();
     factory.dispose();
   }
 
-  return { sync, setPopulation, dispose };
+  /** 0..1 local crowd density at world (x,z) — the ambience's camera-focus sample. */
+  const sampleBustle = (x: number, z: number) => field.sampleAt(x, z);
+
+  return { sync, setPopulation, sampleBustle, dispose };
 }

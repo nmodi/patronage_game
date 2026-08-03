@@ -14,8 +14,12 @@ export const ZOOM_NEAR = 3;
 export const ZOOM_FAR = 80;
 export const ZOOM_QUIET = 0.3;
 
-/** 0..1 loudness for the crowd loop: citywide bustle × camera closeness. */
-export function ambienceGain(population: number, radius: number): number {
+/** 0..1 loudness for the crowd loop: zoom envelope × a citywide↔local
+ * cross-fade. `local` is the bustle-field sample at the camera focus
+ * (city/bustleField.ts) — fully zoomed out hears the whole city at the quiet
+ * floor, fully zoomed in hears only the crowd actually on screen. */
+export function ambienceGain(population: number, radius: number, local: number): number {
   const t = Math.min(1, Math.max(0, (ZOOM_FAR - radius) / (ZOOM_FAR - ZOOM_NEAR)));
-  return bustle(population) * (ZOOM_QUIET + (1 - ZOOM_QUIET) * t);
+  const city = bustle(population);
+  return (city + (local - city) * t) * (ZOOM_QUIET + (1 - ZOOM_QUIET) * t);
 }

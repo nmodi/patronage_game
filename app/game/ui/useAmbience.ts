@@ -5,20 +5,22 @@ import { AMBIENCE_GAIN, AMBIENCE_SRC, ambienceGain } from "~/game/audio/ambience
 
 // Module-singleton looping crowd murmur — same engine shape as useMusic (one
 // element can ever exist, so StrictMode/HMR can't stack loops). Loudness =
-// slider × bustle(population) × zoom closeness; the render loop reports the
-// camera radius via setAmbienceRadius each frame.
-// ponytail: direct volume sets, no ramp — population steps are tiny and zoom
-// is per-frame continuous; shared AudioContext gain node if stepping is ever
-// audible. Volume 0 keeps looping silently rather than pause/resume bookkeeping.
+// slider × ambienceGain(population, zoom, local crowd at the camera focus);
+// the render loop reports camera radius + the bustle-field sample each frame.
+// ponytail: direct volume sets, no ramp — population steps are tiny, zoom and
+// local are per-frame continuous (local quantized to 1% steps below); shared
+// AudioContext gain node if stepping or spawn/despawn pops are ever audible.
+// Volume 0 keeps looping silently rather than pause/resume bookkeeping.
 let audio: HTMLAudioElement | null = null;
 let lastRadius = 40; // mid-zoom until the render loop reports
+let lastLocal = 0;
 
 const applyVolume = () => {
   if (!audio) return;
   const s = useGameStore.getState();
   audio.volume = Math.min(
     1,
-    s.ambienceVolume * AMBIENCE_GAIN * ambienceGain(s.population, lastRadius)
+    s.ambienceVolume * AMBIENCE_GAIN * ambienceGain(s.population, lastRadius, lastLocal)
   );
 };
 
@@ -26,6 +28,15 @@ const applyVolume = () => {
 export function setAmbienceRadius(radius: number) {
   if (radius === lastRadius) return;
   lastRadius = radius;
+  applyVolume();
+}
+
+// Called from the render loop every frame; figures drift continuously, so
+// quantize to 1% steps and only re-apply on change.
+export function setAmbienceLocal(local: number) {
+  const q = Math.round(local * 100) / 100;
+  if (q === lastLocal) return;
+  lastLocal = q;
   applyVolume();
 }
 
