@@ -8,6 +8,65 @@ Kitbashed from [Kenney](https://kenney.nl)'s **Fantasy Town Kit** and **Nature K
 
 Day skybox panorama from [Kenney](https://kenney.nl)'s **Skyboxes** pack (CC0).
 
+## Interface icons
+
+Most in-game icons are from **[game-icons.net](https://game-icons.net)**, licensed
+**[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)**. Each icon below is credited to
+its author; the only change is recoloring to a single flat fill (`currentColor`). Source SVGs live
+in `scripts/game-icons/` and are compiled into `app/game/ui/gameIcons.tsx` by `scripts/gen-game-icons.py`.
+
+| Used for | game-icons.net icon | Author |
+| --- | --- | --- |
+| Bronze foundry | `anvil` | Badges |
+| Population | `backup` | Lorc |
+| Market, Market stall | `basket` | Delapouite |
+| Tavern | `beer-stein` | Lorc |
+| Bush | `berry-bush` | Delapouite |
+| Olive grove | `birch-trees` | Caro Asercion |
+| Stone wall | `brick-wall` | Delapouite |
+| Inspiration | `candle-light` | Lorc |
+| Palazzo | `capitol` | Lorc |
+| Church faction / cathedral | `church` | Delapouite |
+| Materials / sculptor | `claw-hammer` | Lorc |
+| Settings | `clockwork` | Lorc |
+| Architect | `compass` | Lorc |
+| Noble house | `cross-shield` | Delapouite |
+| Road | `crossroad` | Delapouite |
+| Chapel | `crucifix` | Delapouite |
+| Housing / cottage, Townhouse | `family-house` | Delapouite |
+| Fountain | `fountain` | Lorc |
+| Tree | `fruit-tree` | Delapouite |
+| Vineyard | `grapes` | Lorc |
+| Civic / plaza | `greek-temple` | Delapouite |
+| Commission timer | `hourglass` | Lorc |
+| Loggia / colonnade | `ionic-column` | Delapouite |
+| Prestige | `laurel-crown` | Lorc |
+| Bronze | `metal-bar` | Lorc |
+| Quarry / raze | `mining` | Lorc |
+| Obelisk | `obelisk` | Delapouite |
+| Artists | `paint-brush` | Delapouite |
+| Pigment / painter / workshop | `paint-bucket` | Delapouite |
+| Timber / cypress | `pine-tree` | Lorc |
+| Gallery | `portrait` | Delapouite |
+| Build / edit | `quill` | Lorc |
+| Commissions | `scroll-quill` | Delapouite |
+| Marble | `stone-block` | Lorc |
+| Bridge | `stone-bridge` | Delapouite |
+| Sculpture display | `stone-bust` | Delapouite |
+| Avenue | `stone-path` | Delapouite |
+| Stone / rocks / boulder | `stone-pile` | Delapouite |
+| Bell tower | `stone-tower` | Lorc |
+| Foot path | `trail` | Delapouite |
+| Dirt path | `trowel` | Delapouite |
+| Florins | `two-coins` | Delapouite |
+| Warehouse | `warehouse` | Delapouite |
+| Services / bakery | `wheat` | Lorc |
+| Fence | `wooden-fence` | Lorc |
+
+Interface controls — play, pause, close (✕), the Renaissance checklist tick, the info
+affordance, paging chevrons, and the settings menu's own glyphs — remain from
+**[lucide](https://lucide.dev)** (ISC license).
+
 ## Sound effects
 
 From [Kenney](https://kenney.nl)'s **Impact Sounds**, **RPG Audio**, and **Music Jingles** packs (all CC0), converted to AAC.

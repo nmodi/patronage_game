@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Clock, Coins, Crown } from "lucide-react";
+import { Clock, Coins, Crown } from "./gameIcons";
 
 import { commissionMaterial, commissionMaterialCost } from "~/game/art/materials";
 import type { Commission } from "~/game/types";

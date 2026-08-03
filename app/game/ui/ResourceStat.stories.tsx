@@ -1,4 +1,4 @@
-import { Coins, Crown, Feather, Users } from "lucide-react";
+import { Coins, Crown, Feather, Users } from "./gameIcons";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { ResourceStat } from "./ResourceStat";

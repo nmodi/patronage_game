@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil } from "./gameIcons";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { canDisplayWork, CHURCH_HOST_IDS } from "~/game/art/display";

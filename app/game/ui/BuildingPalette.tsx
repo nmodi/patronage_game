@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, Pickaxe, Warehouse } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Pickaxe, Warehouse } from "./gameIcons";
 
 import { BUILDING_METADATA_BY_TYPE, type BuildingId } from "~/game/buildings";
 import type { BuildingType, Material } from "~/game/types";

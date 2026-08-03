@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Images } from "lucide-react";
+import { Images } from "./gameIcons";
 
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";

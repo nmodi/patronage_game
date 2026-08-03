@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Scroll, Users } from "lucide-react";
+import { Scroll, Users } from "./gameIcons";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { HudPanel, Panel } from "./Panel";

@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Crown } from "lucide-react";
+import { Crown } from "./gameIcons";
 
 import { renaissanceProgress } from "~/game/art/renaissance";
 import { playSfx } from "~/game/audio/sfx";

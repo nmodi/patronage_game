@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Coins, Feather, Pause, Pencil, Play, Settings } from "lucide-react";
+import { Pause, Play } from "lucide-react";
+import { Coins, Feather, Pencil, Settings } from "./gameIcons";
 
 import { isDemo, useGameStore } from "~/stores/useGameStore";
 import { BASE_TICK_INTERVAL, GAME_SPEED_MULTIPLIERS } from "~/game/constants";

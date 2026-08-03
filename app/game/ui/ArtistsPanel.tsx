@@ -1,4 +1,4 @@
-import { Paintbrush } from "lucide-react";
+import { Paintbrush } from "./gameIcons";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { nextRankXp, RANK_LABEL } from "~/game/art/artists";

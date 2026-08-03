@@ -36,14 +36,14 @@ import {
   Warehouse,
   Waves,
   Wheat,
-  type LucideIcon,
-} from "lucide-react";
+  type IconComponent,
+} from "./gameIcons";
 
 import type { BuildingId } from "~/game/buildings";
 import type { BuildingType, Material } from "~/game/types";
 
 // ponytail: placeholder glyphs until materials get bespoke art.
-export const MATERIAL_ICONS: Record<Material, LucideIcon> = {
+export const MATERIAL_ICONS: Record<Material, IconComponent> = {
   pigment: Palette,
   marble: Gem,
   bronze: Medal,
@@ -51,13 +51,13 @@ export const MATERIAL_ICONS: Record<Material, LucideIcon> = {
   stone: Mountain,
 };
 
-export const ARTIST_ICONS: Record<string, LucideIcon> = {
+export const ARTIST_ICONS: Record<string, IconComponent> = {
   painter: Palette,
   sculptor: Hammer,
   architect: DraftingCompass,
 };
 
-export const CATEGORIES: Array<{ type: BuildingType; label: string; icon: LucideIcon }> = [
+export const CATEGORIES: Array<{ type: BuildingType; label: string; icon: IconComponent }> = [
   { type: "road", label: "Roads", icon: Route },
   { type: "city", label: "Civic", icon: Landmark },
   { type: "residential", label: "Housing", icon: Home },
@@ -67,7 +67,7 @@ export const CATEGORIES: Array<{ type: BuildingType; label: string; icon: Lucide
   { type: "decoration", label: "Decorations", icon: TreePine },
 ];
 
-export const BUILDING_ICONS: Record<BuildingId, LucideIcon> = {
+export const BUILDING_ICONS: Record<BuildingId, IconComponent> = {
   town_center_plaza: Landmark,
   plaza: Landmark,
   small_plaza: Landmark,

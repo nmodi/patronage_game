@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import { Info, type LucideIcon } from "lucide-react";
+import { Info } from "lucide-react";
+import type { IconComponent } from "./gameIcons";
 
 interface ResourceStatProps {
-  icon: LucideIcon;
+  icon: IconComponent;
   label: string;
   value: string | number;
   iconClassName?: string;

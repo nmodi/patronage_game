@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X, type LucideIcon } from "lucide-react";
+import type { IconComponent } from "./gameIcons";
 
 import { playSfx } from "~/game/audio/sfx";
 
@@ -92,7 +93,7 @@ export function HudToggleButton({
   count,
   countClassName = "bg-ink",
 }: {
-  icon: LucideIcon;
+  icon: IconComponent;
   label: string;
   open?: boolean;
   onClick: () => void;
@@ -125,7 +126,7 @@ export function HudToggleButton({
 }
 
 interface HudPanelProps {
-  icon: LucideIcon;
+  icon: IconComponent;
   label: string;
   header: ReactNode;
   /** Controlled by the HUD so only one panel is open at a time. */

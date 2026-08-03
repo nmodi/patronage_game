@@ -1,5 +1,6 @@
 import { useMemo } from "react";
-import { Check, Crown, Home, Store, Users } from "lucide-react";
+import { Check } from "lucide-react";
+import { Crown, Home, Store, Users } from "./gameIcons";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { RENAISSANCE_NOBLE_HOUSES, RENAISSANCE_PRESTIGE } from "~/game/constants";

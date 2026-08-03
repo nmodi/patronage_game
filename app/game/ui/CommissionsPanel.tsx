@@ -1,4 +1,4 @@
-import { Clock, Scroll } from "lucide-react";
+import { Clock, Scroll } from "./gameIcons";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { BUILDING_METADATA_BY_ID, type BuildingId } from "~/game/buildings";

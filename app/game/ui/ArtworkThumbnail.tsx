@@ -1,4 +1,4 @@
-import { Crown } from "lucide-react";
+import { Crown } from "./gameIcons";
 
 import { RANK_LABEL } from "~/game/art/artists";
 import { artworkQuality } from "~/game/art/display";

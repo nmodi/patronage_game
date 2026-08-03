@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Church, Shield } from "lucide-react";
+import { Church, Shield } from "./gameIcons";
 
 import { useGameStore } from "~/stores/useGameStore";
 import { CHURCH, favorOf, favorRung, favorTier, requesterPool } from "~/game/art/commissions";
