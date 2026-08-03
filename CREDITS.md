@@ -12,6 +12,15 @@ Day skybox panorama from [Kenney](https://kenney.nl)'s **Skyboxes** pack (CC0).
 
 From [Kenney](https://kenney.nl)'s **Impact Sounds**, **RPG Audio**, and **Music Jingles** packs (all CC0), converted to AAC.
 
+## Ambience
+
+### Metzik — [freesound.org](https://freesound.org/people/Metzik/sounds/371222/)
+
+- **Medieval market** — field recording from the medieval market in Visby, Sweden
+
+Licensed under [Creative Commons: By Attribution 4.0](https://creativecommons.org/licenses/by/4.0/).
+Changes: excerpted and crossfaded into a seamless loop (`scripts/make-ambience-loop.py`), converted to AAC.
+
 ## Music
 
 ### Jon Sayles — [jsayles.com](https://www.jsayles.com/familypages/EarlyMusic.htm)

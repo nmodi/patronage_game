@@ -107,6 +107,8 @@ export type GameState = {
   setMusicVolume: (value: number) => void;
   sfxVolume: number;
   setSfxVolume: (value: number) => void;
+  ambienceVolume: number;
+  setAmbienceVolume: (value: number) => void;
   setSelectedBuilding: (id: BuildingId | typeof RAZE_TOOL | null) => void;
   placeTile: (position: GridPos, buildingId: BuildingId, rotation?: number) => boolean;
   placeTiles: (positions: GridPos[], buildingId: BuildingId, rotation?: number) => boolean;
@@ -159,6 +161,7 @@ const createInitialState = (runSeed?: string) => {
     tickInterval: BASE_TICK_INTERVAL,
     musicVolume: 0.4,
     sfxVolume: 0.5,
+    ambienceVolume: 0.5,
   };
 };
 
@@ -301,6 +304,11 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setSfxVolume: (value) =>
     set(() => ({
       sfxVolume: Math.min(1, Math.max(0, value)),
+    })),
+
+  setAmbienceVolume: (value) =>
+    set(() => ({
+      ambienceVolume: Math.min(1, Math.max(0, value)),
     })),
 
   setSelectedBuilding: (id) => {
@@ -489,6 +497,7 @@ export const useGameStore = create<GameState>()(
       // Absent on old saves hydrate to their initial values — no migration.
       musicVolume: s.musicVolume,
       sfxVolume: s.sfxVolume,
+      ambienceVolume: s.ambienceVolume,
     }),
   }),
 );

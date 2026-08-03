@@ -8,6 +8,7 @@ import {
   RotateCcw,
   ScrollText,
   SkipForward,
+  Users,
   Volume2,
 } from "lucide-react";
 
@@ -29,6 +30,8 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
   const setMusicVolume = useGameStore((s) => s.setMusicVolume);
   const sfxVolume = useGameStore((s) => s.sfxVolume);
   const setSfxVolume = useGameStore((s) => s.setSfxVolume);
+  const ambienceVolume = useGameStore((s) => s.ambienceVolume);
+  const setAmbienceVolume = useGameStore((s) => s.setAmbienceVolume);
   const nowPlaying = useGameStore((s) => s.nowPlaying);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -69,6 +72,12 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
             who="Kenney — Impact, RPG Audio & Jingles packs"
             license="CC0"
             href="https://kenney.nl"
+          />
+          <CreditRow
+            what="Crowd ambience"
+            who="Medieval market — Metzik, freesound.org"
+            license="CC BY 4.0"
+            href="https://freesound.org/people/Metzik/sounds/371222/"
           />
           {/* Full attributions with license terms live in CREDITS.md. */}
           <div className="flex flex-col gap-1 leading-snug">
@@ -151,6 +160,20 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
             onChange={(e) => setMusicVolume(Number(e.target.value))}
             className="w-full accent-sienna"
             aria-label="Music volume"
+          />
+        </label>
+        {/* Crowd-murmur loop — loudness also rides population + camera zoom. */}
+        <label className="flex items-center gap-2 px-1 text-ink-faint">
+          <Users className="h-4 w-4 shrink-0" />
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={ambienceVolume}
+            onChange={(e) => setAmbienceVolume(Number(e.target.value))}
+            className="w-full accent-sienna"
+            aria-label="Ambience volume"
           />
         </label>
         <label className="flex items-center gap-2 px-1 text-ink-faint">
