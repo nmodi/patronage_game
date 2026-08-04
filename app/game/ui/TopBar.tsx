@@ -71,7 +71,7 @@ export function TopBar() {
           <button
             className={`rounded-full p-2 transition ${
               paused
-                ? "bg-sienna text-parchment"
+                ? "bg-parchment-deep text-ink ring-1 ring-ink"
                 : "bg-parchment-deep text-ink-faint hover:text-ink"
             }`}
             onClick={togglePause}
@@ -86,7 +86,7 @@ export function TopBar() {
               <button
                 key={multiplier}
                 className={`rounded-full px-2.5 py-1.5 text-xs font-semibold transition ${
-                  isActive ? "bg-sienna text-parchment" : "bg-parchment-deep text-ink-faint hover:text-ink"
+                  isActive ? "bg-parchment-deep text-ink ring-1 ring-ink" : "bg-parchment-deep text-ink-faint hover:text-ink"
                 }`}
                 onClick={() => setTickInterval(BASE_TICK_INTERVAL / multiplier)}
               >
@@ -97,7 +97,7 @@ export function TopBar() {
           </div>
           <div className="flex items-center gap-6 border-l border-wood/50 pl-4">
             <ResourceStat icon={Coins} label="Florins" value={`${florins}ƒ`} iconClassName="text-prestige-gold" />
-            <ResourceStat icon={Feather} label="Inspiration" value={inspiration} iconClassName="text-sienna" />
+            <ResourceStat icon={Feather} label="Inspiration" value={inspiration} iconClassName="text-[#f2ecdf]" />
             <PrestigeStat />
             <PopulationStat />
           </div>

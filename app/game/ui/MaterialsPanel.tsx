@@ -7,7 +7,7 @@ import { MATERIALS, materialCaps } from "~/game/art/materials";
 import { supplierRate } from "~/game/city/metrics";
 import type { Material } from "~/game/types";
 import { useGameStore } from "~/stores/useGameStore";
-import { MATERIAL_ICONS } from "./buildingIcons";
+import { MATERIAL_COLORS, MATERIAL_ICONS } from "./buildingIcons";
 import { capitalizeLabel, formatAmount } from "./format";
 
 /**
@@ -74,7 +74,7 @@ export function MaterialsPanel() {
         return (
           <div key={material} className="mat-row">
             <span className="mat-cell">
-              <Icon className="h-4 w-4 text-sienna" strokeWidth={1.75} />
+              <Icon className="h-4 w-4" style={{ color: MATERIAL_COLORS[material] }} strokeWidth={1.75} />
               <span className="mat-held">{held}</span>
             </span>
             <span className="mat-detail">

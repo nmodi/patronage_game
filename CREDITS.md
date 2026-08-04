@@ -17,7 +17,6 @@ in `scripts/game-icons/` and are compiled into `app/game/ui/gameIcons.tsx` by `s
 
 | Used for | game-icons.net icon | Author |
 | --- | --- | --- |
-| Bronze foundry | `anvil` | Badges |
 | Population | `backup` | Lorc |
 | Market, Market stall | `basket` | Delapouite |
 | Tavern | `beer-stein` | Lorc |
@@ -42,21 +41,23 @@ in `scripts/game-icons/` and are compiled into `app/game/ui/gameIcons.tsx` by `s
 | Commission timer | `hourglass` | Lorc |
 | Loggia / colonnade | `ionic-column` | Delapouite |
 | Prestige | `laurel-crown` | Lorc |
-| Bronze | `metal-bar` | Lorc |
-| Quarry / raze | `mining` | Lorc |
+| Bronze / bronze foundry | `metal-bar` | Lorc |
+| Raze | `mining` | Lorc |
 | Obelisk | `obelisk` | Delapouite |
 | Artists | `paint-brush` | Delapouite |
-| Pigment / painter / workshop | `paint-bucket` | Delapouite |
-| Timber / cypress | `pine-tree` | Lorc |
+| Painter / workshop | `paint-bucket` | Delapouite |
+| Cypress / decorations | `pine-tree` | Lorc |
+| Pigment / pigment trader | `powder` | Lorc |
+| Timber / timber yard | `wood-beam` | Delapouite |
 | Gallery | `mona-lisa` | Delapouite |
 | Build / edit | `quill` | Lorc |
 | Commissions | `scroll-quill` | Delapouite |
-| Marble | `stone-block` | Lorc |
+| Marble / marble supplier | `stone-block` | Lorc |
 | Bridge | `stone-bridge` | Delapouite |
 | Sculpture display | `stone-bust` | Delapouite |
 | Stone / rocks / boulder | `stone-pile` | Delapouite |
 | Bell tower | `stone-tower` | Lorc |
-| Stone material | `rock` | Lorc |
+| Stone / stone quarry | `rock` | Lorc |
 | Dirt path | `trowel` | Delapouite |
 | Florins | `two-coins` | Delapouite |
 | Housing category | `village` | Delapouite |

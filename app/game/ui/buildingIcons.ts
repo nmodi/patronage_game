@@ -11,7 +11,6 @@ import {
   DraftingCompass,
   Droplets,
   Fence,
-  Flame,
   Footprints,
   Gem,
   Grape,
@@ -22,7 +21,7 @@ import {
   Mountain,
   Palette,
   PersonStanding,
-  Pickaxe,
+  Powder,
   Pyramid,
   Road,
   Rock,
@@ -37,6 +36,7 @@ import {
   Warehouse,
   Waves,
   Wheat,
+  WoodBeam,
   type IconComponent,
 } from "./gameIcons";
 
@@ -45,11 +45,20 @@ import type { BuildingType, Material } from "~/game/types";
 
 // ponytail: placeholder glyphs until materials get bespoke art.
 export const MATERIAL_ICONS: Record<Material, IconComponent> = {
-  pigment: Palette,
+  pigment: Powder,
   marble: Gem,
   bronze: Medal,
-  timber: TreePine,
+  timber: WoodBeam,
   stone: Rock,
+};
+
+// Material tints for the navy materials rail — picked to read on #14161f/#212533.
+export const MATERIAL_COLORS: Record<Material, string> = {
+  pigment: "#6a9ce6", // ultramarine
+  marble: "#f2ecdf",
+  bronze: "#b3902f",
+  timber: "#a67a4e",
+  stone: "#a3a49f",
 };
 
 export const ARTIST_ICONS: Record<string, IconComponent> = {
@@ -83,11 +92,12 @@ export const BUILDING_ICONS: Record<BuildingId, IconComponent> = {
   architect_studio: DraftingCompass,
   cottage: Home,
   townhouse: Building2,
-  pigment_trader: Palette,
-  marble_supplier: Gem,
-  bronze_foundry: Flame,
-  timber_yard: Trees,
-  stone_quarry: Pickaxe,
+  // Suppliers wear their material's icon so rail and palette read as one system.
+  pigment_trader: MATERIAL_ICONS.pigment,
+  marble_supplier: MATERIAL_ICONS.marble,
+  bronze_foundry: MATERIAL_ICONS.bronze,
+  timber_yard: MATERIAL_ICONS.timber,
+  stone_quarry: MATERIAL_ICONS.stone,
   warehouse: Warehouse,
   market: Store,
   bakery: Wheat,

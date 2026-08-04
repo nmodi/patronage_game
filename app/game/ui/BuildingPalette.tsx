@@ -192,7 +192,7 @@ export function BuildingPalette({
                 className={`pal-tab text-ink ${isOpen || hasSelection ? "is-active" : ""}`}
                 onClick={() => setOpenCategory(isOpen ? null : type)}
               >
-                <Icon className="h-5 w-5 text-sienna" strokeWidth={1.75} />
+                <Icon className="h-5 w-5 text-ink-faint" strokeWidth={1.75} />
                 <span className="pal-label">{label}</span>
               </button>
             </div>

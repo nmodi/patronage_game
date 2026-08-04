@@ -27,15 +27,16 @@ CHOSEN = {
     "Wheat": "wheat", "Hammer": "claw-hammer", "Pickaxe": "mining", "Palette": "paint-bucket",
     "Gem": "stone-block", "Medal": "metal-bar", "TreePine": "pine-tree", "Mountain": "stone-pile",
     "DraftingCompass": "compass", "Castle": "capitol", "Cross": "crucifix", "Columns3": "ionic-column",
-    "Bell": "stone-tower", "Building2": "family-house", "Warehouse": "warehouse", "Flame": "anvil",
+    "Bell": "stone-tower", "Building2": "family-house", "Warehouse": "warehouse",
     "Beer": "beer-stein", "Tent": "basket", "Grape": "grapes", "Shovel": "trowel", "Footprints": "trail",
     "Waves": "stone-bridge", "TreeDeciduous": "fruit-tree", "Trees": "birch-trees",
     "Droplets": "fountain", "Pyramid": "obelisk", "Shrub": "berry-bush", "BrickWall": "brick-wall",
     "PersonStanding": "stone-bust", "Fence": "wooden-fence", "Village": "village", "Rock": "rock",
+    "Powder": "powder", "WoodBeam": "wood-beam",
 }
 # game-icons.net authors (CC BY 3.0 attribution) — see CREDITS.md
 AUTHORS = {
-    "anvil": "Badges", "backup": "Lorc", "basket": "Delapouite", "beer-stein": "Lorc",
+    "backup": "Lorc", "basket": "Delapouite", "beer-stein": "Lorc",
     "berry-bush": "Delapouite", "birch-trees": "Caro Asercion", "brick-wall": "Delapouite",
     "candle-light": "Lorc", "calendar-half-year": "Delapouite", "capitol": "Lorc", "church": "Delapouite", "claw-hammer": "Lorc",
     "cog": "Lorc", "compass": "Lorc", "cross-shield": "Delapouite",
@@ -46,7 +47,7 @@ AUTHORS = {
     "quill": "Lorc", "rock": "Lorc", "scroll-quill": "Delapouite", "stone-block": "Lorc", "stone-bridge": "Delapouite",
     "stone-bust": "Delapouite", "stone-pile": "Delapouite", "stone-tower": "Lorc",
     "trail": "Delapouite", "trowel": "Delapouite", "two-coins": "Delapouite", "village": "Delapouite", "warehouse": "Delapouite",
-    "wheat": "Lorc", "wooden-fence": "Lorc",
+    "wheat": "Lorc", "wooden-fence": "Lorc", "powder": "Lorc", "wood-beam": "Delapouite",
 }
 
 

@@ -30,7 +30,7 @@ export function PopulationStat() {
       icon={Users}
       label="Population"
       value={population}
-      iconClassName="text-sienna"
+      iconClassName="text-ink-faint"
       tooltip={
         <Panel className="w-56 text-sm">
           <div className="flex flex-col gap-1.5 normal-case">
@@ -40,9 +40,9 @@ export function PopulationStat() {
           {limiter && (
             <div className="mt-2.5 flex items-center gap-2 border-t border-wood/50 pt-2.5 text-xs italic text-ink-faint">
               {limiter === "amenities" ? (
-                <Store className="h-4 w-4 shrink-0 text-sienna" />
+                <Store className="h-4 w-4 shrink-0 text-ink-faint" />
               ) : (
-                <Home className="h-4 w-4 shrink-0 text-sienna" />
+                <Home className="h-4 w-4 shrink-0 text-ink-faint" />
               )}
               {limiter === "amenities" ? "Amenities are" : "Housing is"} limiting growth.
             </div>
@@ -113,7 +113,7 @@ function CheckRow({ label, met, detail }: { label: string; met: boolean; detail?
         className={`flex min-w-0 items-baseline gap-1 font-semibold ${met ? "text-ink" : "text-ink-faint"}`}
       >
         {detail && <span className="truncate">{detail}</span>}
-        {met && <Check className="h-3.5 w-3.5 shrink-0 self-center text-sienna" />}
+        {met && <Check className="h-3.5 w-3.5 shrink-0 self-center text-verde" />}
       </span>
     </div>
   );

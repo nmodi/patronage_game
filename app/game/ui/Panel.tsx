@@ -110,7 +110,7 @@ export function HudToggleButton({
       aria-label={label}
       title={label}
     >
-      <Icon className="h-5 w-5 text-sienna" strokeWidth={1.75} />
+      <Icon className="h-5 w-5 text-ink" strokeWidth={1.75} />
       <span className="hud-toggle-label" aria-hidden="true">
         <span className="pl-0.5 pr-3.5">{label}</span>
       </span>

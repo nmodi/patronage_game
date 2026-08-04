@@ -309,7 +309,7 @@ button:not(:disabled) {
   --color-ink: #e9e3d3;
   --color-ink-faint: #9ba0b1;
   --color-wood: #383d4f;
-  --color-sienna: #cf7a52;
+  --color-sienna: #bd5d38;
   --color-prestige-ink: #d4a94c;
 }
 /* Reset for overlay cards that render inside navy chrome (top-bar hover
