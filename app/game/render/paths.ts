@@ -60,6 +60,72 @@ function tonePick(rand: () => number, tones: string[], jitter: number) {
   return new Color3(tone.r * v, tone.g * v, tone.b * v).toHexString();
 }
 
+// Streets are medieval-era surfaces: coursed setts — rows of small squared
+// stones, random widths per course, corners jittered — read hand-laid against
+// the plazas' finished slab bond (drawPaving, which plazas/aprons keep).
+const SETT_GROUT = "#7c7260";
+function drawSetts(ctx: CanvasRenderingContext2D, width: number, height: number, seed: number) {
+  ctx.fillStyle = SETT_GROUT;
+  ctx.fillRect(0, 0, width, height);
+  const rows = 5;
+  const h = height / rows;
+  const gap = height / 80;
+  const j = h * 0.14;
+  // Corner jitter can cross the canvas edge, so each stone draws 9× at tile
+  // offsets — the texture wraps seamlessly in both axes at any width.
+  const stone = (r: () => number, x: number, y: number, w: number, hh: number) => {
+    const p = [
+      [x + (r() - 0.5) * j, y + (r() - 0.5) * j],
+      [x + w + (r() - 0.5) * j, y + (r() - 0.5) * j],
+      [x + w + (r() - 0.5) * j, y + hh + (r() - 0.5) * j],
+      [x + (r() - 0.5) * j, y + hh + (r() - 0.5) * j],
+    ];
+    ctx.fillStyle = tonePick(r, ROAD_TONES, 0.16);
+    for (const dx of [-width, 0, width]) {
+      for (const dy of [-height, 0, height]) {
+        ctx.beginPath();
+        p.forEach(([px, py], i) => (i ? ctx.lineTo(px + dx, py + dy) : ctx.moveTo(px + dx, py + dy)));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+  };
+  const rand = mulberry32(seed);
+  // Neighboring road cells draw different seed variants (see getRoadMaterial),
+  // so tile edges must match across variants, not just wrap within one
+  // texture: even courses end on a grout joint exactly at the edge; odd
+  // courses share one deterministic edge-crossing stone (seeded independently
+  // of the variant) so no course shows a mid-stone cut and the edge joints
+  // don't line up into a full-height per-tile seam.
+  const edgeRand = mulberry32(4243);
+  for (let y = 0; y < rows; y += 1) {
+    let x0 = 0;
+    let x1 = width;
+    if (y % 2) {
+      const ew = h * 0.9;
+      stone(edgeRand, -ew / 2 + gap, y * h + gap, ew - gap * 2, h - gap * 2);
+      x0 = ew / 2;
+      x1 = width - ew / 2;
+    }
+    // Random widths rescaled to fill the span exactly, so the course meets the
+    // edge stone (or the edge joint) without a sliver.
+    const ws: number[] = [];
+    let total = 0;
+    while (total < x1 - x0) {
+      const w = h * (0.7 + rand() * 0.9);
+      ws.push(w);
+      total += w;
+    }
+    const k = (x1 - x0) / total;
+    let x = x0;
+    for (const w0 of ws) {
+      const w = w0 * k;
+      stone(rand, x + gap, y * h + gap, w - gap * 2, h - gap * 2);
+      x += w;
+    }
+  }
+}
+
 // --- Plaza paving styles ------------------------------------------------
 // Plazas are the city's focal points, so their pads get a showpiece paving
 // distinct from the utilitarian flagstone of roads/aprons/market: a pale
@@ -198,24 +264,6 @@ export function getPlazaMaterial(worldUnits: number, scene: Scene) {
   );
 }
 
-function pavingMaterial(
-  name: string,
-  width: number,
-  height: number,
-  n: number,
-  grout: string,
-  tones: string[],
-  scene: Scene
-) {
-  return texturedMaterial(
-    name,
-    width,
-    height,
-    (ctx) => drawPaving(ctx, width, height, n, grout, tones),
-    scene
-  );
-}
-
 /** Non-plaza pads (market) share the aprons' mottled stone (sizes in world units). */
 export function getPadMaterial(worldW: number, worldD: number, scene: Scene) {
   return getApronMaterial(Math.round(worldW / CELL_SIZE), Math.round(worldD / CELL_SIZE), scene);
@@ -240,17 +288,32 @@ export function getApronMaterial(widthCells: number, depthCells: number, scene: 
   );
 }
 
-/** Full-tile street paving — same slab size as the plazas, a shade darker. */
-export function getRoadMaterial(scene: Scene) {
-  return pavingMaterial("road", 128, 128, STONES_PER_CELL, ROAD_GROUT, ROAD_TONES, scene);
+/** Seed variants per road cell (hashed by position in roadRenderer) so long
+ * straight runs don't visibly repeat one texture when zoomed out. */
+export const ROAD_TEX_VARIANTS = 4;
+
+/** Full-tile street paving — coursed setts in the road limestone. */
+export function getRoadMaterial(scene: Scene, variant = 0) {
+  return texturedMaterial(
+    `road-${variant}`,
+    128,
+    128,
+    (ctx) => drawSetts(ctx, 128, 128, 1417 + variant * 97),
+    scene
+  );
 }
 
-/** Diagonal paved ribbon: 3 slab courses across U so the quad's √2 X-scale
- * yields near-cardinal slab length (0.236 vs 0.25 wu) while quad seams still
- * land on grout — a plain uScale of √2 would cut slabs mid-brick at every
- * staircase seam. */
-export function getPavedRibbonMaterial(scene: Scene) {
-  return pavingMaterial("paved-ribbon", 192, 128, 3, ROAD_GROUT, ROAD_TONES, scene);
+/** Diagonal paved ribbon: the sett courses drawn 192 wide so stone size stays
+ * near-cardinal under the quad's √2 X-scale; courses wrap seamlessly at any
+ * width, so staircase quad seams need no slab-count alignment. */
+export function getPavedRibbonMaterial(scene: Scene, variant = 0) {
+  return texturedMaterial(
+    `paved-ribbon-${variant}`,
+    192,
+    128,
+    (ctx) => drawSetts(ctx, 192, 128, 1418 + variant * 89),
+    scene
+  );
 }
 
 /** Rimless packed earth for dirt-ribbon junction pads (the ribbon texture minus

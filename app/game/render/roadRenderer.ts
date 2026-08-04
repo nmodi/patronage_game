@@ -16,6 +16,7 @@ import {
   getDirtRibbonMaterial,
   getPavedRibbonMaterial,
   getRoadMaterial,
+  ROAD_TEX_VARIANTS,
 } from "./paths";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 
@@ -31,9 +32,18 @@ export function createRoadRenderer(scene: Scene) {
     return { mesh, tiles: new Map(), dirty: false };
   }
 
-  const pavedRoads = createRoadBatch("paved-road-batch");
-  const pavedRibbons = createRoadBatch("paved-ribbon-batch");
-  pavedRibbons.mesh.material = getPavedRibbonMaterial(scene);
+  // Paved streets carry a few texture seed variants hashed by cell position so
+  // long runs don't repeat one tile texture — one batch per variant.
+  const pavedRoads = Array.from({ length: ROAD_TEX_VARIANTS }, (_, i) => {
+    const b = createRoadBatch(`paved-road-batch-${i}`);
+    b.mesh.material = getRoadMaterial(scene, i);
+    return b;
+  });
+  const pavedRibbons = Array.from({ length: ROAD_TEX_VARIANTS }, (_, i) => {
+    const b = createRoadBatch(`paved-ribbon-batch-${i}`);
+    b.mesh.material = getPavedRibbonMaterial(scene, i);
+    return b;
+  });
   const dirtRibbons = createRoadBatch("dirt-ribbon-batch");
   dirtRibbons.mesh.material = getDirtRibbonMaterial(scene);
   const bridges = createRoadBatch("bridge-deck-batch");
@@ -113,6 +123,9 @@ export function createRoadRenderer(scene: Scene) {
   // the raster overlay. Diagonal dirt can't (the raster is grid-axis-aligned), so
   // it gets its own ribbon batch; paved diagonals likewise split off so their
   // ribbon texture can carry √2-corrected slab courses.
+  const texVariant = (t: Tile) =>
+    (((t.position.x * 31 + t.position.y * 17) % ROAD_TEX_VARIANTS) + ROAD_TEX_VARIANTS) %
+    ROAD_TEX_VARIANTS;
   const batchFor = (t: Tile): RoadBatch | null =>
     t.buildingId === "dirt_path"
       ? t.rotation != null
@@ -121,8 +134,8 @@ export function createRoadRenderer(scene: Scene) {
       : t.buildingId === "bridge"
         ? bridges
         : t.rotation != null
-          ? pavedRibbons
-          : pavedRoads;
+          ? pavedRibbons[texVariant(t)]
+          : pavedRoads[texVariant(t)];
 
   function update(key: string, previous?: Tile, next?: Tile) {
     if (previous?.type === "road") {
@@ -138,9 +151,9 @@ export function createRoadRenderer(scene: Scene) {
     }
     // Junction pads depend on neighbors outside a ribbon's own batch (a cardinal
     // dirt path can flip a paved ribbon cell into a junction and vice versa), so
-    // any road edit re-flushes both ribbon batches.
+    // any road edit re-flushes every ribbon batch.
     if (previous?.type === "road" || next?.type === "road") {
-      pavedRibbons.dirty = true;
+      for (const b of pavedRibbons) b.dirty = true;
       dirtRibbons.dirty = true;
     }
   }
@@ -195,22 +208,20 @@ export function createRoadRenderer(scene: Scene) {
     }
   }
 
-  function flushRoadBatch(batch: RoadBatch, diagY: number, tiles: TileMap, pads: RoadPads | null) {
+  // Pad matrices accumulate across the paved-ribbon variant batches (each holds
+  // only its hash slice of the ribbon cells), so the caller sets the pad
+  // buffers once after every contributing batch has flushed.
+  type PadAcc = { hex: number[]; strip: number[] };
+  function flushRoadBatch(batch: RoadBatch, diagY: number, tiles: TileMap, pads: PadAcc | null) {
     if (!batch.dirty) return;
     if (batch.tiles.size === 0) {
       batch.mesh.thinInstanceSetBuffer("matrix", null);
       batch.mesh.setEnabled(false);
-      if (pads) {
-        setInstances(pads.hex, []);
-        setInstances(pads.strip, []);
-      }
       batch.dirty = false;
       return;
     }
     // Pad counts vary, so accumulate into lists rather than pre-sized arrays.
     const matrices: number[] = [];
-    const hexMatrices: number[] = [];
-    const stripMatrices: number[] = [];
     const scratch: number[] = new Array(16);
     const matrix = Matrix.Identity();
     // Diagonal ribbon pieces: consecutive staircase centers are √2·CELL_SIZE
@@ -233,13 +244,13 @@ export function createRoadRenderer(scene: Scene) {
             const quat = tile.rotation === ROAD_DIAG_NE ? padQuatNE : padQuatNW;
             Matrix.ComposeToRef(padScale, quat, diagPos, matrix);
             matrix.copyToArray(scratch, 0);
-            hexMatrices.push(...scratch);
+            pads!.hex.push(...scratch);
           } else {
             // The strip pad: the suppressed ribbon's own transform, in mottle —
             // hugs the lane silhouette, ends flush with the neighbor bricks.
             Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
             matrix.copyToArray(scratch, 0);
-            stripMatrices.push(...scratch);
+            pads!.strip.push(...scratch);
           }
           continue;
         }
@@ -254,10 +265,6 @@ export function createRoadRenderer(scene: Scene) {
       }
     }
     setInstances(batch.mesh, matrices);
-    if (pads) {
-      setInstances(pads.hex, hexMatrices);
-      setInstances(pads.strip, stripMatrices);
-    }
     batch.dirty = false;
   }
 
@@ -358,16 +365,34 @@ export function createRoadRenderer(scene: Scene) {
 
   /** Flush after any map edit because adjacent civic/road cells affect bridge rails. */
   function flush(tiles: TileMap) {
-    flushRoadBatch(pavedRoads, 0.0115, tiles, null);
-    flushRoadBatch(pavedRibbons, 0.0115, tiles, stonePads);
-    flushRoadBatch(dirtRibbons, 0.009, tiles, dirtPads);
+    for (const b of pavedRoads) flushRoadBatch(b, 0.0115, tiles, null);
+    // update() dirties all ribbon batches together, so a dirty check on any of
+    // them decides whether the pad buffers rebuild this flush.
+    const stoneDirty = pavedRibbons.some((b) => b.dirty);
+    const stoneAcc: { hex: number[]; strip: number[] } = { hex: [], strip: [] };
+    for (const b of pavedRibbons) flushRoadBatch(b, 0.0115, tiles, stoneAcc);
+    if (stoneDirty) {
+      setInstances(stonePads.hex, stoneAcc.hex);
+      setInstances(stonePads.strip, stoneAcc.strip);
+    }
+    const dirtDirty = dirtRibbons.dirty;
+    const dirtAcc: { hex: number[]; strip: number[] } = { hex: [], strip: [] };
+    flushRoadBatch(dirtRibbons, 0.009, tiles, dirtAcc);
+    if (dirtDirty) {
+      setInstances(dirtPads.hex, dirtAcc.hex);
+      setInstances(dirtPads.strip, dirtAcc.strip);
+    }
     if (bridges.tiles.size > 0) bridges.dirty = true;
     flushBridges(tiles);
   }
 
+  function disposeBatches(batches: RoadBatch[]) {
+    for (const b of batches) b.mesh.dispose();
+  }
+
   function dispose() {
-    pavedRoads.mesh.dispose();
-    pavedRibbons.mesh.dispose();
+    disposeBatches(pavedRoads);
+    disposeBatches(pavedRibbons);
     dirtRibbons.mesh.dispose();
     stonePads.hex.dispose();
     stonePads.strip.dispose();
