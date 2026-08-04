@@ -10,6 +10,7 @@ import type { Scene } from "@babylonjs/core/scene";
 import { CELL_SIZE } from "~/game/constants";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/placement/roadStretch";
+import { bridgeLiftAt, bridgeStep } from "./bridgeProfile";
 import {
   getApronMaterial,
   getDirtPadMaterial,
@@ -365,9 +366,9 @@ export function createRoadRenderer(scene: Scene) {
     const archMatrices: number[] = [];
     const matrix = Matrix.Identity();
     const rail: number[] = new Array(16);
-    const diagScale = new Vector3(Math.SQRT2, 1, 1);
-    const diagQuat = new Quaternion();
-    const diagPos = new Vector3();
+    const scale = new Vector3();
+    const quat = new Quaternion();
+    const pos = new Vector3();
     let offset = 0;
     // Bridge sides stay open where a road or civic footprint continues the path.
     const openAt = (x: number, y: number) => {
@@ -378,78 +379,86 @@ export function createRoadRenderer(scene: Scene) {
     for (const tile of bridges.tiles.values()) {
       const { x: gx, y: gy } = tile.position;
       const { x, z } = gridToWorld(gx, gy);
-      const railY = bridgeDeckY + parapetHeight / 2;
       const inset = CELL_SIZE / 2 - 0.035;
+      const diagonal = tile.rotation === ROAD_DIAG_NE || tile.rotation === ROAD_DIAG_NW;
 
-      if (tile.rotation === ROAD_DIAG_NE || tile.rotation === ROAD_DIAG_NW) {
-        const theta = tile.rotation === ROAD_DIAG_NE ? -Math.PI / 4 : Math.PI / 4;
-        Quaternion.RotationYawPitchRollToRef(theta, 0, 0, diagQuat);
-        // +0.0015 above the cardinal deck: the √2 quad overhangs its cell
-        // (~0.104 wu) and would coplanar-overlap a cardinal deck it joins.
-        diagPos.set(x, bridgeDeckY + 0.0015, z);
-        Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
-        matrix.copyToArray(deckMatrices, offset);
-        offset += 16;
-        // Arch masonry rides the deck's transform (√2 stretch widens the arch
-        // to span the longer diagonal cell) at y 0 — it's authored in world y.
-        diagPos.set(x, 0, z);
-        Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
-        matrix.copyToArray(rail, 0);
-        archMatrices.push(...rail);
-        // Rails run along the ribbon's long (local ±z) sides; world side normal
-        // for s = ±1 is s·(sinθ, 0, cosθ). The √2 x-scale abuts same-lane rails
-        // like the deck. Suppress a multi-lane bridge's interior rail: lanes
-        // offset +x (roadStretch), so skip side s where a same-rotation bridge
-        // cell sits at gx + sign(s·sinθ).
-        // ponytail: no end-cap rails at 45° — diagonal ends read fine bare, and
-        // openAt's cardinal offsets don't map onto a 45° dead end.
-        const sin = Math.sin(theta);
-        const cos = Math.cos(theta);
-        for (const s of [-1, 1]) {
-          const neighbor = tiles[`${gx + Math.sign(s * sin)},${gy}`];
-          if (neighbor?.buildingId === "bridge" && neighbor.rotation === tile.rotation) continue;
-          diagPos.set(x + s * sin * inset, railY, z + s * cos * inset);
-          Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
-          matrix.copyToArray(rail, 0);
-          railMatrices.push(...rail);
-        }
-        continue;
-      }
+      // Every deck-riding piece shares one chord transform: the cell's deck
+      // runs from lift0 to lift1 along the run (Rialto hump, bridgeProfile.ts),
+      // as a straight chord — adjacent cells share edge samples, so the chords
+      // form a continuous polyline arch. Yaw maps local +X onto the travel
+      // direction (+X → (cos θ, 0, −sin θ)), roll climbs the chord, and the
+      // x-stretch keeps the horizontal footprint at one cell.
+      const [sx, sy] = bridgeStep(tiles, tile);
+      const stepLen = Math.hypot(sx, sy) * CELL_SIZE;
+      const ux = (sx * CELL_SIZE) / stepLen;
+      const uz = (sy * CELL_SIZE) / stepLen;
+      const half = stepLen / 2;
+      const lift0 = bridgeLiftAt(tiles, x - ux * half, z - uz * half);
+      const lift1 = bridgeLiftAt(tiles, x + ux * half, z + uz * half);
+      const liftMid = (lift0 + lift1) / 2;
+      const climb = Math.atan2(lift1 - lift0, 2 * half);
+      const chordScale = Math.hypot(2 * half, lift1 - lift0) / CELL_SIZE;
+      const yaw = Math.atan2(-uz, ux);
+      Quaternion.RotationYawPitchRollToRef(yaw, 0, climb, quat);
 
-      Matrix.TranslationToRef(x, bridgeDeckY, z, matrix);
+      // +0.0015 above the cardinal deck plane on diagonals: the √2 quad
+      // overhangs its cell (~0.104 wu) and would coplanar-overlap a cardinal
+      // deck it joins.
+      const deckY = bridgeDeckY + liftMid + (diagonal ? 0.0015 : 0);
+      scale.set(chordScale, 1, 1);
+      pos.set(x, deckY, z);
+      Matrix.ComposeToRef(scale, quat, pos, matrix);
       matrix.copyToArray(deckMatrices, offset);
       offset += 16;
 
-      if (!openAt(gx, gy - 1)) {
-        Matrix.TranslationToRef(x, railY, z - inset, matrix);
-        matrix.copyToArray(rail, 0);
-        railMatrices.push(...rail);
-      }
-      if (!openAt(gx, gy + 1)) {
-        Matrix.TranslationToRef(x, railY, z + inset, matrix);
-        matrix.copyToArray(rail, 0);
-        railMatrices.push(...rail);
-      }
-      for (const side of [-1, 1]) {
-        if (openAt(gx + side, gy)) continue;
-        Matrix.RotationYToRef(Math.PI / 2, matrix);
-        matrix.setTranslationFromFloats(x + side * inset, railY, z);
+      // Arch masonry: stretched up so its top follows the lifted deck (base
+      // stays sunk at −0.38 in the bed) and rolled with the chord so cell tops
+      // stair evenly along the slope. The arch profile stretches with it —
+      // arches grow taller toward the crown of the hump.
+      const masonryY = 1 + liftMid / 0.4;
+      scale.set(chordScale, masonryY, 1);
+      pos.set(x, 0.95 * liftMid, z);
+      Matrix.ComposeToRef(scale, quat, pos, matrix);
+      matrix.copyToArray(rail, 0);
+      archMatrices.push(...rail);
+
+      // Long-side rails ride the chord at ±inset off the travel line; world
+      // side normal for s = ±1 is s·(−uz, 0, ux). Suppressed where the
+      // neighbor on that side is a same-rotation bridge (multi-lane interior).
+      const railY = deckY + parapetHeight / 2;
+      scale.set(chordScale, 1, 1);
+      for (const s of [-1, 1]) {
+        if (diagonal) {
+          // ponytail: no end-cap rails at 45° — diagonal ends read fine bare,
+          // and openAt's cardinal offsets don't map onto a 45° dead end.
+          // Multi-lane lanes offset +x (roadStretch), so the lane-mate check
+          // stays on the x neighbor.
+          const neighbor = tiles[`${gx + Math.sign(s * Math.sin(yaw))},${gy}`];
+          if (neighbor?.buildingId === "bridge" && neighbor.rotation === tile.rotation) continue;
+        } else if (openAt(gx + Math.round(-s * uz), gy + Math.round(s * ux))) continue;
+        pos.set(x - s * uz * inset, railY, z + s * ux * inset);
+        Matrix.ComposeToRef(scale, quat, pos, matrix);
         matrix.copyToArray(rail, 0);
         railMatrices.push(...rail);
       }
 
-      // Arch masonry faces the closed sides (same rule as the rails): travel
-      // runs along whichever axis the path continues on, x winning ties and
-      // isolated cells.
-      const alongX =
-        openAt(gx - 1, gy) || openAt(gx + 1, gy) || !(openAt(gx, gy - 1) || openAt(gx, gy + 1));
-      if (alongX) Matrix.TranslationToRef(x, 0, z, matrix);
-      else {
-        Matrix.RotationYToRef(Math.PI / 2, matrix);
-        matrix.setTranslationFromFloats(x, 0, z);
+      // End-cap rails on a cardinal dead end sit at the run's edge, where the
+      // hump has already fallen back to road level — they stay flat.
+      if (!diagonal) {
+        for (const s of [-1, 1]) {
+          const ex = gx + s * sx;
+          const ey = gy + s * sy;
+          if (openAt(ex, ey)) continue;
+          Matrix.RotationYToRef(sy === 0 ? Math.PI / 2 : 0, matrix);
+          matrix.setTranslationFromFloats(
+            x + s * ux * inset,
+            bridgeDeckY + parapetHeight / 2,
+            z + s * uz * inset
+          );
+          matrix.copyToArray(rail, 0);
+          railMatrices.push(...rail);
+        }
       }
-      matrix.copyToArray(rail, 0);
-      archMatrices.push(...rail);
     }
 
     bridges.mesh.thinInstanceSetBuffer("matrix", deckMatrices, 16, true);

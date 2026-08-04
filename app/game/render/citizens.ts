@@ -5,6 +5,7 @@ import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
 import { createBustleField } from "~/game/city/bustleField";
 import { crowdSize } from "~/game/city/crowd";
 import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
+import { bridgeLiftAt } from "./bridgeProfile";
 import { useGameStore } from "~/stores/useGameStore";
 import {
   createThinInstanceFigureFactory,
@@ -84,6 +85,9 @@ export function createCitizens(scene: Scene) {
 
   let walkable = new Set<string>();
   let spawnTiles: GridPos[] = [];
+  // Kept for bridge deck lift sampling (the Rialto hump) — walkers on a bridge
+  // follow bridgeLiftAt so they climb the deck instead of clipping through it.
+  let tileMap: TileMap = {};
   let population = 0;
   const citizens: Citizen[] = [];
 
@@ -131,7 +135,7 @@ export function createCitizens(scene: Scene) {
     citizen.phase = Math.random() * Math.PI * 2; // desync the crowd's gait
     const p = gridToWorld(tile.x, tile.y);
     scratchLoco.x = p.x;
-    scratchLoco.y = FOOT_Y;
+    scratchLoco.y = FOOT_Y + bridgeLiftAt(tileMap, p.x, p.z);
     scratchLoco.z = p.z;
     scratchLoco.yaw = citizen.yaw;
     scratchLoco.stridePhase = citizen.phase;
@@ -196,7 +200,7 @@ export function createCitizens(scene: Scene) {
         }
 
         scratchLoco.x = x;
-        scratchLoco.y = FOOT_Y;
+        scratchLoco.y = FOOT_Y + bridgeLiftAt(tileMap, x, z);
         scratchLoco.z = z;
         scratchLoco.yaw = citizen.yaw;
         scratchLoco.stridePhase = citizen.phase;
@@ -225,6 +229,7 @@ export function createCitizens(scene: Scene) {
   }
 
   function sync(tiles: TileMap) {
+    tileMap = tiles;
     walkable = new Set();
     spawnTiles = [];
     for (const tile of Object.values(tiles)) {
