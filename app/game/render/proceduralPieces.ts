@@ -146,6 +146,14 @@ const ROOF_PROFILE: [number, number][] = [
 function hashShade(...ks: number[]): [number, number, number] {
   let h = 2166136261;
   for (const k of ks) h = Math.imul(h ^ (k + 0x9e37), 16777619);
+  // fmix32 finalizer: FNV alone leaves the low bits weakly mixed for small
+  // sequential keys, and `% 8` reads only those bits — on a large roof the
+  // mosaic came out as a periodic diagonal lattice instead of noise.
+  h ^= h >>> 16;
+  h = Math.imul(h, 0x85ebca6b);
+  h ^= h >>> 13;
+  h = Math.imul(h, 0xc2b2ae35);
+  h ^= h >>> 16;
   return TILE_SHADES[(h >>> 0) % TILE_SHADES.length]!;
 }
 
