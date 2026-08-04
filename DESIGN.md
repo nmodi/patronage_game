@@ -18,8 +18,13 @@ colors:
   navy-ink: "#e9e3d3"
   navy-ink-faint: "#9ba0b1"
   navy-wood: "#383d4f"
-  navy-sienna: "#cf7a52"
+  navy-sienna: "#bd5d38"
   navy-prestige-ink: "#d4a94c"
+  material-pigment: "#6a9ce6"
+  material-marble: "#f2ecdf"
+  material-bronze: "#b3902f"
+  material-timber: "#a67a4e"
+  material-stone: "#a3a49f"
 typography:
   display:
     fontFamily: "Sorts Mill Goudy, EB Garamond, serif"
@@ -91,7 +96,7 @@ Density is compact but never cramped — small type, tight gaps, information tab
 **Key Characteristics:**
 - Parchment cards with double hairline borders and paper-grain noise, floating over a full-viewport 3D canvas
 - Warm all-serif typography (Sorts Mill Goudy display, EB Garamond body); small-caps ledger headings
-- One accent (sienna) for actions, focus, and attention; gold reserved for resource icons
+- One accent (sienna) for actions, focus, and attention; gold reserved for resource icons. On navy chrome the accent is scarcer still: interactive/attention only — informational icons speak in faint ink, action glyphs in ivory
 - Tabular label/value rows; tiny uppercase labels under bold values
 - In-world confirmations (two-click), no native browser dialogs
 
@@ -100,14 +105,14 @@ Density is compact but never cramped — small type, tight gaps, information tab
 A scarce, warm palette: ink on parchment, one sienna voice, gold only where value is tallied.
 
 ### Primary
-- **Sienna** (#9c3a24): the single action-and-attention color — primary buttons, active toggles (pause, speed pills), focus outlines, panel icons, "Requires:" warnings, denunciation names. If something asks for the player's hand or eye, it is sienna.
+- **Sienna** (#9c3a24): the single action-and-attention color — primary buttons, focus outlines, selection rings, notification badges, "Requires:" warnings, denunciation names. If something asks for the player's hand or eye, it is sienna — and only then; sienna is never a decorative icon tint (see the Icon Tint Rule).
 
 ### Secondary
 - **Prestige Gold** (#c9932f): florin and prestige (crown) iconography in the top bar and offer cards. Icons only — see the Text-Safe Gold Rule.
 - **Prestige Ink** (#8a6a1c): the text-safe darkened gold for status words (Active, Funded, at-work lines) where a gold *word* is needed on parchment.
 
 ### Tertiary
-- **Verde** (#4a6551): quiet green for nature/verdant accents; used sparingly.
+- **Verde** (#4a6551): quiet green for nature/verdant accents and affirmative states — met-checkmarks in the Renaissance checklist; used sparingly, only for "yes".
 - **Crest Blue** (#2f3d63) and **Crest Blue Deep** (#1b2340): the night-sky world outside the ledger — main menu and loading screen radial backdrop, faction crest grounds. Never a floating-panel surface.
 
 ### Navy Chrome
@@ -115,8 +120,16 @@ The permanent HUD (top bar, build bar, materials rail, round HUD toggles) sits o
 - **Navy** (#14161f): the chrome surface (replaces parchment); **Navy Deep** (#212533) is its raised/hover fill (replaces parchment-deep). Deliberately darker and less saturated than the crest blues — near-black ink-blue, not sky.
 - **Navy Ink** (#e9e3d3) / **Navy Ink Faint** (#9ba0b1): text on navy.
 - **Navy Wood** (#383d4f): borders and rules on navy.
-- **Navy Sienna** (#cf7a52): sienna lightened for contrast on the dark ground — same single-voice role.
+- **Navy Sienna** (#bd5d38): burnt sienna, deepened toward the light theme's brick after the lighter #cf7a52 read coral. On chrome its role is narrower than on parchment: interactive selection and attention only — open-panel rings, notification badges, "Paused", the volume-slider fill, raze. Never an icon tint.
 - **Navy Prestige Ink** (#d4a94c): gold-toned status words on navy (the Text-Safe Gold Rule's dark-ground counterpart).
+
+**Chrome color grammar** (Aug 2026 role split — one token was doing four jobs and the accent read as wallpaper):
+- *Sienna* = interactive selection & attention only (above).
+- *Navy ink* (ivory) = action glyphs — HUD toggles, build-bar categories — and the active pause/speed pill, which is **outlined** (`ring-1 ring-ink` on the normal dark fill), never solid-filled: a solid ivory pill was rejected as too loud.
+- *Navy ink faint* = informational icons (population, tooltip icons, build-tile glyphs); the icon labels, the number speaks.
+- *Gold* = economy, unchanged.
+
+**Material tints** (`MATERIAL_COLORS` in `buildingIcons.ts`, applied on the materials rail; picked to read on navy): ultramarine pigment (#6a9ce6), off-white marble (#f2ecdf — also the top-bar Inspiration icon), dark-yellow bronze (#b3902f, kept duller than prestige gold so they don't blur), brown timber (#a67a4e), gray stone (#a3a49f). Supplier buildings reference `MATERIAL_ICONS` directly so building and material glyphs can't drift.
 
 ### Neutral
 - **Parchment** (#f9f5ec): the page — every panel surface; also the text color on sienna buttons.
@@ -129,6 +142,8 @@ The permanent HUD (top bar, build bar, materials rail, round HUD toggles) sits o
 **The Text-Safe Gold Rule.** Prestige gold reads at ~2.5:1 on parchment — it may only appear as icon fill. Any gold-toned *text* uses prestige ink (#8a6a1c) instead.
 
 **The One Voice Rule.** Sienna is the only color that commands. A screen region gets at most one competing sienna call-to-action; everything else speaks in ink.
+
+**The Icon Tint Rule.** An icon's color states its job, not its subject: sienna only when the element is interactive-or-attention, ivory (ink) for action glyphs, faint ink for informational icons, gold for economy, material tints on the rail. Before tinting a new icon sienna, ask whether it asks for the player's hand — if not, it doesn't get the accent.
 
 ## Typography
 
@@ -179,7 +194,7 @@ Soft rectangles and full circles. Cards and wells are `rounded-lg` (8px); button
 - **Text-only actions:** ink-faint, `hover:text-ink`, optional underline on hover for link-like actions.
 
 ### Pills & Toggles
-- **Style:** `rounded-full`; active = sienna fill + parchment text; inactive = parchment-deep fill + ink-faint text, `hover:text-ink` (see speed controls, pause).
+- **Style:** `rounded-full`; active = same parchment-deep fill with an ink ring + ink text (`ring-1 ring-ink` — outlined, no fill flip; on navy chrome this reads as an ivory ring); inactive = parchment-deep fill + ink-faint text, `hover:text-ink` (see speed controls, pause).
 
 ### Cards / Panels
 - **Corner Style:** `rounded-lg`, or squared on docked edges.
@@ -192,10 +207,10 @@ Soft rectangles and full circles. Cards and wells are `rounded-lg` (8px); button
 - **Focus:** `outline-none focus:border-sienna` (border swap, no ring) for fields; the global sienna outline covers everything else.
 
 ### HUD Toggle (signature)
-Circular `h-11 w-11 panel-parchment rounded-full` button, sienna Lucide icon (`h-5 w-5`, strokeWidth 1.75); open state `ring-2 ring-sienna`; count badge absolute top-right, `rounded-full h-4 min-w-4 text-[10px]` parchment text on ink (or sienna for attention). Opens a single floating Panel below.
+Circular `h-11 w-11 panel-parchment rounded-full` button, ink glyph (`h-5 w-5`, strokeWidth 1.75 — ivory on navy chrome; an action, so it sits brighter than informational icons); open state `ring-2 ring-sienna`; count badge absolute top-right, `rounded-full h-4 min-w-4 text-[10px]` parchment text on ink (or sienna for attention). Opens a single floating Panel below.
 
 ### Resource Stat (signature)
-Icon (`h-6 w-6`, gold or sienna) beside a stacked `text-xl font-semibold` value over a 10px uppercase ink-faint label; hover reveals a tooltip Panel of ledger-line rows.
+Icon (`h-6 w-6`; gold for economy, ink-faint for status, or a semantic tint — Inspiration uses the marble off-white) beside a stacked `text-xl font-semibold` value over a 10px uppercase ink-faint label; hover reveals a tooltip Panel of ledger-line rows.
 
 ### Alert Card (signature)
 A standard Panel, bottom-right, non-blocking: small-caps header states the event ("A commission is offered", "Denunciation"), headline names it, ink-faint metadata row with inline icons, sienna requirement line, right-aligned secondary + primary buttons. Bad news uses the same paper — sienna text, never a red world.
