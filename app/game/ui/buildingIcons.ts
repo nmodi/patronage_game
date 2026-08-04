@@ -19,13 +19,13 @@ import {
   Home,
   Landmark,
   Medal,
-  Milestone,
   Mountain,
   Palette,
   PersonStanding,
   Pickaxe,
   Pyramid,
-  Route,
+  Road,
+  Rock,
   Shovel,
   Shrub,
   Store,
@@ -33,6 +33,7 @@ import {
   TreeDeciduous,
   TreePine,
   Trees,
+  Village,
   Warehouse,
   Waves,
   Wheat,
@@ -48,7 +49,7 @@ export const MATERIAL_ICONS: Record<Material, IconComponent> = {
   marble: Gem,
   bronze: Medal,
   timber: TreePine,
-  stone: Mountain,
+  stone: Rock,
 };
 
 export const ARTIST_ICONS: Record<string, IconComponent> = {
@@ -58,9 +59,9 @@ export const ARTIST_ICONS: Record<string, IconComponent> = {
 };
 
 export const CATEGORIES: Array<{ type: BuildingType; label: string; icon: IconComponent }> = [
-  { type: "road", label: "Roads", icon: Route },
+  { type: "road", label: "Roads", icon: Footprints },
   { type: "city", label: "Civic", icon: Landmark },
-  { type: "residential", label: "Housing", icon: Home },
+  { type: "residential", label: "Housing", icon: Village },
   { type: "service", label: "Services", icon: Wheat },
   { type: "artist", label: "Workshops", icon: Palette },
   { type: "materials", label: "Materials", icon: Hammer },
@@ -93,9 +94,9 @@ export const BUILDING_ICONS: Record<BuildingId, IconComponent> = {
   tavern: Beer,
   market_stall: Tent,
   dirt_path: Shovel,
-  path: Footprints,
-  road: Route,
-  avenue: Milestone,
+  path: Road,
+  road: Road,
+  avenue: Road,
   bridge: Waves,
   tree: TreeDeciduous,
   cypress: TreePine,

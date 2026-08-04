@@ -21,31 +21,31 @@ TSX = os.path.join(HERE, "..", "app/game/ui/gameIcons.tsx")
 # lucide-react component name -> chosen game-icons.net icon (from the icon-audit artifact)
 CHOSEN = {
     "Coins": "two-coins", "Feather": "candle-light", "Crown": "laurel-crown", "Users": "backup",
-    "Home": "family-house", "Store": "basket", "Settings": "clockwork", "Pencil": "quill",
-    "Images": "portrait", "Scroll": "scroll-quill", "Clock": "hourglass", "Paintbrush": "paint-brush",
-    "Church": "church", "Shield": "cross-shield", "Route": "crossroad", "Landmark": "greek-temple",
+    "Home": "family-house", "Store": "basket", "Settings": "cog", "Pencil": "quill",
+    "Images": "mona-lisa", "Scroll": "scroll-quill", "Clock": "hourglass", "Paintbrush": "paint-brush",
+    "Church": "church", "Shield": "cross-shield", "Road": "calendar-half-year", "Landmark": "greek-temple",
     "Wheat": "wheat", "Hammer": "claw-hammer", "Pickaxe": "mining", "Palette": "paint-bucket",
     "Gem": "stone-block", "Medal": "metal-bar", "TreePine": "pine-tree", "Mountain": "stone-pile",
     "DraftingCompass": "compass", "Castle": "capitol", "Cross": "crucifix", "Columns3": "ionic-column",
     "Bell": "stone-tower", "Building2": "family-house", "Warehouse": "warehouse", "Flame": "anvil",
     "Beer": "beer-stein", "Tent": "basket", "Grape": "grapes", "Shovel": "trowel", "Footprints": "trail",
-    "Milestone": "stone-path", "Waves": "stone-bridge", "TreeDeciduous": "fruit-tree", "Trees": "birch-trees",
+    "Waves": "stone-bridge", "TreeDeciduous": "fruit-tree", "Trees": "birch-trees",
     "Droplets": "fountain", "Pyramid": "obelisk", "Shrub": "berry-bush", "BrickWall": "brick-wall",
-    "PersonStanding": "stone-bust", "Fence": "wooden-fence",
+    "PersonStanding": "stone-bust", "Fence": "wooden-fence", "Village": "village", "Rock": "rock",
 }
 # game-icons.net authors (CC BY 3.0 attribution) — see CREDITS.md
 AUTHORS = {
     "anvil": "Badges", "backup": "Lorc", "basket": "Delapouite", "beer-stein": "Lorc",
     "berry-bush": "Delapouite", "birch-trees": "Caro Asercion", "brick-wall": "Delapouite",
-    "candle-light": "Lorc", "capitol": "Lorc", "church": "Delapouite", "claw-hammer": "Lorc",
-    "clockwork": "Lorc", "compass": "Lorc", "cross-shield": "Delapouite", "crossroad": "Delapouite",
+    "candle-light": "Lorc", "calendar-half-year": "Delapouite", "capitol": "Lorc", "church": "Delapouite", "claw-hammer": "Lorc",
+    "cog": "Lorc", "compass": "Lorc", "cross-shield": "Delapouite",
     "crucifix": "Delapouite", "family-house": "Delapouite", "fountain": "Lorc", "fruit-tree": "Delapouite",
     "grapes": "Lorc", "greek-temple": "Delapouite", "hourglass": "Lorc", "ionic-column": "Delapouite",
     "laurel-crown": "Lorc", "metal-bar": "Lorc", "mining": "Lorc", "obelisk": "Delapouite",
-    "paint-brush": "Delapouite", "paint-bucket": "Delapouite", "pine-tree": "Lorc", "portrait": "Delapouite",
-    "quill": "Lorc", "scroll-quill": "Delapouite", "stone-block": "Lorc", "stone-bridge": "Delapouite",
-    "stone-bust": "Delapouite", "stone-path": "Delapouite", "stone-pile": "Delapouite", "stone-tower": "Lorc",
-    "trail": "Delapouite", "trowel": "Delapouite", "two-coins": "Delapouite", "warehouse": "Delapouite",
+    "mona-lisa": "Delapouite", "paint-brush": "Delapouite", "paint-bucket": "Delapouite", "pine-tree": "Lorc",
+    "quill": "Lorc", "rock": "Lorc", "scroll-quill": "Delapouite", "stone-block": "Lorc", "stone-bridge": "Delapouite",
+    "stone-bust": "Delapouite", "stone-pile": "Delapouite", "stone-tower": "Lorc",
+    "trail": "Delapouite", "trowel": "Delapouite", "two-coins": "Delapouite", "village": "Delapouite", "warehouse": "Delapouite",
     "wheat": "Lorc", "wooden-fence": "Lorc",
 }
 

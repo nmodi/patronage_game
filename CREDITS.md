@@ -28,10 +28,11 @@ in `scripts/game-icons/` and are compiled into `app/game/ui/gameIcons.tsx` by `s
 | Palazzo | `capitol` | Lorc |
 | Church faction / cathedral | `church` | Delapouite |
 | Materials / sculptor | `claw-hammer` | Lorc |
-| Settings | `clockwork` | Lorc |
+| Settings | `cog` | Lorc |
 | Architect | `compass` | Lorc |
 | Noble house | `cross-shield` | Delapouite |
-| Road | `crossroad` | Delapouite |
+| Roads category | `trail` | Delapouite |
+| Paved roads | `calendar-half-year` | Delapouite |
 | Chapel | `crucifix` | Delapouite |
 | Housing / cottage, Townhouse | `family-house` | Delapouite |
 | Fountain | `fountain` | Lorc |
@@ -47,18 +48,18 @@ in `scripts/game-icons/` and are compiled into `app/game/ui/gameIcons.tsx` by `s
 | Artists | `paint-brush` | Delapouite |
 | Pigment / painter / workshop | `paint-bucket` | Delapouite |
 | Timber / cypress | `pine-tree` | Lorc |
-| Gallery | `portrait` | Delapouite |
+| Gallery | `mona-lisa` | Delapouite |
 | Build / edit | `quill` | Lorc |
 | Commissions | `scroll-quill` | Delapouite |
 | Marble | `stone-block` | Lorc |
 | Bridge | `stone-bridge` | Delapouite |
 | Sculpture display | `stone-bust` | Delapouite |
-| Avenue | `stone-path` | Delapouite |
 | Stone / rocks / boulder | `stone-pile` | Delapouite |
 | Bell tower | `stone-tower` | Lorc |
-| Foot path | `trail` | Delapouite |
+| Stone material | `rock` | Lorc |
 | Dirt path | `trowel` | Delapouite |
 | Florins | `two-coins` | Delapouite |
+| Housing category | `village` | Delapouite |
 | Warehouse | `warehouse` | Delapouite |
 | Services / bakery | `wheat` | Lorc |
 | Fence | `wooden-fence` | Lorc |
