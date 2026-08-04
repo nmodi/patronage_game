@@ -119,6 +119,86 @@ export function createRoadRenderer(scene: Scene) {
   prepareThinInstanceHost(parapets);
   parapets.setEnabled(false);
 
+  // Under-deck arch masonry: per cell, two piers dropping through the water to
+  // the bed with a segmental arch between them, so a bridge run reads as a
+  // stone arcade from the side instead of a floating deck. Authored with
+  // travel along local X (arch profile on the ±Z faces, water passing through
+  // along Z); instances yaw with the tile like the rails do. Spandrel faces
+  // sit at ±0.24 — flush with the parapets' outer face.
+  const arches = (() => {
+    const c = CELL_SIZE / 2;
+    const d = c - 0.01;
+    const top = bridgeDeckY - 0.005;
+    const bot = -0.38; // below the river bed (-0.35) so the footing edge hides
+    const r = 0.15;
+    const spring = 0.005 - r; // crown just under the deck; springline underwater
+    const positions: number[] = [];
+    const normals: number[] = [];
+    const indices: number[] = [];
+    type P = [number, number, number];
+    // Perimeter-ordered quad; winding resolved against the outward normal so
+    // no face can come out inverted.
+    const quad = (pts: P[], n: P) => {
+      const base = positions.length / 3;
+      for (const p of pts) {
+        positions.push(...p);
+        normals.push(...n);
+      }
+      const [p0, p1, p2] = pts;
+      const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+      const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+      const cross =
+        (ay * bz - az * by) * n[0] + (az * bx - ax * bz) * n[1] + (ax * by - ay * bx) * n[2];
+      if (cross > 0) indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+      else indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    };
+    const N = 12;
+    const arc: Array<[number, number]> = [];
+    for (let i = 0; i <= N; i++) {
+      const a = Math.PI - (i / N) * Math.PI;
+      arc.push([r * Math.cos(a), spring + r * Math.sin(a)]);
+    }
+    for (const s of [-1, 1] as const) {
+      const z = s * d;
+      const n: P = [0, 0, s];
+      quad([[-c, bot, z], [-r, bot, z], [-r, top, z], [-c, top, z]], n);
+      quad([[r, bot, z], [c, bot, z], [c, top, z], [r, top, z]], n);
+      for (let i = 0; i < N; i++) {
+        const [x0, y0] = arc[i];
+        const [x1, y1] = arc[i + 1];
+        quad([[x0, y0, z], [x1, y1, z], [x1, top, z], [x0, top, z]], n);
+      }
+    }
+    // Intrados: the arch's underside barrel, normals toward the arc centre.
+    for (let i = 0; i < N; i++) {
+      const [x0, y0] = arc[i];
+      const [x1, y1] = arc[i + 1];
+      const mx = (x0 + x1) / 2;
+      const my = (y0 + y1) / 2 - spring;
+      const len = Math.hypot(mx, my);
+      quad([[x0, y0, -d], [x1, y1, -d], [x1, y1, d], [x0, y0, d]], [-mx / len, -my / len, 0]);
+    }
+    // Pier inner walls below the springline, and the end faces at the cell edge.
+    for (const s of [-1, 1] as const) {
+      const x = s * r;
+      quad([[x, bot, -d], [x, bot, d], [x, spring, d], [x, spring, -d]], [-s, 0, 0]);
+    }
+    for (const s of [-1, 1] as const) {
+      const x = s * c;
+      quad([[x, bot, -d], [x, bot, d], [x, top, d], [x, top, -d]], [s, 0, 0]);
+    }
+    const mesh = new Mesh("bridge-arch-batch", scene);
+    const data = new VertexData();
+    data.positions = positions;
+    data.normals = normals;
+    data.indices = indices;
+    data.applyToMesh(mesh);
+    mesh.material = parapetMaterial;
+    prepareThinInstanceHost(mesh);
+    mesh.setEnabled(false);
+    return mesh;
+  })();
+
   // Cardinal dirt (rotation null) has no thin-instance batch — it renders through
   // the raster overlay. Diagonal dirt can't (the raster is grid-axis-aligned), so
   // it gets its own ribbon batch; paved diagonals likewise split off so their
@@ -275,12 +355,14 @@ export function createRoadRenderer(scene: Scene) {
       bridges.mesh.setEnabled(false);
       parapets.thinInstanceSetBuffer("matrix", null);
       parapets.setEnabled(false);
+      setInstances(arches, []);
       bridges.dirty = false;
       return;
     }
 
     const deckMatrices = new Float32Array(bridges.tiles.size * 16);
     const railMatrices: number[] = [];
+    const archMatrices: number[] = [];
     const matrix = Matrix.Identity();
     const rail: number[] = new Array(16);
     const diagScale = new Vector3(Math.SQRT2, 1, 1);
@@ -308,6 +390,12 @@ export function createRoadRenderer(scene: Scene) {
         Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
         matrix.copyToArray(deckMatrices, offset);
         offset += 16;
+        // Arch masonry rides the deck's transform (√2 stretch widens the arch
+        // to span the longer diagonal cell) at y 0 — it's authored in world y.
+        diagPos.set(x, 0, z);
+        Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
+        matrix.copyToArray(rail, 0);
+        archMatrices.push(...rail);
         // Rails run along the ribbon's long (local ±z) sides; world side normal
         // for s = ±1 is s·(sinθ, 0, cosθ). The √2 x-scale abuts same-lane rails
         // like the deck. Suppress a multi-lane bridge's interior rail: lanes
@@ -349,6 +437,19 @@ export function createRoadRenderer(scene: Scene) {
         matrix.copyToArray(rail, 0);
         railMatrices.push(...rail);
       }
+
+      // Arch masonry faces the closed sides (same rule as the rails): travel
+      // runs along whichever axis the path continues on, x winning ties and
+      // isolated cells.
+      const alongX =
+        openAt(gx - 1, gy) || openAt(gx + 1, gy) || !(openAt(gx, gy - 1) || openAt(gx, gy + 1));
+      if (alongX) Matrix.TranslationToRef(x, 0, z, matrix);
+      else {
+        Matrix.RotationYToRef(Math.PI / 2, matrix);
+        matrix.setTranslationFromFloats(x, 0, z);
+      }
+      matrix.copyToArray(rail, 0);
+      archMatrices.push(...rail);
     }
 
     bridges.mesh.thinInstanceSetBuffer("matrix", deckMatrices, 16, true);
@@ -360,6 +461,7 @@ export function createRoadRenderer(scene: Scene) {
       parapets.thinInstanceSetBuffer("matrix", null);
       parapets.setEnabled(false);
     }
+    setInstances(arches, archMatrices);
     bridges.dirty = false;
   }
 
@@ -400,6 +502,7 @@ export function createRoadRenderer(scene: Scene) {
     dirtPads.strip.dispose();
     bridges.mesh.dispose();
     parapets.dispose();
+    arches.dispose();
     parapetMaterial.dispose();
   }
 
