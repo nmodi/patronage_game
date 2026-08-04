@@ -39,6 +39,30 @@ button:not(:disabled) {
   outline-offset: 2px;
 }
 
+/* Compact volume slider — the UA's accent-color thumb is oversized for the
+   settings dropdown. Fill left of the thumb comes from a value-bound inline
+   gradient on the element (VolumeRow). */
+.vol-slider {
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--color-wood) 50%, transparent);
+}
+.vol-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: var(--color-sienna);
+}
+.vol-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: none;
+  border-radius: 999px;
+  background: var(--color-sienna);
+}
+
 /* The three button voices. Size (px/py, text-*) stays local to each context;
    these carry the shared color/border/radius/hover language. */
 .btn-primary {
