@@ -13,6 +13,13 @@ colors:
   ink: "#453824"
   ink-faint: "#7d6b4f"
   wood: "#b39868"
+  navy: "#14161f"
+  navy-deep: "#212533"
+  navy-ink: "#e9e3d3"
+  navy-ink-faint: "#9ba0b1"
+  navy-wood: "#383d4f"
+  navy-sienna: "#cf7a52"
+  navy-prestige-ink: "#d4a94c"
 typography:
   display:
     fontFamily: "Sorts Mill Goudy, EB Garamond, serif"
@@ -101,7 +108,15 @@ A scarce, warm palette: ink on parchment, one sienna voice, gold only where valu
 
 ### Tertiary
 - **Verde** (#4a6551): quiet green for nature/verdant accents; used sparingly.
-- **Crest Blue** (#2f3d63) and **Crest Blue Deep** (#1b2340): the night-sky world outside the ledger — main menu and loading screen radial backdrop, faction crest grounds. Never a panel surface.
+- **Crest Blue** (#2f3d63) and **Crest Blue Deep** (#1b2340): the night-sky world outside the ledger — main menu and loading screen radial backdrop, faction crest grounds. Never a floating-panel surface.
+
+### Navy Chrome
+The permanent HUD (top bar, build bar, materials rail, round HUD toggles) sits on a navy dark ground instead of parchment, applied via the `.theme-navy` scoped variable override in app.css — the parchment/ink/wood/sienna vars are remapped, so components restyle without new classes. Navy chrome also renders 10% larger than the parchment overlays (`zoom: 1.1` on the same class) for legibility on the dark ground. Floating panels, tooltips, and overlays opened *from* the chrome stay parchment (`.theme-parchment` resets the vars where an overlay renders inside chrome, e.g. top-bar tooltips).
+- **Navy** (#14161f): the chrome surface (replaces parchment); **Navy Deep** (#212533) is its raised/hover fill (replaces parchment-deep). Deliberately darker and less saturated than the crest blues — near-black ink-blue, not sky.
+- **Navy Ink** (#e9e3d3) / **Navy Ink Faint** (#9ba0b1): text on navy.
+- **Navy Wood** (#383d4f): borders and rules on navy.
+- **Navy Sienna** (#cf7a52): sienna lightened for contrast on the dark ground — same single-voice role.
+- **Navy Prestige Ink** (#d4a94c): gold-toned status words on navy (the Text-Safe Gold Rule's dark-ground counterpart).
 
 ### Neutral
 - **Parchment** (#f9f5ec): the page — every panel surface; also the text color on sienna buttons.
@@ -188,7 +203,7 @@ A standard Panel, bottom-right, non-blocking: small-caps header states the event
 ## Do's and Don'ts
 
 ### Do:
-- **Do** keep every overlay surface on `.panel-parchment`; new chrome joins the ledger, not a new material world.
+- **Do** keep every floating overlay surface on parchment `.panel-parchment`; permanent edge-docked chrome adds `.theme-navy`. New surfaces join one of those two worlds, never a third.
 - **Do** use the three button voices (`.btn-primary` / `.btn-secondary` / `.btn-quiet`) and size them locally; one primary voice per region.
 - **Do** set panel headers in small-caps display Title with the `mx-2` hairline rule beneath.
 - **Do** deliver confirmations in-world with a two-click pattern (button relabels to "Erase all progress?" / "Overwrite …?").

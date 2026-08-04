@@ -31,7 +31,7 @@ export function ResourceStat({
         </span>
       </div>
       {tooltip && (
-        <div className="pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
+        <div className="theme-parchment pointer-events-none absolute right-0 top-full z-50 mt-2 hidden group-hover:block">
           {tooltip}
         </div>
       )}

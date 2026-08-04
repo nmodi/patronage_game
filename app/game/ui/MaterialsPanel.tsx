@@ -64,7 +64,7 @@ export function MaterialsPanel() {
   return (
     <div
       data-hud="true"
-      className="mat-rail panel-parchment pointer-events-auto rounded-r-lg text-ink"
+      className="mat-rail panel-parchment theme-navy pointer-events-auto rounded-r-lg text-ink"
     >
       {MATERIALS.map((material) => {
         const Icon = MATERIAL_ICONS[material];

@@ -271,6 +271,34 @@ button:not(:disabled) {
   }
 }
 
+/* Navy chrome: the permanent HUD (top bar, build bar, materials rail, round
+   HUD toggles) re-skins by scoped var override — every utility and component
+   class in the chrome reads these vars, so no per-component restyle. Sienna
+   and the faint tones are lightened for contrast on the dark ground. */
+.theme-navy {
+  /* Chrome runs 10% larger than the parchment overlays — zoom scales text,
+     padding, and icons together, and auto/percentage widths still resolve to
+     the full visual span of docked bars. */
+  zoom: 1.1;
+  --color-parchment: #14161f;
+  --color-parchment-deep: #212533;
+  --color-ink: #e9e3d3;
+  --color-ink-faint: #9ba0b1;
+  --color-wood: #383d4f;
+  --color-sienna: #cf7a52;
+  --color-prestige-ink: #d4a94c;
+}
+/* Reset for overlay cards that render inside navy chrome (top-bar hover
+   tooltips) — values mirror @theme; a no-op in already-parchment contexts. */
+.theme-parchment {
+  --color-parchment: #f9f5ec;
+  --color-parchment-deep: #ede7da;
+  --color-ink: #453824;
+  --color-ink-faint: #7d6b4f;
+  --color-wood: #b39868;
+  --color-sienna: #9c3a24;
+}
+
 /* Parchment card: double border via inset hairline, faint paper grain via inline noise SVG. */
 .panel-parchment {
   background-color: var(--color-parchment);

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-07-29T00:00:00Z",
+  "generatedAt": "2026-08-03T00:00:00Z",
   "title": "Design System: Patronage",
   "extensions": {
     "colorMeta": {
@@ -14,7 +14,14 @@
       "parchment-deep": { "role": "neutral", "displayName": "Parchment Deep", "canonical": "#ede7da", "tonalRamp": ["#5c5546", "#7d7561", "#9e957e", "#beb59d", "#d6ceba", "#ede7da", "#f3efe5", "#f9f7f0"] },
       "ink": { "role": "neutral", "displayName": "Ink", "canonical": "#453824", "tonalRamp": ["#191408", "#2d2415", "#453824", "#5f4f35", "#7a684b", "#968464", "#b3a385", "#d3c8b0"] },
       "ink-faint": { "role": "neutral", "displayName": "Ink Faint", "canonical": "#7d6b4f", "tonalRamp": ["#241f14", "#423727", "#5f4f3a", "#7d6b4f", "#97876b", "#b2a48a", "#cdc2ab", "#e8e1d1"] },
-      "wood": { "role": "neutral", "displayName": "Wood", "canonical": "#b39868", "tonalRamp": ["#33291a", "#55452c", "#77613e", "#99804f", "#b39868", "#c5ad85", "#d8c5a5", "#ebdecb"] }
+      "wood": { "role": "neutral", "displayName": "Wood", "canonical": "#b39868", "tonalRamp": ["#33291a", "#55452c", "#77613e", "#99804f", "#b39868", "#c5ad85", "#d8c5a5", "#ebdecb"] },
+      "navy": { "role": "neutral", "displayName": "Navy", "canonical": "#14161f", "tonalRamp": ["#07080c", "#0d0f15", "#14161f", "#222638", "#373a51", "#54576e", "#757994", "#a2a5bb"] },
+      "navy-deep": { "role": "neutral", "displayName": "Navy Deep", "canonical": "#212533", "tonalRamp": ["#0b0c11", "#151822", "#212533", "#313649", "#474d62", "#63687f", "#8287a2", "#a9aec2"] },
+      "navy-ink": { "role": "neutral", "displayName": "Navy Ink", "canonical": "#e9e3d3", "tonalRamp": ["#645d49", "#867e66", "#a89f85", "#c8bfa5", "#dcd5c1", "#e9e3d3", "#f1ecdf", "#f8f5ec"] },
+      "navy-ink-faint": { "role": "neutral", "displayName": "Navy Ink Faint", "canonical": "#9ba0b1", "tonalRamp": ["#25272d", "#40434f", "#5b5f6f", "#767a8d", "#9ba0b1", "#b1b5c3", "#c9cbd5", "#e2e3e8"] },
+      "navy-wood": { "role": "neutral", "displayName": "Navy Wood", "canonical": "#383d4f", "tonalRamp": ["#0e0f15", "#1b1e29", "#292e3c", "#383d4f", "#525669", "#6c7187", "#898ea5", "#abaec1"] },
+      "navy-sienna": { "role": "primary", "displayName": "Navy Sienna", "canonical": "#cf7a52", "tonalRamp": ["#3a1f11", "#61341d", "#8a4a2b", "#b0603c", "#cf7a52", "#dc9877", "#e8b79e", "#f3d8c9"] },
+      "navy-prestige-ink": { "role": "secondary", "displayName": "Navy Prestige Ink", "canonical": "#d4a94c", "tonalRamp": ["#3b2d0f", "#634c1b", "#8b6b28", "#b28a37", "#d4a94c", "#deba72", "#e9cf9c", "#f3e4c8"] }
     },
     "typographyMeta": {
       "display": { "displayName": "Display", "purpose": "Game title on the night sky only." },
@@ -68,16 +75,16 @@
     {
       "name": "HUD Toggle",
       "kind": "nav",
-      "description": "Circular parchment HUD button with sienna icon and count badge; opens one floating panel.",
-      "html": "<button class=\"ds-hud-toggle\" aria-label=\"Commissions\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#9c3a24\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17h18l-2-9-4 4-3-6-3 6-4-4z\"/></svg><span class=\"ds-hud-badge\">3</span></button>",
-      "css": ".ds-hud-toggle { position: relative; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; border-radius: 9999px; background-color: #f9f5ec; border: 1px solid #b39868; box-shadow: inset 0 0 0 3px #f9f5ec, inset 0 0 0 4px rgba(179,152,104,0.55), 0 4px 12px rgba(40,25,10,0.35); cursor: pointer; transition: box-shadow 150ms; } .ds-hud-toggle:hover, .ds-hud-toggle:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; } .ds-hud-badge { position: absolute; top: -4px; right: -4px; display: flex; align-items: center; justify-content: center; height: 16px; min-width: 16px; padding: 0 4px; border-radius: 9999px; background: #453824; color: #f9f5ec; font-family: 'EB Garamond', Georgia, serif; font-size: 10px; font-weight: 600; }"
+      "description": "Circular navy-chrome HUD button with lightened sienna icon and count badge; opens one floating parchment panel.",
+      "html": "<button class=\"ds-hud-toggle\" aria-label=\"Commissions\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#cf7a52\" stroke-width=\"1.75\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 17h18l-2-9-4 4-3-6-3 6-4-4z\"/></svg><span class=\"ds-hud-badge\">3</span></button>",
+      "css": ".ds-hud-toggle { position: relative; display: flex; align-items: center; justify-content: center; height: 44px; width: 44px; border-radius: 9999px; background-color: #14161f; border: 1px solid #383d4f; box-shadow: inset 0 0 0 3px #14161f, inset 0 0 0 4px rgba(56,61,79,0.55), 0 4px 12px rgba(40,25,10,0.35); cursor: pointer; transition: box-shadow 150ms; } .ds-hud-toggle:hover, .ds-hud-toggle:focus-visible { outline: 2px solid #cf7a52; outline-offset: 2px; } .ds-hud-badge { position: absolute; top: -4px; right: -4px; display: flex; align-items: center; justify-content: center; height: 16px; min-width: 16px; padding: 0 4px; border-radius: 9999px; background: #e9e3d3; color: #14161f; font-family: 'EB Garamond', Georgia, serif; font-size: 10px; font-weight: 600; }"
     },
     {
       "name": "Resource Stat",
       "kind": "custom",
-      "description": "Top-bar tally: gold icon beside a stacked bold value over a tiny uppercase label.",
+      "description": "Top-bar tally on navy chrome: gold icon beside a stacked bold value over a tiny uppercase label.",
       "html": "<div class=\"ds-stat\"><svg width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#c9932f\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"8\"/><path d=\"M9.5 9.5c.9-1 4.1-1 5 0M9.5 14.5c.9 1 4.1 1 5 0\"/></svg><div class=\"ds-stat-col\"><span class=\"ds-stat-value\">412ƒ</span><span class=\"ds-stat-label\">Florins</span></div></div>",
-      "css": ".ds-stat { display: flex; align-items: center; gap: 10px; font-family: 'EB Garamond', Georgia, serif; } .ds-stat-col { display: flex; flex-direction: column; line-height: 1.2; } .ds-stat-value { font-size: 1.25rem; font-weight: 600; color: #453824; } .ds-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.025em; color: #7d6b4f; }"
+      "css": ".ds-stat { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 6px; background: #14161f; font-family: 'EB Garamond', Georgia, serif; } .ds-stat-col { display: flex; flex-direction: column; line-height: 1.2; } .ds-stat-value { font-size: 1.25rem; font-weight: 600; color: #e9e3d3; } .ds-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.025em; color: #9ba0b1; }"
     },
     {
       "name": "Text Input",
@@ -89,9 +96,9 @@
     {
       "name": "Speed Pill",
       "kind": "chip",
-      "description": "Round toggle pills: active is sienna on parchment text, idle is faint ink on recessed parchment.",
+      "description": "Round toggle pills on navy chrome: active is lightened sienna with navy text, idle is faint slate on raised navy.",
       "html": "<div class=\"ds-pills\"><button class=\"ds-pill ds-pill--active\">1x</button><button class=\"ds-pill\">2x</button><button class=\"ds-pill\">4x</button></div>",
-      "css": ".ds-pills { display: flex; gap: 4px; } .ds-pill { border: none; border-radius: 9999px; padding: 6px 10px; font-family: 'EB Garamond', Georgia, serif; font-size: 0.75rem; font-weight: 600; background: #ede7da; color: #7d6b4f; cursor: pointer; transition: color 150ms, background 150ms; } .ds-pill:hover { color: #453824; } .ds-pill--active { background: #9c3a24; color: #f9f5ec; } .ds-pill:focus-visible { outline: 2px solid #9c3a24; outline-offset: 2px; }"
+      "css": ".ds-pills { display: flex; gap: 4px; padding: 6px; border-radius: 9999px; background: #14161f; } .ds-pill { border: none; border-radius: 9999px; padding: 6px 10px; font-family: 'EB Garamond', Georgia, serif; font-size: 0.75rem; font-weight: 600; background: #212533; color: #9ba0b1; cursor: pointer; transition: color 150ms, background 150ms; } .ds-pill:hover { color: #e9e3d3; } .ds-pill--active { background: #cf7a52; color: #14161f; } .ds-pill:focus-visible { outline: 2px solid #cf7a52; outline-offset: 2px; }"
     }
   ],
   "narrative": {
@@ -111,7 +118,7 @@
       { "name": "The Paper Doesn't Lift Rule", "body": "Interaction states change ink and fill, never shadow. The one drop shadow belongs to the page itself.", "section": "elevation" }
     ],
     "dos": [
-      "Do keep every overlay surface on .panel-parchment; new chrome joins the ledger, not a new material world.",
+      "Do keep every floating overlay surface on parchment .panel-parchment; permanent edge-docked chrome adds .theme-navy. New surfaces join one of those two worlds, never a third.",
       "Do use the three button voices (.btn-primary / .btn-secondary / .btn-quiet) and size them locally; one primary voice per region.",
       "Do set panel headers in small-caps display Title with the mx-2 hairline rule beneath.",
       "Do deliver confirmations in-world with a two-click pattern (button relabels to \"Erase all progress?\" / \"Overwrite …?\").",

@@ -96,7 +96,7 @@ export function BuildingPalette({
     "flex h-[92px] w-7 shrink-0 items-center justify-center rounded border border-wood/50 bg-parchment-deep text-sienna transition hover:bg-wood/30 disabled:opacity-35 disabled:hover:bg-parchment-deep";
 
   const flyout = (
-    <Panel className="flex items-center gap-1.5 py-2!">
+    <Panel frameClassName="theme-navy rounded-lg" className="flex items-center gap-1.5 py-2!">
       {stripOverflows && (
         <button
           className={chevronClass}
@@ -178,7 +178,7 @@ export function BuildingPalette({
         </div>
       )}
       <Panel
-        frameClassName="rounded-none border-x-0 border-b-0"
+        frameClassName="theme-navy rounded-none border-x-0 border-b-0"
         className="pal-bar flex items-center"
       >
         <span className="pal-title">Build</span>

@@ -33,7 +33,7 @@ export function TopBar() {
   return (
     <div className="pointer-events-none fixed top-0 left-0 right-0 z-50">
       <Panel
-        frameClassName="rounded-none border-x-0 border-t-0"
+        frameClassName="theme-navy rounded-none border-x-0 border-t-0"
         className="flex items-center justify-between gap-4 py-1.5!"
       >
         <div className="flex items-center gap-4">

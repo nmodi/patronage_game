@@ -103,7 +103,7 @@ export function HudToggleButton({
   return (
     <button
       data-hud="true"
-      className={`hud-toggle panel-parchment pointer-events-auto relative h-11 rounded-full text-ink ${
+      className={`hud-toggle panel-parchment theme-navy pointer-events-auto relative h-11 rounded-full text-ink ${
         open ? "is-open ring-2 ring-sienna" : ""
       }`}
       onClick={onClick}
