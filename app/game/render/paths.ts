@@ -188,14 +188,18 @@ function drawPlazaTravertine(ctx: CanvasRenderingContext2D, size: number, cellPx
 }
 
 /** Sett cobbles in rings radiating from the central fountain (Roman), in the
- * street limestone so plazas read as kin to the roads — pattern, not color,
- * marks them out. */
+ * streets' own sett language — dark grout, jittered stones — so the plaza
+ * reads as kin to the roads; the ring pattern, not the material, marks it. */
 function drawPlazaCobble(ctx: CanvasRenderingContext2D, size: number, cellPx: number) {
-  ctx.fillStyle = ROAD_GROUT;
+  // Midway between SETT_GROUT and the pale ROAD_GROUT: the rings expose more
+  // grout than the streets' tight courses, so the streets' value reads darker
+  // here at equal hue.
+  ctx.fillStyle = "#8b816d";
   ctx.fillRect(0, 0, size, size);
   const rand = mulberry32(1506);
-  const sett = cellPx * 0.3;
-  for (let r = sett * 0.8; r < size * 0.75; r += sett) {
+  const sett = cellPx * 0.28;
+  const j = sett * 0.16;
+  for (let r = sett * 0.8; r < size * 0.78; r += sett) {
     const count = Math.max(6, Math.round((2 * Math.PI * r) / sett));
     const phase = rand(); // stagger ring starts so radial seams don't align
     for (let i = 0; i < count; i += 1) {
@@ -203,8 +207,17 @@ function drawPlazaCobble(ctx: CanvasRenderingContext2D, size: number, cellPx: nu
       ctx.save();
       ctx.translate(size / 2 + Math.cos(a) * r, size / 2 + Math.sin(a) * r);
       ctx.rotate(a);
-      ctx.fillStyle = tonePick(rand, ROAD_TONES, 0.1);
-      ctx.fillRect(-sett * 0.42, -sett * 0.36, sett * 0.84, sett * 0.72);
+      const p = [
+        [-sett * 0.44 + (rand() - 0.5) * j, -sett * 0.38 + (rand() - 0.5) * j],
+        [sett * 0.41 + (rand() - 0.5) * j, -sett * 0.38 + (rand() - 0.5) * j],
+        [sett * 0.41 + (rand() - 0.5) * j, sett * 0.36 + (rand() - 0.5) * j],
+        [-sett * 0.44 + (rand() - 0.5) * j, sett * 0.36 + (rand() - 0.5) * j],
+      ];
+      ctx.fillStyle = tonePick(rand, ROAD_TONES, 0.16);
+      ctx.beginPath();
+      p.forEach(([px, py], q) => (q ? ctx.lineTo(px, py) : ctx.moveTo(px, py)));
+      ctx.closePath();
+      ctx.fill();
       ctx.restore();
     }
   }
