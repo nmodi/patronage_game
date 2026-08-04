@@ -36,7 +36,7 @@ import {
   SCATTER_FILES,
   scatterEnvironment as buildEnvironmentScatter,
 } from "./environmentScatter";
-import { PROC_PREFIX, buildProceduralContainer } from "./proceduralPieces";
+import { PROC_PREFIX, ROOF_MOSAIC_VARIANTS, buildProceduralContainer } from "./proceduralPieces";
 import { disposePathMaterials, getPadMaterial, getPlazaMaterial } from "./paths";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 import { STONE_TINTS, disposeWallTextures, getStoneTexture } from "./wallTexture";
@@ -190,10 +190,21 @@ async function getContainer(file: string, scene: Scene) {
 
 function addModelFiles(files: Set<string>, def: ModelDef | undefined) {
   if (!def) return;
-  for (const part of segmentSpecParts(def) ?? def.parts ?? []) files.add(part.file);
-  for (const part of def.variants ?? []) files.add(part.file);
-  for (const part of def.extendNegX ?? []) files.add(part.file);
-  for (const part of def.extendPosX ?? []) files.add(part.file);
+  for (const part of segmentSpecParts(def) ?? def.parts ?? []) for (const f of partFiles(part)) files.add(f);
+  for (const part of def.variants ?? []) for (const f of partFiles(part)) files.add(f);
+  for (const part of def.extendNegX ?? []) for (const f of partFiles(part)) files.add(f);
+  for (const part of def.extendPosX ?? []) for (const f of partFiles(part)) files.add(f);
+}
+
+/** A part's file plus, for roof pieces, its mosaic-variant twins (the bare id
+ * is variant 0) — instantiateBuilding picks one by position hash and
+ * instantiatePart resolves containers synchronously, so loading and the
+ * hasModel gate must both cover every variant. */
+function partFiles(part: Part): string[] {
+  if (!part.file.startsWith(`${PROC_PREFIX}roof-`)) return [part.file];
+  const files = [part.file];
+  for (let v = 1; v < ROOF_MOSAIC_VARIANTS; v += 1) files.push(`${part.file}~${v}`);
+  return files;
 }
 
 /** All distinct parts referenced by a segment spec (for loading/hasModel). */
@@ -291,7 +302,10 @@ export function hasModel(buildingId: BuildingId) {
   const def = MODEL_MANIFEST[buildingId];
   if (!def) return false;
   const parts = segmentSpecParts(def) ?? def.parts ?? def.variants ?? [];
-  return parts.length > 0 && parts.every((part) => containers.has(part.file));
+  return (
+    parts.length > 0 &&
+    parts.every((part) => partFiles(part).every((f) => containers.has(f)))
+  );
 }
 
 /** True when the manifest references kit files for this building, regardless of
@@ -367,7 +381,15 @@ export function instantiateBuilding(
   const buried = new Set<AbstractMesh>();
   type PartInstance = { part: Part; roots: TransformNode[]; meshes: AbstractMesh[] };
   const partInstances: PartInstance[] = [];
-  for (const part of parts) {
+  for (const p of parts) {
+    // Roof mosaics are baked vertex colors, so a position-hashed `~salt` picks
+    // one of a few reshuffled builds — without it every same-size roof in the
+    // city twins tile-for-tile. Shifted off the other hash consumers' bits.
+    const mosaic = (hash >> 9) % ROOF_MOSAIC_VARIANTS;
+    const part =
+      mosaic > 0 && p.file.startsWith(`${PROC_PREFIX}roof-`)
+        ? { ...p, file: `${p.file}~${mosaic}` }
+        : p;
     const { roots, meshes: partMeshes } = instantiatePart(part, root);
     if (part.buried) for (const mesh of partMeshes) buried.add(mesh);
     partInstances.push({ part, roots, meshes: partMeshes });
@@ -537,10 +559,12 @@ export function createBuildingBatcher(
       return;
     }
     // A `~tint` suffix picks tinted material twins; hosts are per (file, tint).
-    const tintSep = meshKey.indexOf("~");
+    // The tint separator is the first `~` after the `#` index — the file id
+    // itself may carry a `~salt` (roof mosaic variants).
+    const hashSep = meshKey.lastIndexOf("#");
+    const tintSep = meshKey.indexOf("~", hashSep);
     const tintId = tintSep >= 0 ? meshKey.slice(tintSep + 1) : null;
-    const baseKey = tintSep >= 0 ? meshKey.slice(0, tintSep) : meshKey;
-    const file = baseKey.slice(0, baseKey.lastIndexOf("#"));
+    const file = meshKey.slice(0, hashSep);
     const container = containers.get(file);
     if (!container) return; // not loaded yet; the caller skips this mesh
     // Build hosts for every mesh of the file at once — enumeration order

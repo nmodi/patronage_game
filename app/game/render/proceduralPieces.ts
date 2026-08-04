@@ -270,7 +270,7 @@ function barrel(
 
 /** Tiled gable roof. The core matches ROOF_ENVELOPE exactly and is NOT
  * normalized — see ROOF_TILE_BULGE. */
-function buildRoofMesh(scene: Scene, courses: number, rows: number): Mesh {
+function buildRoofMesh(scene: Scene, courses: number, rows: number, salt = 0): Mesh {
   // Open-ended core: the ends are closed by proc:gable-end at the wall plane,
   // inset behind the verge, so this piece stays pure tile.
   const parts = [
@@ -284,7 +284,7 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number): Mesh {
   for (const s of [-1, 1]) {
     for (let i = 0; i < courses; i++) {
       for (let j = 0; j < rows; j++) {
-        const tile = barrel(`proc-coppo-${s}-${i}-${j}`, step, rowLen * ROW_OVERLAP, hashShade(s, i, j), scene);
+        const tile = barrel(`proc-coppo-${s}-${i}-${j}`, step, rowLen * ROW_OVERLAP, hashShade(s, i, j, salt), scene);
         // Axis laid in the slope plane, running ridge to eave; half the barrel
         // stands proud of the plane, which is the coppi read.
         tile.rotation.x = -s * (Math.PI / 2 - tilt);
@@ -308,7 +308,7 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number): Mesh {
   // open. Real roofs cover it with a course laid along the ridge — and it hides
   // the seam where the two slopes' tiles meet.
   for (let i = 0; i < courses; i++) {
-    const cap = barrel(`proc-colmo-${i}`, step * 1.2, step * 1.02, hashShade(9, i, 0), scene);
+    const cap = barrel(`proc-colmo-${i}`, step * 1.2, step * 1.02, hashShade(9, i, 0, salt), scene);
     cap.rotation.z = Math.PI / 2;
     cap.position.set(-ROOF_HALF_X + (i + 0.5) * step, ROOF_H + (rows - 1) * LAP, 0);
     cap.bakeCurrentTransformIntoVertices();
@@ -320,15 +320,15 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number): Mesh {
   return mesh;
 }
 
-function buildRoofGable(scene: Scene, courses: number, rows: number) {
-  return { mesh: buildRoofMesh(scene, courses, rows), material: "tile", color: TILE_BASE };
+function buildRoofGable(scene: Scene, courses: number, rows: number, salt = 0) {
+  return { mesh: buildRoofMesh(scene, courses, rows, salt), material: "tile", color: TILE_BASE };
 }
 
 /** Tiled hip (roof-point): four slopes to a point. Coppi run straight up the
  * fall line as they really do — the slope is a triangle, so each row keeps only
  * the tiles whose centre is still inside it and the hip ridges cover the cut,
  * which is also how a real hip is finished. */
-function buildRoofHipMesh(scene: Scene, courses: number, rows: number): Mesh {
+function buildRoofHipMesh(scene: Scene, courses: number, rows: number, salt = 0): Mesh {
   // Core pyramid: apex + 4 base corners, one triangle per slope. No base — it
   // sits on a wall, same as the gable's open core.
   const corners: [number, number][] = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
@@ -356,7 +356,7 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number): Mesh {
         // The slope narrows to the apex as |x| <= z, so this drops the tiles the
         // hip cuts off — including the whole top row, where the faces meet.
         if (Math.abs(x) > z) continue;
-        const tile = barrel(`proc-coppo-hip-${f}-${i}-${j}`, step, rowLen * ROW_OVERLAP, hashShade(f, i, j), scene);
+        const tile = barrel(`proc-coppo-hip-${f}-${i}-${j}`, step, rowLen * ROW_OVERLAP, hashShade(f, i, j, salt), scene);
         tile.rotation.x = -(Math.PI / 2 - tilt);
         tile.rotation.y = (f * Math.PI) / 2; // pitch first, then onto this face
         tile.position.copyFrom(Vector3.TransformCoordinates(new Vector3(x, y, z), yaw));
@@ -372,7 +372,7 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number): Mesh {
     const foot = new Vector3(cx * HIP_HALF, 0, cz * HIP_HALF);
     const apex = new Vector3(0, HIP_H, 0);
     const axis = apex.subtract(foot);
-    const cap = barrel(`proc-hip-ridge-${cx}-${cz}`, step * 1.5, axis.length() * 1.08, hashShade(9, cx, cz), scene);
+    const cap = barrel(`proc-hip-ridge-${cx}-${cz}`, step * 1.5, axis.length() * 1.08, hashShade(9, cx, cz, salt), scene);
     cap.rotationQuaternion = Quaternion.FromUnitVectorsToRef(
       Vector3.Up(),
       axis.normalize(),
@@ -388,8 +388,8 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number): Mesh {
   return mesh;
 }
 
-function buildRoofHip(scene: Scene, courses: number, rows: number) {
-  return { mesh: buildRoofHipMesh(scene, courses, rows), material: "tile", color: TILE_BASE };
+function buildRoofHip(scene: Scene, courses: number, rows: number, salt = 0) {
+  return { mesh: buildRoofHipMesh(scene, courses, rows, salt), material: "tile", color: TILE_BASE };
 }
 
 /** The stucco triangles closing the roof's open ends: base on the wall top, edges
@@ -1225,7 +1225,12 @@ function buildAwning(scene: Scene, panels: number) {
   return { mesh, material: "cloth", color: CLOTH };
 }
 
-type Builder = (scene: Scene, courses: number, rows: number) => {
+type Builder = (
+  scene: Scene,
+  courses: number,
+  rows: number,
+  salt?: number
+) => {
   mesh: Mesh;
   material: string;
   color: string;
@@ -1252,12 +1257,21 @@ const BUILDERS: Record<string, Builder> = {
 
 export const PROC_FILES = Object.keys(BUILDERS).map((id) => PROC_PREFIX + id);
 
+/** Roof mosaic variants: the per-tile shades are baked vertex colors, so every
+ * instance of one piece id shares one mosaic — a `~salt` suffix on the id
+ * (picked per building by position hash in instantiateBuilding) rebuilds the
+ * same geometry with a reshuffled mosaic so neighboring same-size roofs don't
+ * twin. Each variant is its own thin-instance host. */
+export const ROOF_MOSAIC_VARIANTS = 3;
+
 /** Build one piece, wrapped to look exactly like a loaded glTF container: a root
  * TransformNode over meshes carrying named PBRMaterials. The id may carry tile
  * counts (`proc:roof-gable@51x7`, see procRoofFile); bare ids build the house
  * roof's density. */
 export function buildProceduralContainer(file: string, scene: Scene): AssetContainer {
-  const [id, counts] = file.slice(PROC_PREFIX.length).split("@");
+  // `~salt` (roof mosaic variant) comes after the counts: `proc:roof-gable@51x7~2`.
+  const [spec, saltStr] = file.slice(PROC_PREFIX.length).split("~");
+  const [id, counts] = spec!.split("@");
   const builder = BUILDERS[id!];
   if (!builder) throw new Error(`unknown procedural piece: ${file}`);
   // Roofs default to the house-tile density; the block defaults to a single
@@ -1267,7 +1281,7 @@ export function buildProceduralContainer(file: string, scene: Scene): AssetConta
     : id === "block"
       ? [1, 1]
       : [COURSES, ROWS];
-  const { mesh, material, color } = builder(scene, courses!, rows!);
+  const { mesh, material, color } = builder(scene, courses!, rows!, saltStr ? Number(saltStr) : 0);
   // The kit is flat-shaded and these sit beside it. Profile extrusions share
   // vertices between faces, so ComputeNormals averages them into a smooth
   // gradient — split them back out or the piece reads as a washed-out blob.
