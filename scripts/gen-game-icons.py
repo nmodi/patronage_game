@@ -21,7 +21,7 @@ TSX = os.path.join(HERE, "..", "app/game/ui/gameIcons.tsx")
 # lucide-react component name -> chosen game-icons.net icon (from the icon-audit artifact)
 CHOSEN = {
     "Coins": "two-coins", "Feather": "candle-light", "Crown": "laurel-crown", "Users": "backup",
-    "Home": "family-house", "Store": "basket", "Settings": "cog", "Pencil": "quill",
+    "Home": "family-house", "Store": "basket", "Settings": "cog", "Pencil": "quill-ink",
     "Images": "mona-lisa", "Scroll": "scroll-quill", "Clock": "hourglass", "Paintbrush": "paint-brush",
     "Church": "church", "Shield": "cross-shield", "Road": "calendar-half-year", "Landmark": "greek-temple",
     "Wheat": "wheat", "Hammer": "claw-hammer", "Pickaxe": "mining", "Palette": "paint-bucket",
@@ -44,7 +44,7 @@ AUTHORS = {
     "grapes": "Lorc", "greek-temple": "Delapouite", "hourglass": "Lorc", "ionic-column": "Delapouite",
     "laurel-crown": "Lorc", "metal-bar": "Lorc", "mining": "Lorc", "obelisk": "Delapouite",
     "mona-lisa": "Delapouite", "paint-brush": "Delapouite", "paint-bucket": "Delapouite", "pine-tree": "Lorc",
-    "quill": "Lorc", "rock": "Lorc", "scroll-quill": "Delapouite", "stone-block": "Lorc", "stone-bridge": "Delapouite",
+    "quill-ink": "Lorc", "rock": "Lorc", "scroll-quill": "Delapouite", "stone-block": "Lorc", "stone-bridge": "Delapouite",
     "stone-bust": "Delapouite", "stone-pile": "Delapouite", "stone-tower": "Lorc",
     "trail": "Delapouite", "trowel": "Delapouite", "two-coins": "Delapouite", "village": "Delapouite", "warehouse": "Delapouite",
     "wheat": "Lorc", "wooden-fence": "Lorc", "powder": "Lorc", "wood-beam": "Delapouite",

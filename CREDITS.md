@@ -50,7 +50,7 @@ in `scripts/game-icons/` and are compiled into `app/game/ui/gameIcons.tsx` by `s
 | Pigment / pigment trader | `powder` | Lorc |
 | Timber / timber yard | `wood-beam` | Delapouite |
 | Gallery | `mona-lisa` | Delapouite |
-| Build / edit | `quill` | Lorc |
+| Build / edit | `quill-ink` | Lorc |
 | Commissions | `scroll-quill` | Delapouite |
 | Marble / marble supplier | `stone-block` | Lorc |
 | Bridge | `stone-bridge` | Delapouite |
