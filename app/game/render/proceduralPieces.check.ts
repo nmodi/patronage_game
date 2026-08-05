@@ -104,6 +104,15 @@ for (const [file, envelope] of [
   }
 }
 
+// The per-row lap is normalized by row count, so a many-row roof's tile stack
+// tops out no higher than the house roof's — unnormalized, the cathedral nave's
+// 12 rows floated the ridge tiles visibly off the core (≈0.15wu after its 3x
+// z-stretch).
+assert.ok(
+  bounds("proc:roof-gable@51x12").max[1]! <= bounds("proc:roof-gable").max[1]! + EPS,
+  "big-roof ridge stack outgrew the house roof's"
+);
+
 // Material names are the MATERIAL_TINTS lookup key; a rename silently drops the
 // piece back to its fallback albedo.
 assert.equal(bounds("proc:block").material, "stucco");

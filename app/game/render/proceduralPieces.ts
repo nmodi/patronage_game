@@ -92,9 +92,15 @@ export function procRoofFile(
   return `${PROC_PREFIX}${kind}@${courses}x${rows}`;
 }
 /** Each row laps the row below it; LAP lifts it clear so the shared barrel
- * surface doesn't z-fight, and reads as the tile's lip. */
+ * surface doesn't z-fight, and reads as the tile's lip. LAP is the *house*
+ * (ROWS-row) per-row lift — lapStep() rescales it so the total stack height
+ * stays at the house value on any row count: the lift accumulates linearly up
+ * the slope, and unscaled it floated a big roof's top rows and ridge cap
+ * visibly off the core (the cathedral nave: 12 rows × a 3x z-stretch ≈ 0.15wu
+ * of daylight under the ridge tiles). */
 const ROW_OVERLAP = 1.25;
 const LAP = 0.005;
+const lapStep = (rows: number) => (rows > 1 ? (LAP * (ROWS - 1)) / (rows - 1) : 0);
 
 /** Per-tile shade, multiplied onto the tile base color as vertex colors. Real
  * roofs vary in hue as well as value, so a few of these cool off rather than
@@ -288,6 +294,7 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number, salt = 0): M
   const slope = Math.hypot(ROOF_H, ROOF_HALF_Z);
   const tilt = Math.atan2(ROOF_H, ROOF_HALF_Z);
   const rowLen = slope / rows;
+  const lap = lapStep(rows);
 
   for (const s of [-1, 1]) {
     for (let i = 0; i < courses; i++) {
@@ -301,7 +308,7 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number, salt = 0): M
         // row beneath — so the top row's head lands exactly on the ridge and the
         // bottom row's foot overhangs the eave.
         const d = j * rowLen + (rowLen * ROW_OVERLAP) / 2;
-        const lift = (rows - 1 - j) * LAP;
+        const lift = (rows - 1 - j) * lap;
         tile.position.set(
           -ROOF_HALF_X + (i + 0.5) * step,
           ROOF_H - (d * ROOF_H) / slope + (lift * ROOF_HALF_Z) / slope,
@@ -318,7 +325,7 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number, salt = 0): M
   for (let i = 0; i < courses; i++) {
     const cap = barrel(`proc-colmo-${i}`, step * 1.2, step * 1.02, hashShade(9, i, 0, salt), scene);
     cap.rotation.z = Math.PI / 2;
-    cap.position.set(-ROOF_HALF_X + (i + 0.5) * step, ROOF_H + (rows - 1) * LAP, 0);
+    cap.position.set(-ROOF_HALF_X + (i + 0.5) * step, ROOF_H + (rows - 1) * lap, 0);
     cap.bakeCurrentTransformIntoVertices();
     parts.push(cap);
   }
@@ -350,6 +357,7 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number, salt = 0)
   const slope = Math.hypot(HIP_H, HIP_HALF);
   const tilt = Math.atan2(HIP_H, HIP_HALF);
   const rowLen = slope / rows;
+  const lap = lapStep(rows);
 
   for (let f = 0; f < 4; f++) {
     const yaw = Matrix.RotationY((f * Math.PI) / 2);
@@ -358,7 +366,7 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number, salt = 0)
       for (let j = 0; j < rows; j++) {
         // Same walk as the gable's +Z slope, apex standing in for the ridge.
         const d = j * rowLen + (rowLen * ROW_OVERLAP) / 2;
-        const lift = (rows - 1 - j) * LAP;
+        const lift = (rows - 1 - j) * lap;
         const y = HIP_H - (d * HIP_H) / slope + (lift * HIP_HALF) / slope;
         const z = (d * HIP_HALF) / slope + (lift * HIP_H) / slope;
         // The slope narrows to the apex as |x| <= z, so this drops the tiles the
@@ -404,7 +412,7 @@ function buildRoofHip(scene: Scene, courses: number, rows: number, salt = 0) {
  * out to the wall plane it closes, apex just under the roof core's ridge so the
  * core occludes it. Flat at the wall's top shade — its base meets the *bright*
  * end of the block's ramp, so ramping it too would draw a dark line at the eave. */
-function buildGableEnd(scene: Scene) {
+function buildGableEnd(scene: Scene, uMul = 1, vMul = 1) {
   const t = GABLE_THICKNESS;
   const profile: [number, number][] = [
     [-GABLE_HALF_Z, 0],
@@ -419,9 +427,13 @@ function buildGableEnd(scene: Scene) {
   // Planar UVs so a facade texture can dress the gable: u across the wall, v
   // continuing the storey below's courses. The 0.6 bakes in the manifest's
   // default ROOF_SCALE y-squash, so a stone course is the same world height on
-  // the gable as on the wall under it. Refs at other roof scales carry
-  // non-textured tints, where these UVs never show.
-  uvByPosition(mesh, (_x, y, z) => [z + 0.5, y * 0.6]);
+  // the gable as on the wall under it. That assumption only holds near house
+  // scale — a textured ref at another scale passes correction multipliers in
+  // its id (`proc:gable-end@<u>x<v>`, see the manifest's gableEndFile; the
+  // cathedral pediment's 3x z-stretch rendered giant bricks against the
+  // facade's 1:1 courses). Bare-id refs at odd scales carry non-textured
+  // tints, where these UVs never show.
+  uvByPosition(mesh, (_x, y, z) => [(z + 0.5) * uMul, y * 0.6 * vMul]);
   return { mesh, material: "stucco", color: "#f3e4c9" };
 }
 
@@ -1286,7 +1298,7 @@ export function buildProceduralContainer(file: string, scene: Scene): AssetConta
   // storey (its `rows` slot is storey count — `proc:block@1x2` for the townhouse).
   const [courses, rows] = counts
     ? (counts.split("x").map(Number) as [number, number])
-    : id === "block"
+    : id === "block" || id === "gable-end"
       ? [1, 1]
       : [COURSES, ROWS];
   const { mesh, material, color } = builder(scene, courses!, rows!, saltStr ? Number(saltStr) : 0);

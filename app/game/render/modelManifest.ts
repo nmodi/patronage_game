@@ -179,14 +179,33 @@ const HIGH_GABLE = 1.112 / 0.571;
  * so a house that fills its footprint to the walls can still overhang the tile
  * with its eaves — which is what makes side-adjacent houses read as one terrace
  * roof without any neighbour-reactive stretching. */
+/** Gable-end id whose planar UVs keep a textured wall pattern at the same
+ * world course size as the wall below the gable. The bare piece bakes the
+ * house assumption (unit walls, ROOF_SCALE's 0.6 y-squash) — at any other
+ * scale a textured gable renders stretched courses, so this computes the u/v
+ * corrections from the ref's scale and the wall's course height (a storey-
+ * fitted wall's world height per texture wrap). Unrotated refs only: u runs
+ * along local z. */
+const gableEndFile = ([, sy, sz]: [number, number, number], courseH: number) =>
+  `proc:gable-end@${+sz.toFixed(3)}x${+(sy / (0.6 * courseH)).toFixed(3)}`;
+
 const gableRoof = (
   position: [number, number, number],
   scale: [number, number, number] = ROOF_SCALE,
-  opts: { rotationY?: number; buried?: boolean; tint?: string } = {}
+  opts: { rotationY?: number; buried?: boolean; tint?: string; courseH?: number } = {}
 ): Part[] => [
   // (the roof part never takes opts.tint — tiles stay terracotta city-wide)
   { file: procRoofFile("roof-gable", scale), position, scale, tint: "roof", rotationY: opts.rotationY, buried: opts.buried },
-  { file: "proc:gable-end", position, scale, tint: opts.tint ?? "facade", rotationY: opts.rotationY, buried: opts.buried },
+  // courseH: set on a textured (STONE_TINTS) gable at non-house scale so its
+  // courses match the wall below — see gableEndFile.
+  {
+    file: opts.courseH ? gableEndFile(scale, opts.courseH) : "proc:gable-end",
+    position,
+    scale,
+    tint: opts.tint ?? "facade",
+    rotationY: opts.rotationY,
+    buried: opts.buried,
+  },
 ];
 
 /** A tiled hip roof (the kit's roof-point). No end pieces — four slopes, no
@@ -436,8 +455,8 @@ function biforaWindow(
 /** Rose window on a local face — faceted stone ring + wheel-tracery glazing
  * (proc:rose / proc:rose-glass), both CENTERED pieces: `yCenter` is the rose
  * centre, not an opening bottom. `sy` pre-stretches y so the circle renders
- * round under a prefab's scaleY squash (the cathedral passes 1/0.71 — with
- * stretch fitting, scaleY = min(scaleX, scaleZ) × 0.71 exactly, so the
+ * round under a prefab's scaleY squash (the cathedral passes 1/1.28 — with
+ * stretch fitting, scaleY = min(scaleX, scaleZ) × 1.28 exactly, so the
  * compensation is the plain reciprocal). No reveal: the glass disc runs to
  * under the ring band, so there's no opening edge to hide. */
 function roseWindow(
@@ -569,11 +588,26 @@ const BT_FACES: LocalSide[] = ["posX", "negX", "posZ", "negZ"];
 // slabs 0.06 thick). The nave slab rides 0.01 proud of the aisle wedges so
 // their inner triangle tails (the aisle-slope profile crossing the nave zone)
 // hide behind it instead of slicing through the nave bifore; nave fittings
-// take CATH_NAVE, aisle fittings CATH_FRONT. CATH_BAYS = the five-bay window
-// rhythm shared by the clerestory and both aisle rows.
+// take CATH_NAVE, aisle fittings CATH_FRONT. CATH_BAYS = the window rhythm
+// shared by the clerestory and both aisle rows — four bays spaced along the
+// clear wall run between the facade and the transept's front wall (x −1;
+// bays behind it would bury in the crossbar or poke through its roof).
 const CATH_FRONT = 2.04;
 const CATH_NAVE = 2.05;
-const CATH_BAYS = [-1.6, -0.8, 0, 0.8, 1.6];
+const CATH_BAYS = [-0.6, 0.2, 1, 1.8];
+// Stretch-fit gives the cathedral world y = min(scale) × CATH_SQUASH while the
+// facade's horizontal stays at min(scale), so west-front fittings render
+// squished by that factor. Widening each part's local z — the authored width
+// axis on the posX face (rotationY 0) — by the same factor restores authored
+// proportions; heights are absolute wall coords and stay put. posX-face
+// fittings only: other faces carry different world stretches.
+const CATH_SQUASH = 1.28;
+const unsquish = (parts: Part[]): Part[] =>
+  parts.map((p) => {
+    const s = p.scale ?? 1;
+    const [sx, sy, sz] = Array.isArray(s) ? s : [s, s, s];
+    return { ...p, scale: [sx, sy, sz * CATH_SQUASH] };
+  });
 
 export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
   // Row houses fill their footprint to the walls (HOUSE_FIT ≈ 1), so two placed
@@ -770,11 +804,12 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     // the claim reads as empty forecourt.
     stretch: true,
   },
-  // Cathedral, front facing +X, symmetrical like Santa Maria Novella:
-  // two-story nave under a high gable (ridge runs along X in the kit) with a
-  // single-story aisle on each side under a shallow lean-to roof sloping up
-  // to the nave wall (no shed piece in the kit: a gable with its ridge sunk
-  // into the nave block, so only the outer slope shows). The Santa Croce
+  // Cathedral, front facing +X, Santa Croce's T plan: two-story nave under a
+  // high gable (ridge runs along X in the kit) with a single-story aisle on
+  // each side under a shallow lean-to roof sloping up to the nave wall (no
+  // shed piece in the kit: a gable with its ridge sunk into the nave block,
+  // so only the outer slope shows), closed at the east end by a transept
+  // crossbar one unit wider than the aisles on each side. The Santa Croce
   // scheme: a campanile-marble SCREEN FACADE — thin slabs hung on the west
   // front plus the pediment — over a brown rubble shell (the real fronts are
   // exactly that, a marble screen on a medieval brick basilica). Three
@@ -789,75 +824,131 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // only ever the screen front. One column per unit so the courses don't
       // stretch; @1x3 / @1x2 wrap v in near-equal course sizes (0.83 vs 0.875)
       // while keeping ONE continuous AO ramp per wall
-      ...[-1.5, -0.5, 0.5, 1.5].flatMap((x): Part[] => [
-        { file: "proc:block@1x3", position: [x, 0, 0], scale: [1, 2.5 / 3, 1], tint: "flank" },
-        { file: "proc:block@1x2", position: [x, 0, -1], scale: [1, 0.875, 1], tint: "flank" },
-        { file: "proc:block@1x2", position: [x, 0, 1], scale: [1, 0.875, 1], tint: "flank" },
+      // nave runs the full length to the back wall (x −2..2) so it passes
+      // clean through the transept — no hollow under its rear roof run
+      ...[-1.5, -0.5, 0.5, 1.5].flatMap((x) =>
+        [-1, 0, 1].map(
+          (z): Part => ({ file: "proc:block@1x3", position: [x, 0, z], scale: [1, 2.5 / 3, 1], tint: "flank" })
+        )
+      ),
+      ...[-0.5, 0.5, 1.5].flatMap((x): Part[] => [
+        // aisles 1.5 units wide (z 1.5..3) — half the nave's width; the 1.5x
+        // course stretch on the ±x end faces hides behind the screen facade
+        { file: "proc:block@1x2", position: [x, 0, -2.25], scale: [1, 0.875, 1.5], tint: "flank" },
+        { file: "proc:block@1x2", position: [x, 0, 2.25], scale: [1, 0.875, 1.5], tint: "flank" },
       ]),
-      // pediment in the same light brick via gableRoof's tint override
-      ...gableRoof([0, 2.5, 0], [4, HIGH_GABLE, 1], { tint: "lightbrick" }),
-      // lean-to aisle roofs: gable body spans x ±0.55 unscaled, so 3.62 ends it
-      // just inside the ±2 facades (no ledge poking past the front); ridge cap
-      // sits 0.02 behind the nave wall face (z-fight)
-      ...gableRoof([0, 1.75, -0.48], [3.62, 0.4, 2.1]),
-      ...gableRoof([0, 1.75, 0.48], [3.62, 0.4, 2.1]),
+      // transept crossbar — the Santa Croce T: a uniform 2.0-tall row, 0.7
+      // units deep (x −1.7..−1, front flush with the aisle ends so their
+      // lean-tos still bury into it; the 0.7x course squeeze on its ±z end
+      // faces is on rubble, illegible) spanning z ±3.5 (the full footprint
+      // depth once fitted). The full-height nave projects 0.3 past its back —
+      // the chancel stub — and supplies the mass at the crossing.
+      ...[-3, -2, -1, 0, 1, 2, 3].map(
+        (z): Part => ({ file: "proc:block@1x3", position: [-1.35, 0, z], scale: [0.7, 2 / 3, 1], tint: "flank" })
+      ),
+      // pediment in the same light brick via gableRoof's tint override;
+      // courseH keeps the brick at the nave slabs' course size (their @1x3
+      // wrap: 2.5 world over 3 wraps). The roof ends flush at the slab plane
+      // front and back (±2.05) — a longer front verge left the ridge cap
+      // hanging past the facade into open air, reading as a floating roof
+      // from the plaza.
+      ...gableRoof([0, 2.5, 0], [2.05 / 0.55, HIGH_GABLE, 3], { tint: "lightbrick", courseH: 2.5 / 3 }),
+      // lean-to aisle roofs: gable body spans x ±0.55 unscaled — run from just
+      // inside the +2 facade to x −1.02, buried into the transept's west wall
+      // at x −1; ridge cap sits 0.02 behind the nave wall face (z-fight)
+      ...gableRoof([0.485, 1.75, -1.48], [2.74, 0.4, 3]),
+      ...gableRoof([0.485, 1.75, 1.48], [2.74, 0.4, 3]),
+      // transept roof: cross gable, ridge along Z, riding the 2.0 arm walls
+      // at the kit's ordinary house pitch (0.7 y-scale ≈ 0.4 rise over the
+      // 0.375 half-run — HIGH_GABLE spiked on the shallow crossbar). Ridge
+      // 2.4 sits under the nave's eave line (2.5), so the arms die into the
+      // nave's side walls; gable ends close the ±z transept fronts (flat
+      // stone — textured courses would stretch on the gable's squashed
+      // planar UVs)
+      ...gableRoof([-1.35, 2, 0], [3.55 / 0.55, 0.7, 0.7], { rotationY: Math.PI / 2, tint: "stone" }),
       // the screen front: one slab per front (nave + both aisles), faces at
       // CATH_FRONT. Storey-fitted UV wraps (@1x3 / @1x2, like the flanks) so
       // the brick courses land whole at each slab's top — a raw-height slab
       // cut the pattern mid-course and the sections read as patchwork
-      { file: "proc:block@1x3", position: [2.02, 0, 0], scale: [0.06, 2.5 / 3, 1], tint: "lightbrick" },
-      { file: "proc:block@1x2", position: [2.01, 0, -1], scale: [0.06, 0.875, 1], tint: "lightbrick" },
-      { file: "proc:block@1x2", position: [2.01, 0, 1], scale: [0.06, 0.875, 1], tint: "lightbrick" },
+      ...[-1, 0, 1].map(
+        (z): Part => ({ file: "proc:block@1x3", position: [2.02, 0, z], scale: [0.06, 2.5 / 3, 1], tint: "lightbrick" })
+      ),
+      { file: "proc:block@1x2", position: [2.01, 0, -2.25], scale: [0.06, 0.875, 1.5], tint: "lightbrick" },
+      { file: "proc:block@1x2", position: [2.01, 0, 2.25], scale: [0.06, 0.875, 1.5], tint: "lightbrick" },
       // marble wedges over the aisle slabs: gable-end triangles at the exact
       // lean-to profile, so the marble climbs the aisle slope and closes the
       // open slot between slab top and roof underside (SMN's sloped shoulder
       // sections). 0.005 proud of the slab plane so nothing coplanar fights.
-      { file: "proc:gable-end", position: [2.015, 1.75, -0.48], scale: [0.06, 0.4, 2.1], tint: "lightbrick" },
-      { file: "proc:gable-end", position: [2.015, 1.75, 0.48], scale: [0.06, 0.4, 2.1], tint: "lightbrick" },
+      // courseH matches the aisle slabs' @1x2 wrap (0.875 world per course)
+      { file: gableEndFile([0.06, 0.4, 3], 0.875), position: [2.015, 1.75, -1.48], scale: [0.06, 0.4, 3], tint: "lightbrick" },
+      { file: gableEndFile([0.06, 0.4, 3], 0.875), position: [2.015, 1.75, 1.48], scale: [0.06, 0.4, 3], tint: "lightbrick" },
       // giant-order pilasters proud of the screen, covering the section joints
       // (nave/aisle seams full height, outer corners to the aisle top) — the
       // grid mismatch between slab wraps hides behind them, SMN-style
-      { file: "proc:block", position: [2.045, 0, -0.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
-      { file: "proc:block", position: [2.045, 0, 0.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
-      { file: "proc:block", position: [2.045, 0, -1.45], scale: [0.05, 1.75, 0.1], tint: "stone" },
-      { file: "proc:block", position: [2.045, 0, 1.45], scale: [0.05, 1.75, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, -1.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, 1.5], scale: [0.05, 2.5, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, -2.95], scale: [0.05, 1.75, 0.1], tint: "stone" },
+      { file: "proc:block", position: [2.045, 0, 2.95], scale: [0.05, 1.75, 0.1], tint: "stone" },
       // sagrato podium: two low steps across the three portals (risers kept
       // shallow so the door leaves aren't visibly buried in the platform)
-      { file: "proc:block", position: [2.12, 0, 0], scale: [0.24, 0.06, 3.1], tint: "stone" },
-      { file: "proc:block", position: [2.07, 0, 0], scale: [0.14, 0.12, 3.0], tint: "stone" },
+      { file: "proc:block", position: [2.12, 0, 0], scale: [0.24, 0.06, 5.6], tint: "stone" },
+      { file: "proc:block", position: [2.07, 0, 0], scale: [0.14, 0.12, 5.5], tint: "stone" },
       // three-portal facade, the center one grander — arched stone portals
       // with double bronze-panel doors (proc:portal-*). Center tops out at
       // 1.30, under the rose slot at 1.5; sides clear the seam pilasters.
-      ...portalOn("posX", CATH_NAVE, 0, 1.15),
-      ...portalOn("posX", CATH_FRONT, -1, 0.85),
-      ...portalOn("posX", CATH_FRONT, 1, 0.85),
+      ...unsquish(portalOn("posX", CATH_NAVE, 0, 1.15)),
+      ...unsquish(portalOn("posX", CATH_FRONT, -2.25, 0.85)),
+      ...unsquish(portalOn("posX", CATH_FRONT, 2.25, 0.85)),
       // the SMN rose over the center portal (replacing the paired bifore):
-      // stone ring + wheel glazing, riding high in the nave's clear span
-      // (portal tops at 1.30, slab ends at 2.5 — ring top lands ~2.44), y
-      // pre-stretched against the prefab's 0.71 squash so the circle renders
-      // round. Aisle bifore stay.
-      ...roseWindow("posX", CATH_NAVE, 2, 0, 0.9, undefined, 1 / 0.71),
-      ...[-1.25, -0.75, 0.75, 1.25].flatMap((z) =>
-        biforaWindow("posX", CATH_FRONT, 1.05, z, 0.78)
+      // stone ring + wheel glazing filling the nave's clear span (portal tops
+      // at 1.30, slab ends at 2.5 — ring radius 0.35×s spans 1.33..2.48,
+      // ~0.03 off both; it can't grow past this or move up: above 2.5 the
+      // pediment behind is recessed off the slab plane and the ring would
+      // float), y pre-stretched against the prefab's scaleY so the circle
+      // renders round. Aisle bifore stay.
+      ...roseWindow("posX", CATH_NAVE, 1.905, 0, 1.65, undefined, 1 / CATH_SQUASH),
+      ...[-2.55, -1.95, 1.95, 2.55].flatMap((z) =>
+        unsquish(biforaWindow("posX", CATH_FRONT, 1.05, z, 0.78))
       ),
+      // nave-front bifore flanking the portal/rose axis, at the aisle rows'
+      // height — z ±1 clears the portal (~±0.32), the rose (±0.58, bottom
+      // 1.33 vs bifora top ~1.48 — no vertical meet at that z), and the seam
+      // pilasters (±1.45)
+      ...[-1, 1].flatMap((z) => unsquish(biforaWindow("posX", CATH_NAVE, 1.05, z, 0.78))),
+      // rear centerpiece: the tall arch on the nave's back wall (the chancel
+      // stub, 2.5 tall), flanked by smaller arches on the transept arms'
+      // back faces (x −1.7, 2.0 tall)
       ...archWindow("negX", 2, 1.5, 0, 1.3),
-      // five arched clerestory windows per side above the aisle roofs
+      ...[-3, -2, 2, 3].flatMap((z) => archWindow("negX", 1.7, 1.2, z, 0.9)),
+      // transept end fronts (±z): a matching arch centered on the crossbar
+      ...archWindow("posZ", 3.5, 1.1, -1.35, 1.0),
+      ...archWindow("negZ", 3.5, 1.1, -1.35, 1.0),
+      // west-facing walls of the transept arms — only the strip past the
+      // aisles (z 3..3.5) is exposed, so the arch sits at its center
+      ...archWindow("posX", -1, 1.2, -3.25, 0.75),
+      ...archWindow("posX", -1, 1.2, 3.25, 0.75),
+      // arched clerestory windows per side above the aisle roofs
       // (aisle ridge lands at ~1.98 on the nave wall, so openings start above)
       ...CATH_BAYS.flatMap((x) => [
-        ...archWindow("negZ", 0.5, 2.02, x, 0.75),
-        ...archWindow("posZ", 0.5, 2.02, x, 0.75),
+        ...archWindow("negZ", 1.5, 2.02, x, 0.75),
+        ...archWindow("posZ", 1.5, 2.02, x, 0.75),
       ]),
       // aisle flanks: two window rows — rectangular street-level, arched above
       // (the blind arcade is gone; windows carry the rhythm now)
       ...CATH_BAYS.flatMap((x) => [
-        ...windowOn("negZ", 0, x, 1.5),
-        ...windowOn("posZ", 0, x, 1.5),
-        ...archWindow("negZ", 1.5, 0.95, x, 0.75),
-        ...archWindow("posZ", 1.5, 0.95, x, 0.75),
+        ...windowOn("negZ", 0, x, 3),
+        ...windowOn("posZ", 0, x, 3),
+        ...archWindow("negZ", 3, 0.95, x, 0.75),
+        ...archWindow("posZ", 3, 0.95, x, 0.75),
       ]),
     ],
-    fit: 0.95,
-    scaleY: 0.71,
+    // 0.98 (vs the usual 0.95) runs the transept arms out to the footprint
+    // edge — "full width of the tiles".
+    fit: 0.98,
+    // The transept grew the z-extent, so stretch-fit's min axis flipped from x
+    // to z and shrank — 1.28 (was 0.71 pre-transept) keeps the built height
+    // where it was. Feeds `unsquish` and the rose's sy: change them together.
+    scaleY: CATH_SQUASH,
     stretch: true,
   },
   // Small parish chapel, front facing +Z: single 1.5-story nave under a gable
