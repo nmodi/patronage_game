@@ -52,7 +52,8 @@ const ROOF_H = 0.571;
 // Hip: the same base, four slopes meeting at a point.
 const HIP_HALF = 0.55;
 const HIP_H = 0.5;
-/** Gable wall sits on the wall plane; the roof's 0.035 verge overhangs it. */
+/** Gable triangle spans the wall's width; the roof's 0.035 eave overhangs it.
+ * (Along the ridge it sits at the roof END plane — see buildGableEnd.) */
 const GABLE_HALF_Z = 0.5;
 const GABLE_THICKNESS = 0.03;
 /** Keeps the gable's slope edges strictly under the roof core's, which occludes
@@ -197,7 +198,8 @@ function prism(
   x1: number,
   capped: boolean,
   shade: number,
-  scene: Scene
+  scene: Scene,
+  openBase = false // skip the y=0 face — for pieces sitting flush on a wall top
 ): Mesh {
   const n = profile.length;
   const positions: number[] = [];
@@ -206,6 +208,7 @@ function prism(
   const indices: number[] = [];
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
+    if (openBase && profile[i]![1] === 0 && profile[j]![1] === 0) continue;
     indices.push(i, j, n + j, i, n + j, n + i);
   }
   if (capped) {
@@ -288,7 +291,7 @@ function buildRoofMesh(scene: Scene, courses: number, rows: number, salt = 0): M
   // Open-ended core: the ends are closed by proc:gable-end at the wall plane,
   // inset behind the verge, so this piece stays pure tile.
   const parts = [
-    prism("proc-roof-core", ROOF_PROFILE, -ROOF_HALF_X, ROOF_HALF_X, false, CORE_SHADE, scene),
+    prism("proc-roof-core", ROOF_PROFILE, -ROOF_HALF_X, ROOF_HALF_X, false, CORE_SHADE, scene, true),
   ];
   const step = (2 * ROOF_HALF_X) / courses;
   const slope = Math.hypot(ROOF_H, ROOF_HALF_Z);
@@ -408,10 +411,14 @@ function buildRoofHip(scene: Scene, courses: number, rows: number, salt = 0) {
   return { mesh: buildRoofHipMesh(scene, courses, rows, salt), material: "tile", color: TILE_BASE };
 }
 
-/** The stucco triangles closing the roof's open ends: base on the wall top, edges
- * out to the wall plane it closes, apex just under the roof core's ridge so the
- * core occludes it. Flat at the wall's top shade — its base meets the *bright*
- * end of the block's ramp, so ramping it too would draw a dark line at the eave. */
+/** The stucco triangles closing the roof's open ends: base on the wall top, apex
+ * just under the roof core's ridge so the core occludes it. Outer face flush with
+ * the roof's END plane (±ROOF_HALF_X, where the kit piece carried its gable) —
+ * refs scaled span/0.55 land the verge on the building front, so the gable lands
+ * there too; centered-on-the-wall authoring left it recessed by 0.02×sx (a ledge
+ * on the cathedral pediment). Flat at the wall's top shade — its base meets the
+ * *bright* end of the block's ramp, so ramping it too would draw a dark line at
+ * the eave. */
 function buildGableEnd(scene: Scene, uMul = 1, vMul = 1) {
   const t = GABLE_THICKNESS;
   const profile: [number, number][] = [
@@ -419,9 +426,11 @@ function buildGableEnd(scene: Scene, uMul = 1, vMul = 1) {
     [GABLE_HALF_Z, 0],
     [0, ROOF_H * GABLE_CLEARANCE],
   ];
-  const ends = [-1, 1].map((s) =>
-    prism(`proc-gable-${s}`, profile, s * GABLE_HALF_Z - t, s * GABLE_HALF_Z + t, true, 1, scene)
-  );
+  const ends = [-1, 1].map((s) => {
+    const xo = s * ROOF_HALF_X;
+    const xi = s * (ROOF_HALF_X - 2 * t);
+    return prism(`proc-gable-${s}`, profile, Math.min(xi, xo), Math.max(xi, xo), true, 1, scene);
+  });
   const mesh = Mesh.MergeMeshes(ends, true, true)!;
   mesh.name = "proc-gable-end";
   // Planar UVs so a facade texture can dress the gable: u across the wall, v

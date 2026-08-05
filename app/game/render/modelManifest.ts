@@ -973,15 +973,14 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...gableRoof([0, 1.2, 0], [2, 0.75 * HIGH_GABLE, 1.3], { rotationY: Math.PI / 2, tint: "stone" }),
       // facade: portal ring tops at 0.96, under the wall top at 1.2; a small
       // rose on the gable end above it — the cathedral's west-front language
-      // at parish scale (it replaced a lancet, July 2026). The gable-end is
-      // ±0.03 CENTERED on the wall plane and its thickness rides the ridge
-      // scale, so at roof scale 2 the outer face is (0.5+0.03)×2 = 1.06, not
-      // 1.03 — the lancet was authored at 1.03 and sat buried inside the
-      // gable, invisible. sy is the plain reciprocal like the cathedral's:
-      // the fit's min axis here is x, which is also this face's horizontal
-      // (measured root scaling 1.613/1.016/1.726).
+      // at parish scale (it replaced a lancet, July 2026). The gable-end's
+      // OUTER face sits at the roof end plane (0.55 × ridge scale = 1.10
+      // here) — anything authored inside that buries in the gable, invisible
+      // (the lancet at 1.03 did). sy is the plain reciprocal like the
+      // cathedral's: the fit's min axis here is x, which is also this face's
+      // horizontal (measured root scaling 1.613/1.016/1.726).
       ...portalOn("posZ", 1, 0, 0.85),
-      ...roseWindow("posZ", 1.06, 1.58, 0, 0.4, undefined, 1 / 0.63),
+      ...roseWindow("posZ", 1.1, 1.58, 0, 0.4, undefined, 1 / 0.63),
       // arched side windows, three per flank (walls at x ±0.65; nave z ±1)
       ...[-0.6, 0, 0.6].flatMap((z) => [
         ...archWindow("posX", 0.65, 0.4, z, 0.9),

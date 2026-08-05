@@ -195,9 +195,13 @@ for (const file of PROC_FILES) assert.equal(bounds(file).meshCount, 1, `${file}:
 // stucco triangle shows through the tiles (which is the bug the kit's baked-in
 // gable had, just inverted).
 const gable = bounds("proc:gable-end");
+// Outer faces land exactly ON the roof's end planes — refs scaled span/0.55 put
+// the verge on the building front, and the gable must sit flush with it (any
+// less reads as a recessed ledge under the rake; any more escapes the tiles).
 assert.ok(
-  gable.max[0] < ROOF_ENVELOPE.max[0] && gable.min[0] > ROOF_ENVELOPE.min[0],
-  `gable-end x ${gable.min[0]}..${gable.max[0]} escapes the roof's verge`
+  Math.abs(gable.max[0]! - ROOF_ENVELOPE.max[0]) < EPS &&
+    Math.abs(gable.min[0]! + ROOF_ENVELOPE.max[0]) < EPS,
+  `gable-end x ${gable.min[0]}..${gable.max[0]} is not flush with the roof's end planes`
 );
 // Strictly below the ridge: the gable sits on the roof's CORE slope, and the
 // tile barrels stand proud of that core. Equal height means it pokes through
