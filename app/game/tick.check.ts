@@ -331,7 +331,7 @@ const noRandomEvent = () => 1;
   assert.equal(out.inspiration, 6);
 }
 
-// A work displayed in a church trickles fractional prestige, not inspiration.
+// A work displayed in a church trickles inspiration like any other host — no passive prestige.
 {
   const work: Artwork = {
     id: "w2",
@@ -343,8 +343,8 @@ const noRandomEvent = () => 1;
     displayedAt: { key: "3,3", slot: 0 },
   };
   const out = advanceTick(snapshot({ "3,3": tile("chapel", 3, 3) }, { artworks: [work] }), noRandomEvent);
-  assert.equal(out.inspiration, 0); // chapel has no generator; church routes the trickle to prestige
-  assert.ok(Math.abs(out.prestige - 0.2) < 1e-9); // 10 × 0.02
+  assert.equal(out.inspiration, 3); // trickle 10 × 0.25 = 2.5, rounded
+  assert.equal(out.prestige, 0); // prestige is never passive
 }
 
 // Suppliers bank stock while staffed, and stop at the storage ceiling.

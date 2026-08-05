@@ -92,7 +92,6 @@ export const DEFAULT_ARTWORK_PRESTIGE = 2; // pre-Phase-9 works with no prestige
 export const DISPLAY_HOST_BONUS = 0.05; // host effectiveness per displayed work
 export const DISPLAY_HOST_BONUS_MAX_WORKS = 5; // cap: +25%
 export const DISPLAY_INSPIRATION_PER_PRESTIGE = 0.25; // inspiration/tick per work (q8 ≈ 2, half a plaza)
-export const DISPLAY_PRESTIGE_PER_PRESTIGE = 0.02; // prestige/tick, church hosts (q20 ≈ 4.8/yr — flavor)
 
 // --- Commissions & economy (commissions.ts) ---
 // Offers are rare-but-rich since factions slice 1: missing one costs favor, so

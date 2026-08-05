@@ -256,7 +256,7 @@ export function advanceTick(
     inspiration: state.inspiration + Math.round(inspirationDelta),
     prestige: Math.max(
       0,
-      state.prestige + work.prestige + display.prestige - DENOUNCE_PRESTIGE * denounced.length
+      state.prestige + work.prestige - DENOUNCE_PRESTIGE * denounced.length
     ),
     population,
     artists: artistsChanged ? artists : state.artists,

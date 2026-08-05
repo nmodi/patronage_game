@@ -122,7 +122,7 @@ for (const meta of Object.values(BUILDING_METADATA_BY_ID)) {
   assert.ok(!canDisplayWork(scu, "0,0", 0, cottage, [scu])); // host has no display slots
 }
 
-// computeDisplaySummary: plaza → inspiration, church → prestige, dangling ignored, default quality.
+// computeDisplaySummary: displayed → inspiration (church hosts included), dangling ignored, default quality.
 {
   const tiles = { ...stamp("plaza", { x: 0, y: 0 }), ...stamp("chapel", { x: 20, y: 0 }) };
   const onPlaza = work({ id: "david", prestige: 8, displayedAt: { key: "0,0", slot: 0 } });
@@ -131,8 +131,7 @@ for (const meta of Object.values(BUILDING_METADATA_BY_ID)) {
   const stored = work({ id: "stored", prestige: 4 });
   const legacy = work({ id: "legacy", displayedAt: { key: "0,0", slot: 1 } }); // no prestige → default 2
   const sum = computeDisplaySummary(tiles, [onPlaza, onChapel, dangling, stored, legacy]);
-  assert.ok(Math.abs(sum.inspiration - (8 * 0.25 + 2 * 0.25)) < 1e-9); // 2 + 0.5 = 2.5
-  assert.ok(Math.abs(sum.prestige - 10 * 0.02) < 1e-9); // 0.2
+  assert.ok(Math.abs(sum.inspiration - (8 * 0.25 + 10 * 0.25 + 2 * 0.25)) < 1e-9); // 2 + 2.5 + 0.5 = 5
   assert.equal(sum.counts.get("0,0"), 2);
   assert.equal(sum.counts.get("20,0"), 1);
   assert.ok(!sum.counts.has("99,99"));

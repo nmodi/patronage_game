@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Pencil } from "./gameIcons";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { canDisplayWork, CHURCH_HOST_IDS } from "~/game/art/display";
+import { canDisplayWork } from "~/game/art/display";
 import type { Artwork } from "~/game/types";
 import { formatMonth, useGameStore } from "~/stores/useGameStore";
 import { ArtworkRow } from "./ArtworkThumbnail";
@@ -37,7 +37,6 @@ export function DisplayPanel() {
   const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
   if (!metadata?.displaySlots) return null;
   const slots = metadata.displaySlots;
-  const isChurch = CHURCH_HOST_IDS.has(tile.buildingId);
 
   const bySlot = new Map<number, Artwork>();
   for (const w of artworks) {
@@ -150,7 +149,7 @@ export function DisplayPanel() {
           })
         )}
         <span className="text-xs italic text-ink-faint">
-          Each displayed work: +5% building output · trickles {isChurch ? "Prestige" : "Inspiration"}
+          Each displayed work: +5% building output · trickles Inspiration
         </span>
       </Panel>
     </div>

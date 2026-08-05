@@ -120,7 +120,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 |---|---|---|
 | **Display slots** | Buildings/plazas carry typed slots (`painting`/`statue` interior, `plinth` exterior with a footprint cell). Painters fill painting; sculptors fill statue+plinth; architects none. | `app/game/art/display.ts` → `slotAccepts`, `SLOT_KINDS_BY_ARTIST`, `DisplaySlotDef` in `types.ts` |
 | **Host boost** | `displayBoost = 1 + DISPLAY_HOST_BONUS(0.05)·min(count, 5)` → +5%/work, cap +25%. | `display.ts` → `displayBoost()` |
-| **Per-tick trickle** | By quality `q` (captured commission prestige, default 2): church hosts (cathedral/chapel) add `q·0.02` prestige/tick; other hosts add `q·0.25` inspiration/tick. | `display.ts` → `computeDisplaySummary()` |
+| **Per-tick trickle** | By quality `q` (captured commission prestige, default 2): every host adds `q·0.25` inspiration/tick. (Church-host prestige trickle removed Aug 2026.) | `display.ts` → `computeDisplaySummary()` |
 | **Placement guard** | Artwork must be unassigned; host must be an origin with a matching free slot accepting the artist type. Shared by store + both assign UIs. | `display.ts` → `canDisplayWork()` |
 | **Plinth rotation** | Plinth slot cells rotate with the host (integer ring for quarter turns; nearest mask cell for diagonals). | `display.ts` → `rotateSlotCell()`, `plinthSlotAt()` |
 

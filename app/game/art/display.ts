@@ -1,8 +1,9 @@
 // Work display (design doc, Phase 9). Completed works are placed into
 // typed display slots on buildings and plazas. A displayed work trickles a
-// small permanent bonus to the city — inspiration everywhere, prestige in
-// churches — and makes its host building a little more effective (+5% each,
-// capped +25%), a second graded scalar alongside plaza connectivity.
+// small permanent inspiration bonus to the city and makes its host building
+// a little more effective (+5% each, capped +25%), a second graded scalar
+// alongside plaza connectivity. (Church displays trickled prestige until
+// Aug 2026 — removed; passive prestige cheapened the resource.)
 
 // No React/Zustand/Babylon imports: display.check.ts runs this under plain Node.
 import {
@@ -16,7 +17,6 @@ import {
   DISPLAY_HOST_BONUS,
   DISPLAY_HOST_BONUS_MAX_WORKS,
   DISPLAY_INSPIRATION_PER_PRESTIGE,
-  DISPLAY_PRESTIGE_PER_PRESTIGE,
 } from "../constants.ts";
 import type { TileMap } from "../grid.ts";
 import type { ArtistType, Artwork, DisplaySlotDef, DisplaySlotKind } from "../types.ts";
@@ -32,9 +32,7 @@ export {
   DISPLAY_HOST_BONUS,
   DISPLAY_HOST_BONUS_MAX_WORKS,
   DISPLAY_INSPIRATION_PER_PRESTIGE,
-  DISPLAY_PRESTIGE_PER_PRESTIGE,
 } from "../constants.ts";
-export const CHURCH_HOST_IDS: ReadonlySet<string> = new Set(["cathedral", "chapel", "baptistery"]);
 
 export const SLOT_KINDS_BY_ARTIST: Record<ArtistType, readonly DisplaySlotKind[]> = {
   painter: ["painting"],
@@ -144,24 +142,20 @@ export function canDisplayWork(
 
 export interface DisplaySummary {
   counts: Map<string, number>; // host origin key → displayed-work count (uncapped)
-  inspiration: number; // per-tick trickle, non-church hosts
-  prestige: number; // per-tick trickle, church hosts (fractional)
+  inspiration: number; // per-tick trickle (fractional)
 }
 
 /** One O(artworks) scan; a work whose host no longer exists contributes nothing. */
 export function computeDisplaySummary(tiles: TileMap, artworks: Artwork[]): DisplaySummary {
   const counts = new Map<string, number>();
   let inspiration = 0;
-  let prestige = 0;
   for (const w of artworks) {
     if (!w.displayedAt) continue;
     const key = w.displayedAt.key;
     const tile = tiles[key];
     if (!tile?.isOrigin) continue; // host razed — treat as in storage until recalled
     counts.set(key, (counts.get(key) ?? 0) + 1);
-    const q = artworkQuality(w);
-    if (CHURCH_HOST_IDS.has(tile.buildingId)) prestige += q * DISPLAY_PRESTIGE_PER_PRESTIGE;
-    else inspiration += q * DISPLAY_INSPIRATION_PER_PRESTIGE;
+    inspiration += artworkQuality(w) * DISPLAY_INSPIRATION_PER_PRESTIGE;
   }
-  return { counts, inspiration, prestige };
+  return { counts, inspiration };
 }
