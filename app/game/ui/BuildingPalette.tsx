@@ -93,7 +93,7 @@ export function BuildingPalette({
     el?.scrollBy({ left: dir * el.clientWidth, behavior: "smooth" });
   };
   const chevronClass =
-    "flex h-[92px] w-7 shrink-0 items-center justify-center rounded border border-wood/50 bg-parchment-deep text-sienna transition hover:bg-wood/30 disabled:opacity-35 disabled:hover:bg-parchment-deep";
+    "flex h-[92px] w-7 shrink-0 items-center justify-center rounded border border-wood/50 bg-parchment-deep text-sienna transition hover:border-ink-faint/60 hover:bg-wood disabled:opacity-35 disabled:hover:border-wood/50 disabled:hover:bg-parchment-deep";
 
   const flyout = (
     <Panel frameClassName="theme-navy rounded-t-lg border-b-0" className="flex items-center gap-1.5 py-2!">
@@ -130,7 +130,7 @@ export function BuildingPalette({
               className={`flex h-[92px] w-[82px] shrink-0 flex-col items-center justify-between rounded border px-1 py-1.5 transition ${
                 isSelected
                   ? "border-sienna bg-sienna/10 text-ink"
-                  : "border-wood/50 bg-parchment-deep text-ink hover:bg-wood/30"
+                  : "border-wood/50 bg-parchment-deep text-ink hover:border-ink-faint/60 hover:bg-wood"
               } ${canAfford ? "" : "opacity-50"}`}
               onClick={() => setSelectedBuilding(isSelected ? null : buildingId)}
             >

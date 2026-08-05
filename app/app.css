@@ -219,7 +219,8 @@ button:not(:disabled) {
   transition: background 150ms, border-color 150ms;
 }
 .pal-tab:hover {
-  background: color-mix(in srgb, var(--color-wood) 30%, transparent);
+  border-color: color-mix(in srgb, var(--color-ink-faint) 60%, transparent);
+  background: var(--color-wood);
 }
 .pal-tab.is-active {
   border-color: var(--color-sienna);
@@ -275,7 +276,7 @@ button:not(:disabled) {
   opacity: 1;
 }
 .pal-raze:hover {
-  background: color-mix(in srgb, var(--color-wood) 30%, transparent);
+  background: var(--color-wood);
 }
 .pal-raze.is-active {
   background: var(--color-sienna);
