@@ -11,8 +11,8 @@ export const AMBIENCE_GAIN = 1;
 // closeness factor: fully zoomed in = 1, fully out = ZOOM_QUIET — a floor,
 // not silence, so the city doesn't die the moment you pull back.
 export const ZOOM_NEAR = 3;
-export const ZOOM_FAR = 80;
-export const ZOOM_QUIET = 0.3;
+export const ZOOM_FAR = 60;
+export const ZOOM_QUIET = 0.05;
 
 /** 0..1 loudness for the crowd loop: zoom envelope × a citywide↔local
  * cross-fade. `local` is the bustle-field sample at the camera focus
