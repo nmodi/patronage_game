@@ -61,6 +61,37 @@ assert.deepEqual(migrateSave(v9, 9), {
   materials: { timber: 0, stone: 0, pigment: 4, marble: 12, bronze: 0 },
 });
 
+// v10 → v11 strips the removed baptistery and loggia: tiles, blueprint
+// commissions, and funded-build tokens go; works displayed on them return to
+// storage; everything else (including completed designs in the gallery) is
+// untouched.
+const v10 = {
+  ...legacy,
+  mapSeed: "abc",
+  map: { tiles: { "1,1": {}, "3,3": { buildingId: "baptistery", isOrigin: true }, "5,5": { buildingId: "loggia", isOrigin: true }, "3,4": { buildingId: "baptistery" } } },
+  commissions: [{ building: "baptistery" }, { building: "loggia" }, { title: "A Fresco" }],
+  fundedBuilds: ["baptistery", "loggia"],
+  artworks: [
+    { requester: "The Church", displayedAt: { key: "3,3", slot: 0 } },
+    { requester: "House Strozzi", displayedAt: { key: "5,5", slot: 0 } },
+    { requester: "House Medici", displayedAt: { key: "9,9", slot: 1 } },
+  ],
+};
+assert.deepEqual(migrateSave(v10, 10), {
+  ...v10,
+  map: { tiles: { "1,1": {} } },
+  commissions: [{ title: "A Fresco" }],
+  fundedBuilds: [],
+  artworks: [
+    { requester: "The Church", displayedAt: undefined },
+    { requester: "House Strozzi", displayedAt: undefined },
+    { requester: "House Medici", displayedAt: { key: "9,9", slot: 1 } },
+  ],
+});
+// A v10 save with no blueprint structures anywhere passes through untouched.
+const cleanV10 = { ...legacy, mapSeed: "abc" };
+assert.deepEqual(migrateSave(cleanV10, 10), cleanV10);
+
 const current = { ...legacy, mapSeed: "abc" };
 assert.equal(migrateSave(current, SAVE_VERSION), current);
 assert.equal(migrateSave(current, SAVE_VERSION + 1), current);

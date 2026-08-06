@@ -84,8 +84,6 @@ export const BUILDING_ICONS: Record<BuildingId, IconComponent> = {
   palazzo: Castle,
   cathedral: Church,
   chapel: Cross,
-  loggia: Columns3,
-  baptistery: Church,
   bell_tower: Bell,
   workshop: Palette,
   sculpture_workshop: Hammer,

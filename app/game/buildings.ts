@@ -71,7 +71,7 @@ export const BUILDING_TYPES = [
   {
     type: "city",
     id: "palazzo",
-    name: "Palazzo",
+    name: "Manor",
     baseCost: 900,
     size: { width: 4.2, height: 3.1, depth: 3.4 },
     color: "#c9b183",
@@ -126,47 +126,6 @@ export const BUILDING_TYPES = [
     footprint: { width: 5, depth: 8 },
     paved: true,
     amenities: 10, // spiritual comfort — the one build-once, workerless service
-    workersRequired: 0,
-    maxWorkers: 0,
-    displaySlots: [{ kind: "painting" }, { kind: "painting" }, { kind: "statue" }],
-  },
-  {
-    // Blueprint commission structure (noble ask): an open sculpture gallery —
-    // Loggia dei Lanzi. Never in the open palette; a completed architect
-    // commission funds it (0ƒ) and construction draws on the stone/timber pools.
-    type: "city",
-    id: "loggia",
-    name: "Loggia",
-    baseCost: 500, // reference price (salvage 0, placement 0ƒ) — sizes the ask
-    size: { width: 3.4, height: 1.3, depth: 2.1 },
-    color: "#d8d2c4",
-    footprint: { width: 8, depth: 5 },
-    paved: true,
-    commissionOnly: true,
-    buildCost: { stone: 15, timber: 10 },
-    generates: { inspiration: 2 },
-    prestigeOnBuild: 10,
-    workersRequired: 0,
-    maxWorkers: 0,
-    // An open gallery: its works stand on plinths under the arches.
-    displaySlots: [
-      { kind: "plinth", cell: { x: 2, y: 2 } },
-      { kind: "plinth", cell: { x: 5, y: 2 } },
-    ],
-  },
-  {
-    // Blueprint commission structure (Church ask): pure prestige, per the doc.
-    type: "city",
-    id: "baptistery",
-    name: "Baptistery",
-    baseCost: 800, // reference price (salvage 0, placement 0ƒ) — sizes the ask
-    size: { width: 2.6, height: 2.6, depth: 2.6 },
-    color: "#d8d2c4",
-    footprint: { width: 6, depth: 6 },
-    paved: true,
-    commissionOnly: true,
-    buildCost: { stone: 30 },
-    prestigeOnBuild: 40,
     workersRequired: 0,
     maxWorkers: 0,
     displaySlots: [{ kind: "painting" }, { kind: "painting" }, { kind: "statue" }],

@@ -24,7 +24,7 @@ Trap rules — invariants that break things when missed (details in the design d
 
 - Diagonal buildings (`Tile.rotation` 4–7) claim a diamond cell mask (`footprintMask` in `app/game/buildings.ts`) — never treat a diagonal footprint as its bounding box.
 - Offer generation is rng-draw-order-sensitive: `maybeOfferCommission` keeps one fixed sequence of rng calls (new features stamp their data off existing draws — the materialCost and blueprint changes both did), or seeded games and old saves' future offers shift.
-- Derived state stays derived: connectivity, traffic, escalated build costs, and renaissance progress recompute from tiles/state each tick and are never persisted. Any save-shape change needs a `saveMigration.ts` bump (v10 today); prefer designs that need none.
+- Derived state stays derived: connectivity, traffic, escalated build costs, and renaissance progress recompute from tiles/state each tick and are never persisted. Any save-shape change needs a `saveMigration.ts` bump (v11 today); prefer designs that need none.
 - More of a producer never means less output (principle 6): no diminishing returns on suppliers, and traffic factors are monotonic non-decreasing (`traffic.check.ts` asserts it).
 - Decorative walkers are cosmetic-only (unseeded, frozen on pause) — their sim couplings are the count (`crowdSize`) and the render→audio bustle field, nothing else; bustle-dependent building output is deliberately deferred with blockers on record (see the doc's Ambient bed).
 

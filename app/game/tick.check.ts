@@ -219,10 +219,12 @@ const noRandomEvent = () => 1;
   };
   const commission: Commission = {
     id: "c1",
-    title: "A Baptistery for the City",
+    // The structure roster is empty today; the token plumbing is id-agnostic,
+    // so a synthetic id proves it works for whatever building lands next.
+    title: "A Structure for the City",
     requester: "The Church",
     artistType: "architect",
-    building: "baptistery",
+    building: "future_structure",
     durationMonths: 1,
     florins: 50,
     prestige: 2,
@@ -238,7 +240,7 @@ const noRandomEvent = () => 1;
     }),
     noRandomEvent
   );
-  assert.deepEqual(out.fundedBuilds, ["baptistery"]);
+  assert.deepEqual(out.fundedBuilds, ["future_structure"]);
   assert.equal(out.commissions.length, 0);
   assert.equal(out.artworks.length, 1);
   assert.deepEqual(out.favor, { "The Church": 58 });

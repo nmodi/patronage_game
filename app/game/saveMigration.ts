@@ -1,6 +1,6 @@
 import { favorFromWorks } from "./art/commissions.ts";
 
-export const SAVE_VERSION = 10;
+export const SAVE_VERSION = 11;
 
 /** Preserve compatible saves while explicitly discarding structurally obsolete versions. */
 export function migrateSave(persisted: unknown, version: number): unknown {
@@ -9,9 +9,12 @@ export function migrateSave(persisted: unknown, version: number): unknown {
   let save = persisted as {
     mapSeed?: unknown;
     artists?: { xp?: number }[];
-    artworks?: { requester?: string }[];
+    artworks?: { requester?: string; displayedAt?: { key: string; slot: number } }[];
     favor?: Record<string, number>;
     materials?: Record<string, number>;
+    commissions?: { building?: string }[];
+    fundedBuilds?: string[];
+    map?: { tiles?: Record<string, { buildingId?: string }> };
   };
   // v5 predates seeded water. Keeping it permanently dry avoids placing a new
   // river through an existing city.
@@ -38,6 +41,35 @@ export function migrateSave(persisted: unknown, version: number): unknown {
   // buildings at placement). Pools start empty like v9's.
   if (version < 10) {
     save = { ...save, materials: { timber: 0, stone: 0, ...(save.materials ?? {}) } };
+  }
+  // v11 removed the Baptistery and Loggia outright: their tiles vanish
+  // (prestige already banked stays banked), their pending/active blueprints and
+  // funded-build tokens are dropped, and works displayed on them return to
+  // storage. Completed blueprint designs stay in the gallery as artworks.
+  if (version < 11) {
+    const removed = new Set(["baptistery", "loggia"]);
+    const tiles = save.map?.tiles ?? {};
+    const gone = new Set(
+      Object.keys(tiles).filter((k) => removed.has(tiles[k]?.buildingId ?? ""))
+    );
+    if (gone.size > 0) {
+      save = {
+        ...save,
+        map: {
+          ...save.map,
+          tiles: Object.fromEntries(Object.entries(tiles).filter(([k]) => !gone.has(k))),
+        },
+        artworks: (save.artworks ?? []).map((a) =>
+          a.displayedAt && gone.has(a.displayedAt.key) ? { ...a, displayedAt: undefined } : a
+        ),
+      };
+    }
+    if (save.commissions?.some((c) => removed.has(c.building ?? ""))) {
+      save = { ...save, commissions: save.commissions.filter((c) => !removed.has(c.building ?? "")) };
+    }
+    if (save.fundedBuilds?.some((b) => removed.has(b))) {
+      save = { ...save, fundedBuilds: save.fundedBuilds.filter((b) => !removed.has(b)) };
+    }
   }
   return save;
 }

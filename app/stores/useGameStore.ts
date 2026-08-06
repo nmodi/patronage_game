@@ -459,6 +459,9 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
+    // v11: baptistery + loggia removed from the game — their tiles, blueprints,
+    // and funded-build tokens are stripped; works displayed on them return to
+    // storage. The blueprint pipeline stays, with an empty structure roster.
     // v10: construction pools (timber/stone) seeded empty on old saves.
     // v9: materials became accumulating stock — pools start empty. v8:
     // per-faction favor added, seeded from completed works. v7: XP ×100.

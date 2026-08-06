@@ -172,26 +172,11 @@ assert.equal(
   assert.equal(canPlaceAt(snapshot(oneWorkshop, 114), { x: 20, y: 0 }, "workshop"), false);
 }
 
-// Blueprint structures (commissionOnly): unplaceable without a funded token;
-// with one, a single placement costs 0 florins but still bills its materials.
-{
-  assert.equal(planPlacement(snapshot(), [{ x: 40, y: 40 }], "loggia"), null);
-  assert.equal(canPlaceAt(snapshot(), { x: 40, y: 40 }, "loggia"), false);
-
-  const funded = { ...snapshot({}, 0), fundedBuilds: ["loggia"] };
-  const plan = planPlacement(funded, [{ x: 40, y: 40 }], "loggia");
-  assert.equal(plan?.totalCost, 0); // florins 0 even at a 0ƒ treasury
-  assert.deepEqual(plan?.materialCost, { stone: 15, timber: 10 });
-  assert.equal(canPlaceAt(funded, { x: 40, y: 40 }, "loggia"), true);
-
-  // ... but not without the materials, and never as a batch.
-  const noStone = { ...funded, materials: { ...funded.materials, stone: 0 } };
-  assert.equal(planPlacement(noStone, [{ x: 40, y: 40 }], "loggia"), null);
-  assert.equal(
-    planPlacement(funded, [{ x: 20, y: 20 }, { x: 40, y: 40 }], "loggia"),
-    null
-  );
-}
+// Blueprint structures (commissionOnly): the gating code stands (unplaceable
+// without a funded token; with one, a single placement costs 0 florins but
+// still bills its materials) but no commissionOnly def exists since the
+// baptistery/loggia cut (Aug 2026) — restore the coverage that lived here
+// when the next blueprint structure lands.
 
 // Construction materials: grand buildings (buildCost) also gate on the city
 // pools, spent lump-sum at placement; ordinary buildings carry no bill.

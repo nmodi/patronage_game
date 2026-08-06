@@ -266,17 +266,15 @@ assert.equal(maybeOfferCommission([], [painter()], 10, explode, {}, {}), null);
   assert.ok(CHURCH_TITLES.sculptor.includes(marble!.title));
 }
 
-// Architect offers ARE blueprint commissions: the title draw picks from
-// BUILDING_COMMISSIONS filtered by requester (Church religious, noble secular),
-// and no material or materialCost stamps — blueprints are free to assign.
+// Architect offers ARE blueprint commissions, drawn from the shared
+// BUILDING_COMMISSIONS list. The roster is currently empty (baptistery and
+// loggia cut Aug 2026), so architects get no offers at all — the early-out
+// fires right after the type draw. When a structure lands, restore assertions
+// on `building`/`title` and the absent material/materialCost stamps here.
 {
   const architect = painter({ id: "a1", type: "architect" });
   const church = maybeOfferCommission([], [architect], 10, win, chapelTiles, {});
-  assert.equal(church?.artistType, "architect");
-  assert.equal(church?.building, "baptistery");
-  assert.equal(church?.title, "A Baptistery for the City");
-  assert.equal(church?.material, undefined);
-  assert.equal(church?.materialCost, undefined);
+  assert.equal(church, null);
 
   const noble = maybeOfferCommission(
     [],
@@ -286,8 +284,7 @@ assert.equal(maybeOfferCommission([], [painter()], 10, explode, {}, {}), null);
     richTiles,
     {}
   );
-  assert.equal(noble?.building, "loggia");
-  assert.equal(noble?.requester, "House Medici");
+  assert.equal(noble, null);
 }
 
 // Gated off: no artists, losing roll, or open offers at the cap → null.

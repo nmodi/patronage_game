@@ -158,14 +158,14 @@ export function canAssignCommission(
   return available >= commissionMaterialCost(commission);
 }
 
-// Blueprint commissions (architects): the ask is a structure's design.
-// Church asks stay religious, noble asks secular; one row each side, so the
-// requester filter never empties. Duplicate offers are tolerated like
-// duplicate titles.
-export const BUILDING_COMMISSIONS: { building: string; title: string; church: boolean }[] = [
-  { building: "baptistery", title: "A Baptistery for the City", church: true },
-  { building: "loggia", title: "A Loggia for the Family", church: false },
-];
+// Blueprint commissions (architects): the ask is a structure's design. One
+// shared list for every requester. Currently EMPTY (the Baptistery and Loggia
+// were cut Aug 2026) — while empty, architect offers simply don't arrive; the
+// whole pipeline (funded tokens, commissionOnly gating, 0ƒ placement) reawakens
+// the moment a row is added here alongside a `commissionOnly: true` building
+// def. Candidate designs live in docs/building-effects.md. Duplicate offers
+// are tolerated like duplicate titles.
+export const BUILDING_COMMISSIONS: { building: string; title: string }[] = [];
 
 /**
  * Periodic commission offer (design doc, Phase 8 + factions slice 1),
@@ -197,6 +197,11 @@ export function maybeOfferCommission(
   if (rng() >= COMMISSION_OFFER_CHANCE) return null;
 
   const type = pick(types, rng);
+  // Every architect offer is a blueprint; with the roster empty there is
+  // nothing to ask for, so no offer arrives. Remove this early-out's effect by
+  // adding a row to BUILDING_COMMISSIONS — draw order is unchanged either way
+  // (the exit is after the type draw, before any further draws).
+  if (type === "architect" && BUILDING_COMMISSIONS.length === 0) return null;
   // Sculptor commissions roll marble or bronze; every other type maps 1:1. The
   // extra draw happens only for sculptors, so painter/architect offer streams
   // keep their historical rng draw order.
@@ -237,7 +242,7 @@ export function maybeOfferCommission(
   // so draw order for every artist type is unchanged.
   const blueprint =
     type === "architect"
-      ? pick(BUILDING_COMMISSIONS.filter((b) => b.church === (requester.name === CHURCH)), rng)
+      ? pick(BUILDING_COMMISSIONS, rng)
       : undefined;
 
   const titlePool =
