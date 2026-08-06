@@ -75,7 +75,7 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
               <ArtistThumb type={founder.type} />
               <div className="flex flex-col leading-tight">
                 <span className="font-display text-base font-semibold text-ink">
-                  Bottega di {founder.name}
+                  {founder.name}&rsquo;s Workshop
                 </span>
                 <span className="text-sm text-ink-faint">
                   {RANK_LABEL[founder.rank]} {capitalizeLabel(founder.type)} · {xpLabel} ·{" "}

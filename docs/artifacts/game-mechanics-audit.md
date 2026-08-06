@@ -35,7 +35,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Production** | Each staffed supplier accrues `supplies.rate (2) × staffingEfficiency × plazaBoost` of its material per tick. Deliberately **no diminishing returns** (more suppliers must never mean less stock — principle 6); escalating build cost prices duplicates instead. | `tick.ts` generation loop; supplier `supplies: { material, rate, storage }` in `buildings.ts` |
 | **Storage caps** | Per material: `MATERIAL_STORAGE_BASE (20)` + each supplier's `storage (20)` for its own material + each Warehouse's `materialStorage (50)` for **all** materials. Storage counts unstaffed; only production needs workers. Clamp-and-add is identity-stable. | `materials.ts` → `materialCaps()`, `addProduction()` |
 | **Commission cost** | Commissions stamp `materialCost = MATERIAL_COST_SCALE (5) × rankPrestige (1–10) × grandeur (1–2)` at offer time; the pool is deducted when the player **assigns** (no refund when a raze reopens the offer). Once assigned, work never stalls on materials — understaffing is now the only inactive cause. Pre-v9 offers read `?? 0` (stay free). | `commissions.ts` → `commissionMaterialCost()`; store `assignCommission()` |
-| **Construction cost** | Grand buildings carry `BuildingMetadata.buildCost` (cathedral 40 stone + 10 timber; palazzo, bell tower, warehouse; blueprint structures) — deducted lump-sum at placement. Houses/roads/workshops/suppliers stay florins-only (no bootstrap deadlock); salvage never refunds materials. | `placementRules.ts` → `planPlacement()`/`canPlaceAt()`; `placeTiles()` |
+| **Construction cost** | Grand buildings carry `BuildingMetadata.buildCost` (cathedral 40 stone + 10 timber; manor, bell tower, warehouse; blueprint structures) — deducted lump-sum at placement. Houses/roads/workshops/suppliers stay florins-only (no bootstrap deadlock); salvage never refunds materials. | `placementRules.ts` → `planPlacement()`/`canPlaceAt()`; `placeTiles()` |
 | **Material defaults** | painter→pigment, sculptor→marble; bronze only from an explicit commission material (rolled at offer time, `BRONZE_COMMISSION_CHANCE = 1/3`). | `materials.ts` → `MATERIAL_BY_ARTIST_TYPE`, `commissionMaterial()` |
 | **UI** | Slim "Materials" rail docked to the right screen edge (held/cap + live `+N/mo` rate, hidden until a cap exceeds the base); supplier tooltips show rate + citywide stock; offer cards show cost + "Not enough marble — 14 / 30 in store". | `ui/MaterialsPanel.tsx`; `ui/BuildingTooltip.tsx`; `ui/CommissionsPanel.tsx` |
 
@@ -98,10 +98,10 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 |---|---|---|
 | **Offer generation** | Each month, if open offers < `MAX_OPEN_OFFERS = 3`, chance `COMMISSION_OFFER_CHANCE = 0.08` one arrives (rare-but-rich pacing — ~one a year, announced by a persistent arrival card). Requester drawn from the admitted patron pool (empty pool → no offers). Type drawn from artist types present (every offer actionable). Sculptor offers roll bronze at `BRONZE_COMMISSION_CHANCE = 1/3`. Best rank of that type scales duration/reward; the requester's favor rung multiplies duration/florins/prestige (see §10a). Expiry `OFFER_EXPIRY_MONTHS = 12`. | `app/game/art/commissions.ts` → `maybeOfferCommission()` |
 | **Reward calc** | `basePrestige = ARTWORK_PRESTIGE[bestRank] · COMMISSION_PRESTIGE_SCALE(1.5)`; florins compressed against rank (`FLORIN_RANK_COMPRESSION = 0.25`, `FLORINS_PER_PRESTIGE = 40`). Requester `mix` skews split by `REQUESTER_REWARD_SKEW = 2` (florins-mix doubles florins/halves prestige; prestige-mix the reverse). Favor grandeur multiplies on top. | `commissions.ts` |
-| **Requesters (patron pool)** | The Church (florins mix, devotional `CHURCH_TITLES`) + Medici/Strozzi/Pazzi (prestige mix). Guilds removed. Pool gated by admission: Chapel or Cathedral seats the Church; each Palazzo installs the next house in table order. | `commissions.ts` → `REQUESTERS`, `requesterPool()` |
+| **Requesters (patron pool)** | The Church (florins mix, devotional `CHURCH_TITLES`) + Medici/Strozzi/Pazzi (prestige mix). Guilds removed. Pool gated by admission: Chapel or Cathedral seats the Church; each Manor installs the next house in table order. | `commissions.ts` → `REQUESTERS`, `requesterPool()` |
 | **Decline** | An open offer can be declined from the panel: dropped immediately, −5 favor with the requester (same denunciation-crossing check as expiry). | store `declineCommission()` |
 | **Assignment guard** | Assign only if offer open, founder exists + type matches + idle, host is an active matching workshop, and the city stock covers `materialCost` (4th param `available`). The store deducts the pool on success. | `commissions.ts` → `canAssignCommission()`; store `assignCommission()` |
-| **Blueprint commissions** | Every architect-type offer is a building commission drawn from `BUILDING_COMMISSIONS` at the title draw (same single rng call — painter/sculptor draw order untouched), filtered by requester: Church → Baptistery, nobles → Loggia. No `materialCost` at assign (design work is free); completion mints a normal Artwork **plus** a funded-build token. The structure is `commissionOnly: true` — "Funded" badge in the Civic palette, placeable once per token at 0ƒ + its `buildCost` materials, salvage 0, no refund on raze-reopen. `SLOT_KINDS_BY_ARTIST.architect = []` keeps designs undisplayable. | `commissions.ts` → `BUILDING_COMMISSIONS`, `Commission.building`; `tick.ts` `fundedBuilds`; `placementRules.ts` |
+| **Blueprint commissions** | Every architect-type offer is a building commission drawn from `BUILDING_COMMISSIONS` at the title draw (same single rng call — painter/sculptor draw order untouched), one shared list for every requester — currently **empty** (Baptistery and Loggia removed Aug 2026; while empty, architects get no offers via an early-out after the type draw). No `materialCost` at assign (design work is free); completion mints a normal Artwork **plus** a funded-build token. The structure is `commissionOnly: true` — "Funded" badge in the Civic palette, placeable once per token at 0ƒ + its `buildCost` materials, salvage 0, no refund on raze-reopen. `SLOT_KINDS_BY_ARTIST.architect = []` keeps designs undisplayable. | `commissions.ts` → `BUILDING_COMMISSIONS`, `Commission.building`; `tick.ts` `fundedBuilds`; `placementRules.ts` |
 | **Reconciliation** | Each tick: commissions whose workshop vanished revert to open offers with fresh expiry; offers past expiry are dropped. | `commissions.ts` → `reconcileCommissions()`, `reopenCommission()` |
 | **Completion payout** | Mints a named `Artwork` (captures title, requester, prestige, material), pays florins + prestige, clears `workProgress`, grants all members 100 XP. A completed blueprint additionally appends its building id to persisted `fundedBuilds`. | `artists.ts` → `progressArtworks()`; `tick.ts` |
 
@@ -137,7 +137,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 |---|---|---|
 | **Building catalog** | Single frozen source-of-truth array of every placeable building + derived lookups (`BUILDING_METADATA_BY_ID/TYPE`, `BuildingId` union). Categories: `residential, artist, materials, service, road, city, decoration`. | `app/game/buildings.ts` → `BUILDING_TYPES` |
 | **`BuildingMetadata` shape** | `type, id, name, baseCost, size, color, footprint, generates?{income,inspiration}, housing?, amenities?, prestigeOnBuild?, isHub?, connectionBonus?, footTraffic?, placesOnRoads?, workersRequired?, maxWorkers?, artistCapacity?, artistType?, roadWidth?, linear?, paved?, supplies?, materialStorage?, buildCost?, commissionOnly?, displaySlots?`. | `app/game/types.ts` |
-| **Effect flags** | `isHub` (plazas + bell_tower), `placesOnRoads` (market_stall), `footTraffic` (market_stall), `connectionBonus` (stall 1.0), `paved`, `linear` (colonnade/fence/stone_wall), `prestigeOnBuild` (cathedral 25, baptistery 40), `roadWidth` (5 road variants), `buildCost` (landmarks + blueprint structures), `commissionOnly` (baptistery, loggia), `materialStorage` (warehouse 50). `costEscalates` is computed from `type`, not a field. | `buildings.ts` |
+| **Effect flags** | `isHub` (plazas + bell_tower), `placesOnRoads` (market_stall), `footTraffic` (market_stall), `connectionBonus` (stall 1.0), `paved`, `linear` (colonnade/fence/stone_wall), `prestigeOnBuild` (cathedral 25), `roadWidth` (5 road variants), `buildCost` (landmarks; also future blueprint structures), `commissionOnly` (none currently — the blueprint roster is empty), `materialStorage` (warehouse 50). `costEscalates` is computed from `type`, not a field. | `buildings.ts` |
 | **Footprint mask** | Claimed grid cells + center offset per rotation; cardinal = axis-aligned rect (odd quarters swap w/d), cached per `dims×rotation`. | `buildings.ts` → `footprintMask()`, `footprintMaskFor()` |
 | **Diagonal (45°) mask** | Diagonal rotations claim cells whose centers fall inside the yaw-rotated rect (ε-shrunk), re-anchored row-major — a true diamond, not the bbox. R cycles 8 rotation steps. | `buildings.ts` → `rasterizeDiagonalMask()`; rotation encoding `quarterOf`, `isDiagonalRotation`, `yawOfRotation` |
 
@@ -238,7 +238,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 **Built (everything the doc documents as a system):**
 - All numbered phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, commissions, work display, plaza connectivity, artist training/teaching, Renaissance milestone. (Phase 7's supplier capacity gating was superseded by the material stockpile rework — §3.)
-- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches XP, blueprint commissions funding Loggia/Baptistery), sporadic era-based music + interaction SFX + crowd ambience (§20).
+- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches XP, blueprint-commission pipeline; its two launch structures — Baptistery and Loggia — were removed Aug 2026, leaving the roster empty), sporadic era-based music + interaction SFX + crowd ambience (§20).
 - Graphics G1–G4 + generated kit pieces + category-identity pass; G5 mostly: river + bridge, decorative citizens, obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu.
 
 **Cut (July 2026):** neighborhood zoning (individual placement is the permanent model); the diagonal row-house-blending follow-up (closed by construction — houses fill their footprint).
@@ -257,19 +257,19 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 - Chapel passive `amenities: +10`, workerless.
 - Bell Tower as `isHub` connectivity relay + inspiration trickle.
 - Cathedral consecration lump (`prestigeOnBuild: 25`).
-- Palazzo `housing: 12`.
+- Manor `housing: 12`.
 - Work-display sites (Phase 9) as an effect slot.
 
 **Built (factions slice 1, July 2026):**
-- **Requester-pool shaping** — Cathedral commission elevation (Church admission + upper favor rungs), Palazzo noble installs (`requesterPool` in `commissions.ts`).
+- **Requester-pool shaping** — Cathedral commission elevation (Church admission + upper favor rungs), Manor noble installs (`requesterPool` in `commissions.ts`).
 
 **Built (architects slice 1, July 2026):**
-- **Baptistery** — placeable via the Church's blueprint commission (`prestigeOnBuild: 40`, church display host, `commissionOnly`); the **Loggia** landed the same way (2 plinth slots, inspiration 2).
+- Blueprint-commission pipeline (funded tokens, `commissionOnly` gating, 0ƒ placement) — standing but dormant: its two launch structures, the **Baptistery** and **Loggia**, were removed Aug 2026 (save migration v11 strips them from old saves; the Loggia's design is shelved in building-effects.md → Blueprint lane).
 
 **Not built:**
-- Effect-2/3/4/5 buildings not yet in the roster: Banking House, Wool Merchant, Glassblower, Monastery, Spice Trader, Library/Studiolo, School, Anatomical Theatre — none placeable.
+- Effect-2/3/4/5 buildings not yet in the roster: Banking House, Wool Merchant, Glassblower, Monastery, Spice Trader, Library, School, Anatomical Theatre — none placeable.
 - All **slight-negative trade-offs** (Banking House ±, Market inspiration drag, Tavern −inspiration, bell-ringer worker draw, cathedral clergy staffing, forgone-plaza-bonus exclusions) — none implemented.
-- Open-offer-cap bump on Palazzo.
+- Open-offer-cap bump on Manor.
 
 ## `factions.md` — requesters grown into patrons
 

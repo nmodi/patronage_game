@@ -26,7 +26,7 @@ Reference screenshot: `ref-props-style-guide.png`
 - Taller and narrower townhouses
 - Service fronts facing roads, markets, and piazzas
 - Minimal grass gaps between the building and the street
-- Church, tower, palazzo, tavern, market, and civic buildings as anchors
+- Church, tower, manor, tavern, market, and civic buildings as anchors
 
 ### Edge
 
@@ -52,7 +52,7 @@ Reference screenshot: `ref-props-style-guide.png`
 | Townhouse | 2 to 3 stories | Narrow and vertical | More ordered upper windows | Gable or shallow hip | Door surround; rare string course |
 | Shop-house | Usually 2 stories | Townhouse shell with active ground floor | Commercial bay below, domestic above | Gable | Awning, counter, chimney |
 | Tavern / inn | 2 stories | Broad frontage or long hall | Strong public entrance | Gable or hip | Terrace, benches, bay rhythm |
-| Palazzo | 3 principal registers | Broad street-wall mass | Ordered and formal | Shallow hip | Heavy base, portal, paired windows, cornice |
+| Manor | 3 principal registers | Broad street-wall mass | Ordered and formal | Shallow hip | Heavy base, portal, paired windows, cornice |
 
 ## 4. Facade grammar
 
@@ -62,7 +62,7 @@ Reference screenshot: `ref-props-style-guide.png`
 - Residential entrance: narrow timber door
 - Prosperous residence: dressed-stone surround or modest round arch
 - Shop or workshop: broad bay, folding shutter-counter, or shallow arch
-- Palazzo or civic building: formal portal
+- Manor or civic building: formal portal
 
 ### Windows
 
@@ -126,7 +126,7 @@ For attached rows, place gable ends on party-wall sides and eaves toward the str
 - **Cottage:** plaster, rubble, patchy finish; ashlar is rare
 - **Townhouse:** plaster and brick; limited ashlar or stone trim
 - **Bakery and tavern:** warmer plaster and brick; dark timber at active frontage
-- **Palazzo:** controlled ashlar and stone registers; minimal random finish variation
+- **Manor:** controlled ashlar and stone registers; minimal random finish variation
 
 ## 7. Procedural recipes
 
@@ -169,7 +169,7 @@ For attached rows, place gable ends on party-wall sides and eaves toward the str
 - Terrace, benches, and tables
 - Two target variants: long public hall and urban inn
 
-### Palazzo
+### Manor
 
 - One refined main type
 - Broad street-wall mass
@@ -208,7 +208,7 @@ For attached rows, place gable ends on party-wall sides and eaves toward the str
 | Townhouse | 3 to 4 variants | Stories, roof, facade order |
 | Bakery | 2 variants | Integrated frontage vs projecting bakehouse |
 | Tavern | 2 variants | Long hall vs urban inn |
-| Palazzo | 1 refined type | Small finish variation only |
+| Manor | 1 refined type | Small finish variation only |
 
 ## 9. Camera-readability rules
 
@@ -252,7 +252,7 @@ Capture and review:
 2. Attached cottage and townhouse row
 3. Bakery front and chimney
 4. Both tavern variants
-5. Palazzo beside ordinary housing
+5. Manor beside ordinary housing
 6. Inactive service building
 7. Rotated and diagonal placement cases
 

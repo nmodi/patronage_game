@@ -17,7 +17,7 @@ Nothing about a faction ever punishes the player. Everything below is a carrot.
 
 Requester name + taste profile + favor count. That's the whole object. A faction is always the institution as a whole — the Church, House Medici — never a named individual patron.
 
-**Patron admission gates the pool** *(built — slice 1, deliberately overturning this doc's earlier "the pool is never empty" sketch)*: the pool starts empty — a Chapel (400ƒ, or the Cathedral) admits the Church, each Palazzo (900ƒ) installs the next noble house (Medici → Strozzi → Pazzi, table order for now; the seed-shuffled list is a future slice), and the Cathedral additionally opens the Church's upper favor rungs and (future) signature chain. The commissions panel points a fresh city at the Chapel, so the "empty pool" phase is a first goal, not a wall. You choose which patrons join by what you build — the most Patronage-native faction management there is.
+**Patron admission gates the pool** *(built — slice 1, deliberately overturning this doc's earlier "the pool is never empty" sketch)*: the pool starts empty — a Chapel (400ƒ, or the Cathedral) admits the Church, each Manor (900ƒ) installs the next noble house (Medici → Strozzi → Pazzi, table order for now; the seed-shuffled list is a future slice), and the Cathedral additionally opens the Church's upper favor rungs and (future) signature chain. The commissions panel points a fresh city at the Chapel, so the "empty pool" phase is a first goal, not a wall. You choose which patrons join by what you build — the most Patronage-native faction management there is.
 
 ## Taste profiles
 
@@ -26,7 +26,7 @@ Today a requester only skews the florin/prestige split. A profile drives the off
 | Faction | Asks for | Rewards |
 |---|---|---|
 | **The Church** | Frescos, altarpieces, devotional works, stained glass, vestments | Florin-heavy (today's `mix: "florins"` deepened) |
-| **Noble families** | Portraits, bronzes, family-chapel works, tapestries for the palazzo | Prestige-heavy; per-family jitter from the seed (one house loves sculpture, another painting) |
+| **Noble families** | Portraits, bronzes, family-chapel works, tapestries for the manor | Prestige-heavy; per-family jitter from the seed (one house loves sculpture, another painting) |
 
 **Hard line (reconciling building-effects.md's rejection of "requester personality trade-offs"):** profiles shape *what is offered* — subject, material, naming, reward mix — never *how hard it is*. No per-faction expiry, deadline, or pressure modifiers. That rejection stands; an "impatient family" is still cut.
 
@@ -46,10 +46,10 @@ This is how the meter earned its way back in per the main doc's principle 4: it 
 
 Reaching a faction's top rung offers a 2–3 part commission arc ending in a famous, named landmark work with outsized prestige. History hands us the hooks:
 
-- **The Church** — fresco cycle → altarpiece → **the Dome**; with a Baptistery standing, an alternate arc ends in **the bronze doors** (Ghiberti's Gates of Paradise)
+- **The Church** — fresco cycle → altarpiece → **the Dome**
 - **A noble family** — portrait → family chapel → an equestrian bronze or a colossus
 
-The Church chain's Cathedral prerequisite is structural — its top rung sits behind the Cathedral gate above, and the Dome is that cathedral's. The Baptistery alternate arc is unchanged.
+The Church chain's Cathedral prerequisite is structural — its top rung sits behind the Cathedral gate above, and the Dome is that cathedral's.
 
 Chain capstones are also where **building commissions** (main doc, Later / stretch → Architects & building commissions) naturally live: the Dome and the family chapel are architecture, so those chain steps become building commissions asking for a high-ranked architect once that pipeline exists — until then, chains stay artwork-only.
 
@@ -59,7 +59,7 @@ Chain works are natural feeders into the Phase 12 Renaissance milestone if it la
 
 Fleshes out the seed stretch bullet "faction archetypes / personality types":
 
-- The seed shuffles a pool of ~6–8 named families (Medici, Strozzi, Pazzi, Rucellai, Pitti, Sforza, Gonzaga, Este…) into the install order; the first 1–2 houses are dealt at game start (the city's old families), and each Palazzo installs the next — so each run meets its houses in a different sequence
+- The seed shuffles a pool of ~6–8 named families (Medici, Strozzi, Pazzi, Rucellai, Pitti, Sforza, Gonzaga, Este…) into the install order; the first 1–2 houses are dealt at game start (the city's old families), and each Manor installs the next — so each run meets its houses in a different sequence
 - Per-family taste jitter is seed-assigned (which house favors which art)
 - Map resources from [map-resources.md](map-resources.md) gate *lanes*, not factions: wool present → the tapestry lane exists, whoever asks
 - The Church is always available; a cathedral unlocks its grander asks (upper rungs + signature chain)
@@ -81,6 +81,6 @@ Rarely, an offer arrives as a **pair**: two factions bidding for the same artist
 ## Interactions with existing systems
 
 - **Offer generation** — `maybeOfferCommission` (`app/game/art/commissions.ts`) now takes the admitted pool (`requesterPool`) and favor; taste profiles become a further input in a future slice. The guild entries are removed.
-- **[building-effects.md](building-effects.md)** — requester-pool shaping has exactly two sources: Palazzo → next family (roster growth, atop the seed-dealt starters) and Cathedral → the always-present Church's upper rungs (elevation, not admission); every other unlock building adds a *lane* the existing patrons draw from. The "requester personality trade-offs" rejection is honored via the taste-profile hard line above.
+- **[building-effects.md](building-effects.md)** — requester-pool shaping has exactly two sources: Manor → next family (roster growth, atop the seed-dealt starters) and Cathedral → the always-present Church's upper rungs (elevation, not admission); every other unlock building adds a *lane* the existing patrons draw from. The "requester personality trade-offs" rejection is honored via the taste-profile hard line above.
 - **[map-resources.md](map-resources.md)** — resource rolls gate lanes; a faction asking for an absent material follows that doc's rule (rare, deliberate Market-premium opportunities — never a stream of impossible offers).
 - **Save shape** — one persisted `Record<factionName, favor>` (built: `favor` in the store, save v8 seeds it from per-requester completed works at +8 each).

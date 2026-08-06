@@ -140,7 +140,7 @@ export function CommissionsPanel({ open, onToggle }: { open: boolean; onToggle: 
                       className="btn-primary px-2 py-1.5 text-sm"
                       onClick={() => assignCommission(c.id, key)}
                     >
-                      Assign to Bottega di {founder.name}
+                      Assign to {founder.name}&rsquo;s Workshop
                     </button>
                   ))
                 ) : (

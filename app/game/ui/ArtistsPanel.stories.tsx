@@ -22,7 +22,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Two workshops: a busy painter's bottega and an idle master sculptor. */
+/** Two workshops: a busy painter's workshop and an idle master sculptor. */
 export const Populated: Story = {
   decorators: [gameState(sampleCity)],
 };

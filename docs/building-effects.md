@@ -26,13 +26,12 @@ Every effect below plugs into one of these existing anchor points — which is w
 
 ### 1. Unlock a commission lane
 
-The most important slot — landmarks widen the *input* to the core loop rather than adding parallel systems. The effect is felt entirely through the Phase 8 offer stream: new requesters, bigger rewards, new artwork types. Concretely, gating is either requester-pool shaping *(built — factions slice 1: the pool starts empty; a Chapel/Cathedral admits the Church, each Palazzo installs the next noble house, and the Cathedral opens the Church's upper favor rungs — see the main doc's Commission Requesters)* or a new commission *lane* the existing requesters draw from (everything else below).
+The most important slot — landmarks widen the *input* to the core loop rather than adding parallel systems. The effect is felt entirely through the Phase 8 offer stream: new requesters, bigger rewards, new artwork types. Concretely, gating is either requester-pool shaping *(built — factions slice 1: the pool starts empty; a Chapel/Cathedral admits the Church, each Manor installs the next noble house, and the Cathedral opens the Church's upper favor rungs — see the main doc's Commission Requesters)* or a new commission *lane* the existing requesters draw from (everything else below).
 
 | Building | Unlocks |
 |---|---|
 | Cathedral | Grander Church commissions — the Church offers modest works from day one; a standing cathedral opens its upper favor rungs and signature chain |
-| Palazzo | The next noble family's commissions (see below) |
-| Baptistery | The Church's alternate capstone arc — the bronze doors (the Cathedral gates the ladder rungs; the Baptistery adds this alternate top-rung arc) |
+| Manor | The next noble family's commissions (see below) |
 | Banking House | Larger noble commissions |
 | Wool Merchant | Tapestry commissions |
 | Glassblower | Stained-glass commissions |
@@ -49,7 +48,6 @@ One number per building, feeding an existing headline resource. Subject to dimin
 | Market | Florins |
 | Cottage, Townhouse *(built — July 2026)* | Florins — rents (2ƒ / 5ƒ per month base, the pre-scaffolded `income` field, finally switched on; scaled by occupancy `min(1, population/housing)` so empty houses pay little — a later rebalance pass) |
 | Spice Trader | Florins + prestige |
-| Baptistery | Flat prestige |
 | Decorations (see below) | Inspiration |
 | Vineyard, Olive Grove | ~~Florins~~ — the farmland-pays idea was declined for now (July 2026); they trickle inspiration with the other greenery instead. Stays open as a later lever |
 
@@ -72,7 +70,7 @@ Service buildings (Bakery, Tavern, Bathhouse, Apothecary, Public Well, Market St
 
 ### 4. Soft spatial aura
 
-Library / Studiolo boosts nearby workshops using the same flat-bonus mechanic as plaza proximity (Phase 10). Reuse that one implementation — no second radius system.
+The Library boosts nearby workshops using the same flat-bonus mechanic as plaza proximity (Phase 10). Reuse that one implementation — no second radius system.
 
 **Bell Tower as connectivity relay** *(built — July 2026)*: the campanile is `isHub: true` and refreshes the Main Plaza's reach like a secondary plaza — cheaper than a plaza, and historically exactly what campaniles did: anchor a neighborhood. `connectivity.ts` now derives its hub set from the metadata flag (previously hard-coded plaza ids), so `isHub` is honest. Built workerless with a 1.5 inspiration trickle; the bell-ringer staffing negative (see Slight negatives) is still open.
 
@@ -86,10 +84,10 @@ School speeds apprentice XP; Anatomical Theatre gives a technique bump. Both plu
 
 The slots above say *what* each building does; these are the cheap levers that express them — each one line in an existing function. New buildings should pick from this list before inventing anything:
 
-1. **Requester-pool shaping** *(built — factions slice 1: `requesterPool` in `app/game/art/commissions.ts`)* — building existence shapes the patron pool. Three sources: Chapel/Cathedral → the Church is admitted, Palazzo → the next noble house in table order (seed-shuffled order is a future slice), and Cathedral → the Church's upper favor rungs (see [factions.md](factions.md)).
+1. **Requester-pool shaping** *(built — factions slice 1: `requesterPool` in `app/game/art/commissions.ts`)* — building existence shapes the patron pool. Three sources: Chapel/Cathedral → the Church is admitted, Manor → the next noble house in table order (seed-shuffled order is a future slice), and Cathedral → the Church's upper favor rungs (see [factions.md](factions.md)).
 2. **Offer-stream shaping** — derive `COMMISSION_OFFER_CHANCE` / `MAX_OPEN_OFFERS` / `OFFER_EXPIRY_MONTHS` from buildings (Banking House: longer offer expiry — "the bank underwrites patience").
-3. **Payout skewing** — flat % on commission completion (Banking House +15% florins; Baptistery +15% prestige on Church works).
-4. **Arrival shaping** — terms in `maybeArriveArtist` (a Loggia or "Osteria degli Artisti" raises artist arrival chance).
+3. **Payout skewing** — flat % on commission completion (Banking House +15% florins).
+4. **Arrival shaping** — terms in `maybeArriveArtist` (an Artists' Tavern raises artist arrival chance).
 5. **Connectivity relays** — `isHub` on non-plaza buildings (Bell Tower now; maybe Market later, piazza-del-mercato style).
 6. **XP multipliers** — Phase 11 hook (School: apprentice XP boost; Anatomical Theatre: one-time permanent work-speed bump once built).
 7. **Display sites** *(built — Phase 9)*: homes for finished works with a permanent inspiration trickle plus a small per-work host-effectiveness boost (+5% each, cap +25%). One choice per finished work, no management. `app/game/art/display.ts` (`displaySlots`, `computeDisplaySummary`, `canDisplayWork`). *(The church-host prestige trickle was removed Aug 2026 — prestige stays earned, never passive.)*
@@ -120,9 +118,35 @@ A touch of downside makes a build a decision instead of a reflex. The rules: a n
 
 ---
 
-## Palazzo: resolving the dual listing
+## Manor: resolving the dual listing
 
-The main doc lists Palazzo as both a Civic landmark and Housing tier 4. **This doc collapses them:** a Palazzo is housing *(built — July 2026: `housing: 12`)* that also installs the next noble family as a commission requester *(built — factions slice 1: table order Medici → Strozzi → Pazzi; the seed-shuffled list is a future slice)*. One building, two effect slots (housing + commission unlock), and it makes the "named family palazzos" stretch item nearly free. Family offers skew prestige-heavy (the existing `mix: "prestige"` path). *Stretch: each palazzo also raises the open-offer cap by 1 — nobles keep the docket full.*
+The main doc lists Manor as both a Civic landmark and Housing tier 4. **This doc collapses them:** a Manor is housing *(built — July 2026: `housing: 12`)* that also installs the next noble family as a commission requester *(built — factions slice 1: table order Medici → Strozzi → Pazzi; the seed-shuffled list is a future slice)*. One building, two effect slots (housing + commission unlock), and it makes the "named family manors" stretch item nearly free. Family offers skew prestige-heavy (the existing `mix: "prestige"` path). *Stretch: each manor also raises the open-offer cap by 1 — nobles keep the docket full.*
+
+---
+
+## Blueprint lane — shelved candidates
+
+The architect blueprint pipeline (design doc, Architects & Building Commissions) is fully built but its structure roster is **empty** since the Aug 2026 baptistery/loggia cut — architects get no offers until a row returns to `BUILDING_COMMISSIONS` (`commissions.ts`) alongside a `commissionOnly: true` building def. Reactivating is those two entries plus a model manifest block; the funded-token, 0ƒ-placement, and salvage-0 machinery all still stand.
+
+**Loggia** — the strongest shelved candidate (it shipped once, July 2026–Aug 2026, and was removed intact): an open sculpture gallery (Loggia dei Lanzi), 8×5 footprint, `buildCost` 15 stone + 10 timber, `prestigeOnBuild: 10`, inspiration 2/month, workerless, 2 plinth display slots under the arches. Effect slots: display site + passive trickle. Its placeholder model was an arch-bay arcade under a shallow hip.
+
+Other candidates for the lane when it reopens: Town Hall and the Dome as signature-chain capstones (roadmap tier 1) — grand structures earn the "commissioned, never bought" treatment better than modest ones.
+
+---
+
+## Proposed — mechanic gap-fillers *(ideation, Aug 2026)*
+
+Candidates found by scanning the mechanism toolkit against the built systems for hooks **no building touches yet** — each fills a real gap rather than crowding an occupied slot. All fit the five slots and the ~10-line implementation pattern. Not committed; they'd join the roadmap's Buildings-overhaul strand and get numbers at implementation time like everything else in this doc.
+
+| Building | Gap it fills | Effect | Mechanism |
+|---|---|---|---|
+| **Notary's Office** | Nothing touches favor | Softens the favor penalty on declines/expiries by a flat point or two ("politely declined, in writing") | New one-liner where decline/expiry favor is applied. Favor still moves only on player decisions — this resizes a decision's cost, never decays or regenerates |
+| **Mason's Lodge** | Nothing reduces construction `buildCost` | Flat % off stone/timber build bills while standing (the works office that ran the real Duomo). Warehouse raises ceilings; this is the cost-side lever, and escalating costs make it matter late-game | One multiplier where `buildCost` is computed |
+| **Guild Hall** | Only the Manor stretch idea touches the open-offer cap | +1 `MAX_OPEN_OFFERS` ("the guilds keep the docket full"). Natural sibling of the planned Commune requester — could later become its admission building, the way the Chapel admits the Church | Toolkit #2 (offer-stream shaping) |
+| **Foundling Hospital** | Arrival shaping exists in the toolkit but no building uses it | Service amenities + raised apprentice arrival chance (foundlings apprenticed to the workshops — historically literal, and the reference building is the first Renaissance facade) | Slot 3 + toolkit #4 — two slots, like the Manor |
+| **Printing Press** | Florins have the Banking House payout skew; prestige has nothing | +% prestige on commission completions ("your works are engraved and famed abroad"). Gated on a Paper Mill standing — the second two-building combo unlock, after Monastery + Paper Mill | Toolkit #3 (payout skewing) + a combo boolean in the offer/payout path |
+
+**Considered and skipped:** a mint or any further florin trickle (Market + rents + Banking House already crowd that slot); anything feeding Renaissance progress or passive prestige (the milestone stays earned — same reasoning as the removed church display trickle); a second aura building (the Library owns slot 4's radius — one spatial system, one tenant).
 
 ---
 
@@ -139,4 +163,4 @@ The tension budget is already spent on supplier capacity and commission deadline
 
 ## Implementation note
 
-Most future buildings are ~10 lines each: a building def plus either a tag the commission offer generator checks or one term in an existing tick-loop sum. Specific yields (e.g. prestige per month) are balancing decisions made at implementation time — the numbers in this doc are starting points, not commitments. The July 2026 quick-win wave landed decoration trickles, chapel passive amenity, bell-tower hub, cathedral consecration lump, palazzo housing, and house rents; requester-pool shaping (chapel/cathedral church admission + elevation, palazzo noble installs) landed with factions slice 1.
+Most future buildings are ~10 lines each: a building def plus either a tag the commission offer generator checks or one term in an existing tick-loop sum. Specific yields (e.g. prestige per month) are balancing decisions made at implementation time — the numbers in this doc are starting points, not commitments. The July 2026 quick-win wave landed decoration trickles, chapel passive amenity, bell-tower hub, cathedral consecration lump, manor housing, and house rents; requester-pool shaping (chapel/cathedral church admission + elevation, manor noble installs) landed with factions slice 1.
