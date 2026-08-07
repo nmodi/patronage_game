@@ -1,7 +1,8 @@
 # Statue scan catalog — threedscans.com
 
 Era-appropriate sculpture scans for the low-poly statue pipeline
-(`scripts/make-low-poly-statue.py <scan> <name> 600`). All from
+(`scripts/make-low-poly-statue.py`; full recipe in
+[../reference/art-pipelines.md](../reference/art-pipelines.md)). All from
 threedscans.com (Oliver Laric — published without restrictions), download
 links verified live August 2026 (134 catalog entries crawled; 132 live —
 "Jüngling vom Magdalensberg" and "Right Foot of Fanny Elssler" are dead).

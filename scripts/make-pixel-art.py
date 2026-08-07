@@ -6,7 +6,9 @@ Source images are Wikimedia Commons thumbnails of PD Renaissance works
 Center-crops to 4:5 (the in-world canvas / DynamicTexture aspect), downscales
 to 48x60, quantizes to 16 colors. Ship-size output: ~1-2 KB each.
 
+Needs: pip install Pillow
 Usage: python3 scripts/make-pixel-art.py   (re-downloads sources, idempotent)
+Full recipe (source picking, wiring): docs/reference/art-pipelines.md
 """
 import io
 import urllib.request

@@ -6,7 +6,8 @@ Output: public/models/statues/<name>.glb, normalized to feet-at-origin,
 height exactly 1.0, centered on x/z (in-game scale applied by displayArt.ts).
 
 Needs: pip install trimesh fast-simplification "numpy<2"
-Usage: python3 scripts/make-low-poly-statue.py <scan.stl> <name> [faces=1200]
+Usage: python3 scripts/make-low-poly-statue.py <scan.stl> <name> [faces=600]
+Full recipe (source picking, venv, wiring): docs/reference/art-pipelines.md
 """
 import sys
 from pathlib import Path
@@ -19,7 +20,7 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "public" / "models" / "statue
 
 def main():
     src, name = sys.argv[1], sys.argv[2]
-    faces = int(sys.argv[3]) if len(sys.argv) > 3 else 1200
+    faces = int(sys.argv[3]) if len(sys.argv) > 3 else 600  # the Aug 2026 baseline
 
     mesh = trimesh.load(src, force="mesh")
     print(f"loaded: {len(mesh.faces)} faces")
