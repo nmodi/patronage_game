@@ -25,7 +25,6 @@ import {
 } from "../constants.ts";
 import {
   ARTWORK_PRESTIGE,
-  BRONZE_TITLES,
   CHURCH_TITLES,
   TITLES,
   WORK_DURATION_MONTHS,
@@ -240,7 +239,8 @@ assert.equal(maybeOfferCommission([], [painter()], 10, explode, {}, {}), null);
 }
 
 // Sculptor offers roll marble or bronze via the extra draw (< BRONZE_COMMISSION_CHANCE
-// → bronze), and bronze picks from BRONZE_TITLES even for the Church.
+// → bronze). The medium never steers the subject: both draws land in the same
+// requester-scoped pool, so the Church's own titles can come back in bronze.
 {
   const bronze = maybeOfferCommission(
     [],
@@ -252,7 +252,7 @@ assert.equal(maybeOfferCommission([], [painter()], 10, explode, {}, {}), null);
   );
   assert.equal(bronze?.artistType, "sculptor");
   assert.equal(bronze?.material, "bronze");
-  assert.ok(BRONZE_TITLES.includes(bronze!.title));
+  assert.ok(CHURCH_TITLES.sculptor.includes(bronze!.title));
 
   const marble = maybeOfferCommission(
     [],

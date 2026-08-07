@@ -23,7 +23,6 @@ import { commissionMaterialCost, MATERIAL_BY_ARTIST_TYPE } from "./materials.ts"
 import type { Artist, ArtistRank, Commission } from "../types.ts";
 import {
   ARTWORK_PRESTIGE,
-  BRONZE_TITLES,
   CHURCH_TITLES,
   pick,
   RANK_ORDER,
@@ -245,12 +244,9 @@ export function maybeOfferCommission(
       ? pick(BUILDING_COMMISSIONS, rng)
       : undefined;
 
-  const titlePool =
-    material === "bronze"
-      ? BRONZE_TITLES
-      : requester.name === CHURCH
-        ? CHURCH_TITLES[type]
-        : TITLES[type];
+  // Subject depends on who's asking, never on the medium — any sculpture
+  // title can be cast in bronze, including the Church's.
+  const titlePool = requester.name === CHURCH ? CHURCH_TITLES[type] : TITLES[type];
 
   return {
     id: crypto.randomUUID(),

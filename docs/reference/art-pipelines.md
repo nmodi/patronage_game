@@ -96,10 +96,11 @@ either half alone). Budget for rejects: of thirteen scans tried in the Aug
    low slab instead of the round pedestal — but give them 1200 tris; their
    figure-plus-base composition mushes at 600.
 5. **Wire**: add the work's real name to the right pool in `artists.ts`
-   (secular / church / bronze) and the title → `/models/statues/<name>.glb`
-   entry to `STATUE_MODELS`. Marble vs bronze comes from the artwork's
-   `material` at render time, not the asset — any scan can be either, so put
-   a title in `BRONZE_TITLES` for flavor, not because the scan demands it.
+   (secular or church — those are the only two, and the split is who asks,
+   not what it's made of) and the title → `/models/statues/<name>.glb` entry
+   to `STATUE_MODELS`. Marble vs bronze comes from the artwork's `material`
+   at render time, not the asset — every title can arrive as either, so never
+   pick a scan for its medium.
 6. **Verify in-game**: `/?demo&pause` displays five mapped titles on plinths
    (see `app/game/demo/demoCity.ts`); the statue streams in async over the
    procedural placeholder's plinth position. To eyeball a title the demo

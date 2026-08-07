@@ -5,7 +5,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 
 import { STATUE_MODELS } from "./artImages.ts";
-import { BRONZE_TITLES, CHURCH_TITLES, TITLES } from "./artists.ts";
+import { CHURCH_TITLES, TITLES } from "./artists.ts";
 import {
   accrueDisciplineXp,
   applyXpFloor,
@@ -402,7 +402,7 @@ const pools = (extra: Partial<DisciplineXp> = {}): DisciplineXp => ({
 // Every sculpture title is a real work with a real scan on disk, and the map
 // carries no orphans — the two halves live in different files and drift.
 {
-  const titles = [...TITLES.sculptor, ...CHURCH_TITLES.sculptor, ...BRONZE_TITLES];
+  const titles = [...TITLES.sculptor, ...CHURCH_TITLES.sculptor];
   for (const title of titles) {
     const url = STATUE_MODELS[title];
     assert.ok(url, `no statue scan mapped for "${title}"`);

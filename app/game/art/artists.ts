@@ -198,7 +198,18 @@ export const TITLES: Record<ArtistType, string[]> = {
   ],
   // Sculpture titles are real works, each backed by a scan (STATUE_MODELS in
   // artImages.ts) — antiquities here, the kind a patron collected all'antica.
-  sculptor: ["Cincinnatus", "The Spinario", "Neptune", "The Reclining Pan"],
+  // Subject and medium are independent: any of these can be commissioned in
+  // bronze (BRONZE_COMMISSION_CHANCE), so nothing here is marble-only.
+  sculptor: [
+    "Cincinnatus",
+    "The Spinario",
+    "Neptune",
+    "The Reclining Pan",
+    "Theodoric the Great",
+    "The Minerva of Arezzo",
+    "The Orator",
+    "Hermes Fastening His Sandal",
+  ],
   architect: [
     "Design for a Great Dome",
     "Loggia of the Silk Guild",
@@ -227,15 +238,6 @@ export const CHURCH_TITLES: Record<ArtistType, string[]> = {
     "Design for a Family Chapel",
   ],
 };
-
-// Titles for bronze-cast sculpture commissions (see BRONZE_COMMISSION_CHANCE)
-// — works whose originals were themselves cast in bronze.
-export const BRONZE_TITLES = [
-  "Theodoric the Great",
-  "The Minerva of Arezzo",
-  "The Orator",
-  "Hermes Fastening His Sandal",
-];
 
 /** XP threshold of the next rank up, or null at the top (grand master). */
 export function nextRankXp(rank: ArtistRank): number | null {
