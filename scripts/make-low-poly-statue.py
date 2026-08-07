@@ -6,7 +6,8 @@ Output: public/models/statues/<name>.glb, normalized to feet-at-origin,
 height exactly 1.0, centered on x/z (in-game scale applied by displayArt.ts).
 
 Needs: pip install trimesh fast-simplification "numpy<2"
-Usage: python3 scripts/make-low-poly-statue.py <scan.stl> <name> [faces=600]
+Usage: python3 scripts/make-low-poly-statue.py <scan.stl> <name> [faces=600] [flip]
+("flip" inverts the automatic right-side-up guess when it gets a piece wrong)
 Full recipe (source picking, venv, wiring): docs/reference/art-pipelines.md
 """
 import sys
@@ -20,7 +21,8 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "public" / "models" / "statue
 
 def main():
     src, name = sys.argv[1], sys.argv[2]
-    faces = int(sys.argv[3]) if len(sys.argv) > 3 else 600  # the Aug 2026 baseline
+    opts = sys.argv[3:]
+    faces = next((int(a) for a in opts if a.isdigit()), 600)  # the Aug 2026 baseline
 
     mesh = trimesh.load(src, force="mesh")
     print(f"loaded: {len(mesh.faces)} faces")
@@ -46,23 +48,22 @@ def main():
     mesh = decimate_to(mesh, faces)
     print(f"decimated: {len(mesh.faces)} faces")
 
-    # Scanner frame is z-up; game is y-up. Statues are taller than wide, so
-    # rotate only when z is the long axis (already-y-up inputs pass through).
-    ext = mesh.extents
-    if ext[2] > ext[1]:
-        mesh.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
+    # Scanner frame is z-up; game is y-up. Always rotate — guessing from the
+    # long axis broke on reclining figures (length beats height, so the Pan
+    # stood on its end). ponytail: y-up inputs (e.g. GLB sources) need a flag.
+    mesh.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
 
-    # Right side up: the base/socle is the widest slice, so if the top 10% of
-    # the height has a bigger footprint than the bottom 10%, flip it.
-    def slab_width(lo_f, hi_f):
-        y = mesh.vertices[:, 1]
-        y0, y1 = y.min(), y.max()
-        sel = mesh.vertices[(y >= y0 + (y1 - y0) * lo_f) & (y <= y0 + (y1 - y0) * hi_f)]
-        return (sel[:, 0].ptp() + sel[:, 2].ptp()) if len(sel) else 0.0
-
-    if slab_width(0.9, 1.0) > slab_width(0.0, 0.1):
+    # Right side up: the socle/turntable plane is the mesh's one big flat
+    # region — its normal must point down. (A widest-slice guess was tried
+    # first and coin-flipped on decimation noise for the reclining Pan.)
+    areas, normals = mesh.area_faces, mesh.face_normals
+    vert = (areas > np.percentile(areas, 85)) & (np.abs(normals[:, 1]) > 0.9)
+    flip = (normals[vert][:, 1] * areas[vert]).sum() > 0
+    if "flip" in opts:  # manual override, should the base plane guess miss
+        flip = not flip
+    if flip:
         mesh.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [1, 0, 0]))
-        print("flipped (base was at top)")
+        print("flipped (base plane was up)")
 
     # Normalize: feet at y=0, height 1.0, centered on x/z.
     lo, hi = mesh.bounds

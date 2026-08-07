@@ -53,13 +53,21 @@ Statue source shortlist: [../artifacts/statue-scan-catalog.md](../artifacts/stat
 
    ```sh
    python3 scripts/make-low-poly-statue.py <scan.stl|.obj> <name>   # default 600 tris
+   python3 scripts/make-low-poly-statue.py <scan> <name> 1200 flip  # options as needed
    ```
 
    Writes `public/models/statues/<name>.glb` (~30 KB): two-stage quadric
    decimation (rough cut → largest-body floater removal → finish), z-up→y-up
-   with an upside-down auto-flip (base = widest slice), flat shading baked,
-   normalized to height 1.0 with feet at the origin. Scans keep their own
-   socle base — deliberate (base-on-plinth reads as presentation).
+   (always — a long-axis guess broke on reclining figures), upside-down
+   auto-flip by putting the scan's one big flat plane (socle/turntable) face
+   down (`flip` inverts the guess if it misses; the decimator is
+   nondeterministic, so eyeball every build), flat shading baked, normalized
+   to height 1.0 with feet at the origin. Scans keep their own socle base —
+   deliberate (base-on-plinth reads as presentation). Reclining/wide pieces
+   need no special wiring: `statueFit` (art/display.ts) detects >1.2×
+   long-axis-to-height at load and the renderer seats them fit-scaled on a
+   low slab instead of the round pedestal — but give them 1200 tris; their
+   figure-plus-base composition mushes at 600.
 5. **Wire**: add the title → `/models/statues/<name>.glb` entry to
    `STATUE_MODELS`. Marble vs bronze comes from the artwork's `material` at
    render time, not the asset — any scan can be either.
