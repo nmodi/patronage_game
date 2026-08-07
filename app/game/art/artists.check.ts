@@ -1,7 +1,11 @@
 // Self-check for passive artist arrival.
 // Run: node --experimental-strip-types app/game/artists.check.ts
 import assert from "node:assert";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
+import { STATUE_MODELS } from "./artImages.ts";
+import { BRONZE_TITLES, CHURCH_TITLES, TITLES } from "./artists.ts";
 import {
   accrueDisciplineXp,
   applyXpFloor,
@@ -393,6 +397,20 @@ const pools = (extra: Partial<DisciplineXp> = {}): DisciplineXp => ({
   const plain = maybeArriveArtist([workshop("5,5")], [], 3, readyTick, win);
   assert.equal(plain?.rank, "apprentice");
   assert.equal(plain?.xp, undefined);
+}
+
+// Every sculpture title is a real work with a real scan on disk, and the map
+// carries no orphans — the two halves live in different files and drift.
+{
+  const titles = [...TITLES.sculptor, ...CHURCH_TITLES.sculptor, ...BRONZE_TITLES];
+  for (const title of titles) {
+    const url = STATUE_MODELS[title];
+    assert.ok(url, `no statue scan mapped for "${title}"`);
+    assert.ok(existsSync(join("public", url!)), `missing ${url} for "${title}"`);
+  }
+  for (const title of Object.keys(STATUE_MODELS)) {
+    assert.ok(titles.includes(title), `STATUE_MODELS maps a retired title: "${title}"`);
+  }
 }
 
 console.log("artists.check: all assertions passed");

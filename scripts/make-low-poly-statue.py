@@ -5,9 +5,11 @@ Sources: threedscans.com (Oliver Laric — published without restrictions).
 Output: public/models/statues/<name>.glb, normalized to feet-at-origin,
 height exactly 1.0, centered on x/z (in-game scale applied by displayArt.ts).
 
-Needs: pip install trimesh fast-simplification "numpy<2"
-Usage: python3 scripts/make-low-poly-statue.py <scan.stl> <name> [faces=600] [flip]
-("flip" inverts the automatic right-side-up guess when it gets a piece wrong)
+Needs: pip install trimesh fast-simplification scipy networkx "numpy<2"
+Usage: python3 scripts/make-low-poly-statue.py <scan.stl> <name> [faces=600] [flip] [yup]
+("flip" inverts the automatic right-side-up guess when it gets a piece wrong;
+"yup" skips the z-up→y-up rotation for a scan that already stands up in y —
+a figure that comes out lying on its side needs it)
 Full recipe (source picking, venv, wiring): docs/reference/art-pipelines.md
 """
 import sys
@@ -48,10 +50,20 @@ def main():
     mesh = decimate_to(mesh, faces)
     print(f"decimated: {len(mesh.faces)} faces")
 
-    # Scanner frame is z-up; game is y-up. Always rotate — guessing from the
-    # long axis broke on reclining figures (length beats height, so the Pan
-    # stood on its end). ponytail: y-up inputs (e.g. GLB sources) need a flag.
-    mesh.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
+    # Scanner frame is usually z-up; game is y-up. Rotate unless told the scan
+    # already stands in y (threedscans is mixed — Theodoric/Hugh/Transi are
+    # y-up). No auto-detect: guessing from the long axis broke on reclining
+    # figures (length beats height, so the Pan stood on its end).
+    if "yup" not in opts:
+        mesh.apply_transform(trimesh.transformations.rotation_matrix(-np.pi / 2, [1, 0, 0]))
+
+    # Some scans sit at an arbitrary angle in their own frame (Ephebe, Athena
+    # hang tilted off their plinths) — no axis swap fixes that. "align" stands
+    # the longest principal axis up instead; opt-in for the same reason the
+    # z-up rotation is unconditional (it would tip a reclining figure on end).
+    if "align" in opts:
+        axis = np.linalg.svd(mesh.vertices - mesh.vertices.mean(axis=0))[2][0]
+        mesh.apply_transform(trimesh.geometry.align_vectors(axis, [0, 1, 0]))
 
     # Right side up: the socle/turntable plane is the mesh's one big flat
     # region — its normal must point down. (A widest-slice guess was tried

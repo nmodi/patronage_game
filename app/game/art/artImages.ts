@@ -11,14 +11,24 @@ export const ART_IMAGES: Record<string, string> = {
 
 // Low-poly statue scans (scripts/make-low-poly-statue.py, threedscans.com)
 // keyed by artwork title; GLBs are normalized to feet-at-origin, height 1.
-// Unmapped titles keep the procedural statue variants.
-// All scans decimated to 600 tris (the baseline picked from the Aug 2026
-// tri-target test; 1200 read a fidelity tier above the kit, 300 got chunky on
-// complex poses). Title→scan pairing is provisional until the roster from
-// docs/artifacts/statue-scan-catalog.md is chosen.
+// Every sculpture title in the pools (artists.ts) is a real work with a real
+// scan — the map covers all twelve, so the procedural statue variants only
+// serve pre-Aug-2026 saves holding retired titles. 600 tris apiece (the Aug
+// 2026 baseline); the reclining Pan gets 1200, which its
+// figure-plus-base composition needs.
 export const STATUE_MODELS: Record<string, string> = {
-  "David in Marble": "/models/statues/cincinnatus.glb",
-  "Nymph of the Arno": "/models/statues/eve.glb",
-  Bacchus: "/models/statues/pan.glb",
-  "The Three Graces": "/models/statues/pan.glb",
+  // Secular — antiquities, collected all'antica
+  Cincinnatus: "/models/statues/cincinnatus.glb",
+  "The Spinario": "/models/statues/thorn.glb",
+  Neptune: "/models/statues/neptune.glb",
+  "The Reclining Pan": "/models/statues/pan.glb",
+  // Church
+  "The Transi of René de Chalon": "/models/statues/transi.glb",
+  "Saint Hugh": "/models/statues/hugh.glb",
+  "Queen Margaret": "/models/statues/margaret.glb",
+  // Bronze casts — originals cast in bronze
+  "Theodoric the Great": "/models/statues/theodoric.glb",
+  "The Minerva of Arezzo": "/models/statues/minerva.glb",
+  "The Orator": "/models/statues/orator.glb",
+  "Hermes Fastening His Sandal": "/models/statues/hermes.glb",
 };

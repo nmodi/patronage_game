@@ -11,6 +11,34 @@ Original-work dates researched Aug 2026 (museum/collection sources;
 "unverified" = best guess). Sizes are the compressed download. Baseline:
 600 tris, flat-shaded.
 
+**The eleven in the game** (Aug 2026 roster pass — every sculpture title is
+now a real work with its own scan; see the design doc → Real artwork assets):
+
+| Title in game | Scan | GLB | Build flags |
+|---|---|---|---|
+| Cincinnatus | Lucius Quinctius Cincinnatus | `cincinnatus.glb` | — |
+| The Spinario | Boy with Thorn | `thorn.glb` | — |
+| Neptune | Neptune (restored) | `neptune.glb` | — |
+| The Reclining Pan | Reclining Pan, c. 1535 | `pan.glb` | 1200 |
+| The Transi of René de Chalon | Le Transi, 1547 | `transi.glb` | `yup` |
+| Saint Hugh | Saint Hugh | `hugh.glb` | `yup` |
+| Queen Margaret | Queen Margaret | `margaret.glb` | `yup` |
+| Theodoric the Great | Theodoric, 1513 | `theodoric.glb` | `yup` |
+| The Minerva of Arezzo | Athena | `minerva.glb` | `align` |
+| The Orator | Aule Meteli (Arringatore) | `orator.glb` | — |
+| Hermes Fastening His Sandal | Hermes Fastening his Sandal | `hermes.glb` | — |
+
+Rejected in that pass, so nobody re-downloads them: **St. Anna Retable**
+(decimates cleanly, then renders as a blank white board in-scene — reliefs
+have no depth at 1200 tris), **Head of St John the Baptist on a Platter**
+(the platter disc is the whole silhouette and its blank back faces the
+default yaw), **Efebo/Idolino** and **Herm of Plato** (a planar plinth
+artifact dominates the mesh and floors decimation ~1500 tris), **Striding
+Eagle** and **Medici Riccardi Horse Head** (same artifact / illegible mush at
+600), and **Andrea Bregno's St John** from Zenodo (1500 disconnected bodies —
+a print-prep mesh that shatters on any decimation). The Rodin *Bootleg Eve*
+was dropped as out-of-era at the same time.
+
 **Current focus: works made 1400–1600** — the shortlist below. Everything
 else (antiquities, neoclassical, casts) is parked in "Saved for later".
 
@@ -20,30 +48,32 @@ From threedscans (no restrictions, no credit needed):
 
 | Scan | Original | Fit | Download |
 |---|---|---|---|
-| Head of St John the Baptist on a Platter, 20MB | c. 1430, oak (Bode Museum) | grim devotional — "Statue of the Baptist" adjacent | <https://threedscans.com/wp-content/uploads/2019/12/John_the_Baptist.obj.zip> |
-| St. Anna Retable, 81MB | c. 1500 (Utrecht Cathedral; defaced 1580) | Gothic altarpiece group | <https://threedscans.com/wp-content/uploads/2016/10/Anna_te_Drieen_FINAL.stl.zip> |
-| Theodoric the Great, 35MB | 1513, Peter Vischer the Elder (design attrib. Dürer) | bronze king, Innsbruck Hofkirche — literal Renaissance bronze | <https://threedscans.com/wp-content/uploads/2020/02/FullBody_Decimated.OBJ.zip> |
-| Reclining Pan, 84MB | c. 1535, attrib. Francesco da Sangallo | Renaissance sculpture (St. Louis) | <https://threedscans.com/wp-content/uploads/2018/07/Pan_fixed_.OBJ.zip> |
-| Le Transi de René de Chalon, 19MB | 1547, Ligier Richier | memorably macabre standing figure | <https://threedscans.com/wp-content/uploads/2016/02/Le_Transi_De_Rene_De_Chalon.obj.zip> |
-| Striding Eagle, 11MB | 16th c. Venetian marble | imperial eagle | <https://threedscans.com/wp-content/uploads/2019/02/Eagle_custom_Normals.obj.zip> |
+| Head of St John the Baptist on a Platter, 20MB | c. 1430, oak (Bode Museum) | **rejected** — platter disc is the whole silhouette | <https://threedscans.com/wp-content/uploads/2019/12/John_the_Baptist.obj.zip> |
+| St. Anna Retable, 81MB | c. 1500 (Utrecht Cathedral; defaced 1580) | **rejected** — relief, renders as a blank board | <https://threedscans.com/wp-content/uploads/2016/10/Anna_te_Drieen_FINAL.stl.zip> |
+| Theodoric the Great, 35MB | 1513, Peter Vischer the Elder (design attrib. Dürer) | **in game** (`theodoric.glb`, `yup`) | <https://threedscans.com/wp-content/uploads/2020/02/FullBody_Decimated.OBJ.zip> |
+| Reclining Pan, 84MB | c. 1535, attrib. Francesco da Sangallo | **in game** (`pan.glb`, 1200) | <https://threedscans.com/wp-content/uploads/2018/07/Pan_fixed_.OBJ.zip> |
+| Le Transi de René de Chalon, 19MB | 1547, Ligier Richier | **in game** (`transi.glb`, `yup`) | <https://threedscans.com/wp-content/uploads/2016/02/Le_Transi_De_Rene_De_Chalon.obj.zip> |
+| Striding Eagle, 11MB | 16th c. Venetian marble | **rejected** — planar artifact, no figure | <https://threedscans.com/wp-content/uploads/2019/02/Eagle_custom_Normals.obj.zip> |
 
 From other sources (licenses verified on each page Aug 2026; PDM = Public
 Domain Mark, shippable with no credit; MyMiniFactory downloads need a free
-account — page fetches 403 without one):
+account — page fetches 403 without one, so these can't be fetched headlessly).
+Titles and scans are one-to-one now, so each of these lands as a *new* pool
+entry, not a re-skin of an existing title:
 
 | Scan | Original | Fit | License | Source |
 |---|---|---|---|---|
-| Michelangelo's Vatican Pietà, SMK cast — clean watertight mesh | 1498–99 | both Pietà titles | PDM | <https://www.myminifactory.com/object/3d-print-la-pieta-52660> (alt: Rondanini Pietà, 1552–64, same account, `.../rondanini-pieta-273663`) |
-| Donatello's Orsanmichele St George, SMK cast — compact standing silhouette | c. 1415–17 | "Saint George in Marble" | PDM | <https://www.myminifactory.com/object/3d-print-saint-george-105612> |
-| Benedetto da Maiano's boy Baptist, SMK cast (cross missing from hand) | c. 1480 | "Statue of the Baptist" | PDM | <https://www.myminifactory.com/object/3d-print-john-the-baptist-as-a-boy-105798> (CC BY alt: Andrea Bregno's St John, late 15th c., pre-cleaned 3.4MB GLB, credit "Geoffrey Marchal (Zenodo)": <https://zenodo.org/records/10297230>) |
+| Michelangelo's Vatican Pietà, SMK cast — clean watertight mesh | 1498–99 | would add a Pietà title | PDM | <https://www.myminifactory.com/object/3d-print-la-pieta-52660> (alt: Rondanini Pietà, 1552–64, same account, `.../rondanini-pieta-273663`) |
+| Donatello's Orsanmichele St George, SMK cast — compact standing silhouette | c. 1415–17 | would add a Saint George title | PDM | <https://www.myminifactory.com/object/3d-print-saint-george-105612> |
+| Benedetto da Maiano's boy Baptist, SMK cast (cross missing from hand) | c. 1480 | would add a Baptist title | PDM | <https://www.myminifactory.com/object/3d-print-john-the-baptist-as-a-boy-105798> (CC BY alt: Andrea Bregno's St John, late 15th c., pre-cleaned 3.4MB GLB, credit "Geoffrey Marchal (Zenodo)": <https://zenodo.org/records/10297230>) |
 
 Near misses, for the record: the Caspar Gras Leopoldsbrunnen bronzes
 (Thetis/Triton/Oceanus, 1622–30) land just past the window; the Belvedere
 sphinxes are 1717–25. Both stay parked below.
 
-**Note:** none of the four statues already in the game (Cincinnatus cast,
-Bootleg Eve after Rodin 1881, Hermes cast, Spinario cast) are 1400–1600 —
-they're antiquities-as-collected plus one anachronism, listed below.
+**Note:** four of the eleven shipped statues are 1400–1600 (Reclining Pan,
+Transi, Theodoric, plus Saint Hugh/Queen Margaret as Gothic-reading
+latecomers); the rest are antiquities-as-collected, listed below.
 
 ## Saved for later
 
@@ -59,21 +89,24 @@ Lincoln) — the date given is the ancient work the cast reproduces.
 | Scan | Original | Notes |
 |---|---|---|
 | Lucius Quinctius Cincinnatus (128MB) | Roman, 1st–2nd c. AD (cast; Louvre sandal-binder restored as Cincinnatus) | standing draped Roman |
-| Bootleg Eve (64MB) | after Rodin's *Eve*, 1881 (modern bootleg figurine) — post-era but reads timeless at 600 tris | standing female nude |
 | Hermes Fastening his Sandal (38MB) | Roman, 1st–2nd c. AD, after Lysippos c. 330 BC (cast) | complex bent pose |
 | Boy with Thorn (57MB) | Hellenistic-Roman, 1st c. BC (cast of the Capitoline bronze) | the Spinario — seated boy, Renaissance-beloved antiquity |
+| Athena / Minerva of Arezzo (50MB) | Etruscan-Hellenistic bronze, 3rd c. BC | needs `align` — hangs tilted off its plinth |
+| Neptune, restored (48MB) | Roman, late 2nd c. AD (Nîmes) | staff-bearing standing god |
+| Portrait Statue of Aule Meteli (70MB) | Etruscan bronze, c. 100 BC | the Orator — best-reading scan of the pass |
+| Queen Margaret (29MB) | early 20th c. reconstruction after a c. 1300 Lincoln statue | veiled bust — the roster's only bust |
 
 ### Standing gods & heroes — prime plinth material
 
 | Scan | Original | Fit | Download |
 |---|---|---|---|
-| Efebo (Idolino from Pesaro), 52MB | Roman bronze, c. 30 BC (in 5th c. BC Greek style) | nude bronze youth, Florence museum — the best "David in Marble" candidate | <https://threedscans.com/wp-content/uploads/2016/02/Ephebe.obj.zip> |
-| Athena (Minerva of Arezzo), 50MB | Etruscan-Hellenistic bronze, 3rd c. BC | famous bronze, Florence | <https://threedscans.com/wp-content/uploads/2016/02/Athena.obj.zip> |
-| Portrait Statue of Aule Meteli (Arringatore), 70MB | Etruscan bronze, c. 100 BC | Etruscan orator, Florence — togate civic figure | <https://threedscans.com/wp-content/uploads/2015/11/Portrait_Statue_Of_-Aule_Meteli.obj.zip> |
+| Efebo (Idolino from Pesaro), 52MB | Roman bronze, c. 30 BC (in 5th c. BC Greek style) | **rejected** — plinth artifact dominates the mesh | <https://threedscans.com/wp-content/uploads/2016/02/Ephebe.obj.zip> |
+| Athena (Minerva of Arezzo), 50MB | Etruscan-Hellenistic bronze, 3rd c. BC | **in game** (`minerva.glb`, `align`) | <https://threedscans.com/wp-content/uploads/2016/02/Athena.obj.zip> |
+| Portrait Statue of Aule Meteli (Arringatore), 70MB | Etruscan bronze, c. 100 BC | **in game** (`orator.glb`) | <https://threedscans.com/wp-content/uploads/2015/11/Portrait_Statue_Of_-Aule_Meteli.obj.zip> |
 | Mercury, 56MB *(neocl.)* | c. 1783, Joseph Nollekens | standing god | <https://threedscans.com/wp-content/uploads/2016/02/Mercury.stl.zip> |
 | Mars, 24MB *(neocl.)* | mid-19th c., John Gibson | standing god | <https://threedscans.com/wp-content/uploads/2016/02/Mars.stl.zip> |
 | Aphrodite, 27MB | 18th–19th c. copy after a Roman 2nd c. AD Praxitelean type (unverified) | Venus figure | <https://threedscans.com/wp-content/uploads/2016/04/aphrodite.stl.zip> |
-| Neptune (restored), 48MB | Roman, late 2nd c. AD (Nîmes, found 2006) | fountain god — "Fountain of the Muses" adjacent | <https://threedscans.com/wp-content/uploads/2023/04/Neptune_Iustinian_Funie.obj.zip> |
+| Neptune (restored), 48MB | Roman, late 2nd c. AD (Nîmes, found 2006) | **in game** (`neptune.glb`) | <https://threedscans.com/wp-content/uploads/2023/04/Neptune_Iustinian_Funie.obj.zip> |
 | Thetis, 38MB | 1622–30, Caspar Gras (Leopoldsbrunnen) | sea goddess | <https://threedscans.com/wp-content/uploads/2021/03/Thetis.obj.zip> |
 | Zenobia in Chains, 21MB *(neocl.)* | 1859, Harriet Hosmer | draped standing queen | <https://threedscans.com/wp-content/uploads/2019/03/Hosmer.OBJ.zip> |
 
@@ -115,7 +148,7 @@ Lincoln) — the date given is the ancient work the cast reproduces.
 | Scan | Original | Fit | Download |
 |---|---|---|---|
 | Portrait of a Man, 38MB | Hellenistic, c. 150 BC (Getty) | Roman bearded bust | <https://threedscans.com/wp-content/uploads/2017/01/Bearded-Man.stl.zip> |
-| Herm of Plato, 20MB | Roman herm copy after Silanion, c. 370 BC (cast) | humanist garden herm | <https://threedscans.com/wp-content/uploads/2016/05/Plato.obj.zip> |
+| Herm of Plato, 20MB | Roman herm copy after Silanion, c. 370 BC (cast) | **rejected** — planar artifact dominates the mesh | <https://threedscans.com/wp-content/uploads/2016/05/Plato.obj.zip> |
 | Double Herm: Socrates/Seneca, 32MB | Roman, 3rd c. AD (cast of the Berlin herm) | philosopher herm | <https://threedscans.com/wp-content/uploads/2016/02/DH2_Socrates-and-Seneca.stl.zip> |
 | Double Herm: Epicurus/Metrodorus, 61MB | Roman, 2nd–3rd c. AD copy (cast) | philosopher herm | <https://threedscans.com/wp-content/uploads/2016/02/DH1_Epic-and-Metro.stl.zip> |
 | Double Herm: Thucydides/Herodotus, 78MB | Roman, 2nd c. AD (cast of the Farnese herm) | historian herm | <https://threedscans.com/wp-content/uploads/2016/02/DH3_Thucydides-and-Herodotus.stl.zip> |
@@ -125,7 +158,7 @@ Lincoln) — the date given is the ancient work the cast reproduces.
 
 | Scan | Original | Fit | Download |
 |---|---|---|---|
-| Horse Head ("Medici Riccardi"), 48MB | Greek bronze, 2nd half of 4th c. BC | literally Medici-owned bronze, Florence | <https://threedscans.com/wp-content/uploads/2016/02/Horse_Head.obj.zip> |
+| Horse Head ("Medici Riccardi"), 48MB | Greek bronze, 2nd half of 4th c. BC | **rejected** — illegible at 600 tris | <https://threedscans.com/wp-content/uploads/2016/02/Horse_Head.obj.zip> |
 | Seated Lion, 4MB | unverified — small stone carving, likely medieval | Marzocco vibes — Florence's civic lion | <https://threedscans.com/wp-content/uploads/2016/02/Lion.stl.zip> |
 | Panther, 77MB | unverified — likely 19th c. French | garden beast | <https://threedscans.com/wp-content/uploads/2016/10/P.stl.zip> |
 | The Townley Greyhounds, 43MB | Roman, 2nd c. AD | famous antiquity, dog pair | <https://threedscans.com/wp-content/uploads/2020/02/Townley-Greyhounds.OBJ.zip> |
@@ -136,8 +169,8 @@ Lincoln) — the date given is the ancient work the cast reproduces.
 
 | Scan | Original | Fit | Download |
 |---|---|---|---|
-| Saint Hugh, 4MB | 1896–97 — Victorian, not Gothic (reads Gothic at 600 tris) | standing saint | <https://threedscans.com/wp-content/uploads/2016/02/St_Hugh.stl.zip> |
-| Queen Margaret, 29MB | early 20th c. plaster reconstruction after a c. 1300 Lincoln Cathedral statue | Gothic royal figure | <https://threedscans.com/wp-content/uploads/2016/04/queenmargaretLCNUG1927656.stl.zip> |
+| Saint Hugh, 4MB | 1896–97 — Victorian, not Gothic (reads Gothic at 600 tris) | **in game** (`hugh.glb`, `yup`) | <https://threedscans.com/wp-content/uploads/2016/02/St_Hugh.stl.zip> |
+| Queen Margaret, 29MB | early 20th c. plaster reconstruction after a c. 1300 Lincoln Cathedral statue | **in game** (`margaret.glb`, `yup`) | <https://threedscans.com/wp-content/uploads/2016/04/queenmargaretLCNUG1927656.stl.zip> |
 | Font — Reconstructed, 74MB | medieval, likely 12th–13th c. (unverified) | baptismal font (decoration candidate, not plinth art) | <https://threedscans.com/wp-content/uploads/2016/02/Font_Reconstructed.stl> |
 
 ### Other-source options outside 1400–1600 (licenses verified Aug 2026)

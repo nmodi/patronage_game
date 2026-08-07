@@ -36,44 +36,79 @@ Statue source shortlist: [../artifacts/statue-scan-catalog.md](../artifacts/stat
 
 ## Statues (low-poly scans)
 
+Sculpture titles ARE the works — the pools in `artists.ts` name real
+sculptures and `STATUE_MODELS` covers every one, so adding a statue means
+adding a title *and* its scan in the same change (`artists.check.ts` fails on
+either half alone). Budget for rejects: of thirteen scans tried in the Aug
+2026 roster pass, five didn't survive the pipeline (below).
+
 1. **Pick a scan** from the catalog (all threedscans.com — published without
    restrictions, links verified Aug 2026). Simple/standing poses survive low
    tri counts best; complex poses (Hermes) are why the baseline is 600, not
-   300.
+   300. Two kinds of source are a waste of time: **reliefs and panels**
+   (the Saint Anna retable decimates fine and then renders as a blank white
+   board in-scene — low-poly carving has no depth to catch the light), and
+   scans whose figure is a minority of the geometry (the Ephebe/Idolino and
+   the Plato herm are dominated by a planar plinth/backdrop artifact that
+   survives decimation because its boundary edges can't collapse — the same
+   thing floors those meshes ~1500 tris instead of 600, so a build that
+   *stalls well above target is the tell*, before you ever look at it).
 2. **Download + unzip** (zips are 20–130 MB; ignore any `__MACOSX` sidecar):
 
    ```sh
    curl -sL -o scan.zip "<download url>" && unzip scan.zip
    ```
 
-3. **One-time env**: `pip install trimesh fast-simplification "numpy<2"`.
-   On Python 3.9 pin `fast-simplification==0.1.7` (newer releases need 3.10+)
-   and use a venv — an old conda numpy will fight the wheels.
+3. **One-time env**: `pip install trimesh fast-simplification scipy networkx
+   "numpy<2"` (scipy *and* networkx — floater removal calls `mesh.split`,
+   which dies with "no graph engines available" without them, and different
+   scans take different engine paths). On Python 3.9 pin
+   `fast-simplification==0.1.7` (newer releases need 3.10+) and use a venv —
+   an old conda numpy will fight the wheels.
 4. **Run**:
 
    ```sh
-   python3 scripts/make-low-poly-statue.py <scan.stl|.obj> <name>   # default 600 tris
-   python3 scripts/make-low-poly-statue.py <scan> <name> 1200 flip  # options as needed
+   python3 scripts/make-low-poly-statue.py <scan.stl|.obj> <name>          # default 600 tris
+   python3 scripts/make-low-poly-statue.py <scan> <name> 1200 flip yup align
    ```
 
+   Orientation is three independent knobs, and threedscans is mixed enough
+   that you will need them: `yup` skips the z-up→y-up rotation (Theodoric,
+   Saint Hugh, the Transi, Queen Margaret and the Eagle are already y-up —
+   the tell is a figure lying on its side, i.e. a GLB whose z extent runs
+   several times its height); `align` stands the longest principal axis up
+   for scans that hang at an arbitrary angle off their plinth; `flip` inverts
+   the right-side-up guess. All three are opt-in on purpose — auto-detection
+   tips reclining figures on end.
+
    Writes `public/models/statues/<name>.glb` (~30 KB): two-stage quadric
-   decimation (rough cut → largest-body floater removal → finish), z-up→y-up
-   (always — a long-axis guess broke on reclining figures), upside-down
-   auto-flip by putting the scan's one big flat plane (socle/turntable) face
-   down (`flip` inverts the guess if it misses; the decimator is
-   nondeterministic, so eyeball every build), flat shading baked, normalized
+   decimation (rough cut → largest-body floater removal → finish), the
+   orientation pass above, upside-down auto-flip by putting the scan's one big
+   flat plane (socle/turntable) face down (`flip` inverts the guess if it
+   misses; the decimator is nondeterministic, so eyeball every build — a
+   flat-shaded contact sheet straight off the GLB with trimesh + matplotlib
+   painter's-algorithm polygons catches orientation in seconds, but only
+   in-scene catches "reads as a white board"), flat shading baked, normalized
    to height 1.0 with feet at the origin. Scans keep their own socle base —
    deliberate (base-on-plinth reads as presentation). Reclining/wide pieces
    need no special wiring: `statueFit` (art/display.ts) detects >1.2×
    long-axis-to-height at load and the renderer seats them fit-scaled on a
    low slab instead of the round pedestal — but give them 1200 tris; their
    figure-plus-base composition mushes at 600.
-5. **Wire**: add the title → `/models/statues/<name>.glb` entry to
-   `STATUE_MODELS`. Marble vs bronze comes from the artwork's `material` at
-   render time, not the asset — any scan can be either.
-6. **Verify in-game**: `/?demo&pause` displays several mapped titles on
-   plinths (see `app/game/demo/demoCity.ts` for which); the statue streams in
-   async over the procedural placeholder's plinth position.
+5. **Wire**: add the work's real name to the right pool in `artists.ts`
+   (secular / church / bronze) and the title → `/models/statues/<name>.glb`
+   entry to `STATUE_MODELS`. Marble vs bronze comes from the artwork's
+   `material` at render time, not the asset — any scan can be either, so put
+   a title in `BRONZE_TITLES` for flavor, not because the scan demands it.
+6. **Verify in-game**: `/?demo&pause` displays five mapped titles on plinths
+   (see `app/game/demo/demoCity.ts`); the statue streams in async over the
+   procedural placeholder's plinth position. To eyeball a title the demo
+   doesn't carry, temporarily swap it into one of those five rows. Headless
+   recipe that worked: launch Chrome with `--remote-debugging-port` +
+   swiftshader flags, wait out the "Preparing" overlay, then aim
+   `__scene.activeCamera` at each `statue-*` mesh's absolute position and
+   `Page.captureScreenshot` — the `--screenshot` CLI can't frame a plinth
+   whose world position you don't know yet.
 
 ## Tri-count baseline
 

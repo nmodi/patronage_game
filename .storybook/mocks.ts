@@ -98,7 +98,7 @@ export const sampleArtworks: Artwork[] = [
   },
   {
     id: "w-2",
-    name: "Pietà",
+    name: "Saint Hugh",
     requester: "The Church",
     artistId: "a-donato",
     artistType: "sculptor",

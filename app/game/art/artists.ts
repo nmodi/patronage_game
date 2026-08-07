@@ -196,12 +196,9 @@ export const TITLES: Record<ArtistType, string[]> = {
     "Portrait of a Young Merchant",
     "Allegory of Spring",
   ],
-  sculptor: [
-    "David in Marble",
-    "Pietà in Marble",
-    "Fountain of the Muses",
-    "Bust of a Patrician",
-  ],
+  // Sculpture titles are real works, each backed by a scan (STATUE_MODELS in
+  // artImages.ts) — antiquities here, the kind a patron collected all'antica.
+  sculptor: ["Cincinnatus", "The Spinario", "Neptune", "The Reclining Pan"],
   architect: [
     "Design for a Great Dome",
     "Loggia of the Silk Guild",
@@ -219,10 +216,9 @@ export const CHURCH_TITLES: Record<ArtistType, string[]> = {
     "Saint Jerome in His Study",
   ],
   sculptor: [
-    "Pietà",
-    "Saint George in Marble",
-    "Tomb of a Cardinal",
-    "Statue of the Baptist",
+    "The Transi of René de Chalon",
+    "Saint Hugh",
+    "Queen Margaret",
   ],
   architect: [
     "Design for a Sacristy",
@@ -232,12 +228,13 @@ export const CHURCH_TITLES: Record<ArtistType, string[]> = {
   ],
 };
 
-// Titles for bronze-cast sculpture commissions (see BRONZE_COMMISSION_CHANCE).
+// Titles for bronze-cast sculpture commissions (see BRONZE_COMMISSION_CHANCE)
+// — works whose originals were themselves cast in bronze.
 export const BRONZE_TITLES = [
-  "The Bronze Horseman",
-  "Perseus with the Head of Medusa",
-  "The Gates of Paradise",
-  "Equestrian Monument of the Condottiere",
+  "Theodoric the Great",
+  "The Minerva of Arezzo",
+  "The Orator",
+  "Hermes Fastening His Sandal",
 ];
 
 /** XP threshold of the next rank up, or null at the top (grand master). */

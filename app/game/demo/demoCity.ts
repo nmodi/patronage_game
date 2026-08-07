@@ -41,11 +41,11 @@ export function seedDemoCity() {
         { id: "demo-art-6", name: "Portrait of a Lady", requester: "House Medici", artistId: paint, artistType: "painter", completedTick: 47, prestige: 9, displayedAt: { key: "35,48", slot: 0 } },
         { id: "demo-art-7", name: "A Village Kermis", requester: "The Guilds", artistId: paint, artistType: "painter", completedTick: 55, prestige: 4, displayedAt: { key: "46,48", slot: 0 } },
         // — Sculptor works, on plinths (plazas + garden pedestals) —
-        { id: "demo-art-3", name: "David in Marble", requester: "House Medici", artistId: carve, artistType: "sculptor", completedTick: 51, prestige: 12, displayedAt: { key: "34,34", slot: 0 } },
-        { id: "demo-art-8", name: "The Three Graces", requester: "House Strozzi", artistId: carve, artistType: "sculptor", completedTick: 40, prestige: 9, displayedAt: { key: "12,48", slot: 0 } },
-        { id: "demo-art-9", name: "The Bronze Horseman", requester: "The Guilds", artistId: carve, artistType: "sculptor", completedTick: 58, prestige: 7, material: "bronze", displayedAt: { key: "54,16", slot: 0 } },
-        { id: "demo-art-10", name: "Nymph of the Arno", requester: "House Pazzi", artistId: carve, artistType: "sculptor", completedTick: 64, prestige: 8, displayedAt: { key: "60,38", slot: 0 } },
-        { id: "demo-art-11", name: "Bacchus", requester: "House Medici", artistId: carve, artistType: "sculptor", completedTick: 70, prestige: 10, displayedAt: { key: "110,34", slot: 0 } },
+        { id: "demo-art-3", name: "Cincinnatus", requester: "House Medici", artistId: carve, artistType: "sculptor", completedTick: 51, prestige: 12, displayedAt: { key: "34,34", slot: 0 } },
+        { id: "demo-art-8", name: "Saint Hugh", requester: "House Strozzi", artistId: carve, artistType: "sculptor", completedTick: 40, prestige: 9, displayedAt: { key: "12,48", slot: 0 } },
+        { id: "demo-art-9", name: "Theodoric the Great", requester: "The Guilds", artistId: carve, artistType: "sculptor", completedTick: 58, prestige: 7, material: "bronze", displayedAt: { key: "54,16", slot: 0 } },
+        { id: "demo-art-10", name: "The Transi of René de Chalon", requester: "House Pazzi", artistId: carve, artistType: "sculptor", completedTick: 64, prestige: 8, displayedAt: { key: "60,38", slot: 0 } },
+        { id: "demo-art-11", name: "The Reclining Pan", requester: "House Medici", artistId: carve, artistType: "sculptor", completedTick: 70, prestige: 10, displayedAt: { key: "110,34", slot: 0 } },
         // — In storage — exercises the gallery's "Display at…" flow —
         { id: "demo-art-2", name: "Portrait of Contessina de' Bardi", requester: "House Medici", artistId: paint, artistType: "painter", completedTick: 43, prestige: 8 },
         { id: "demo-art-12", name: "Study of a Rearing Horse", requester: "The Guilds", artistId: paint, artistType: "painter", completedTick: 68, prestige: 5 },
