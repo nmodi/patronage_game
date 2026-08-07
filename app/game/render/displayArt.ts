@@ -10,6 +10,7 @@ import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
 import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 
 import { ART_IMAGES, STATUE_MODELS } from "~/game/art/artImages";
+import { STATUE_DISPLAY_HEIGHT, statueFit } from "~/game/art/display";
 import { hashString } from "~/game/random";
 import type { Artwork } from "~/game/types";
 import { getContainer } from "./assetLibrary";
@@ -22,8 +23,8 @@ import { createStatueMesh } from "./citizenFigures";
 
 export const MAX_FACADE_CANVASES = 2; // filled painting slots beyond this are popup-only
 export const PLINTH_HEIGHT = 0.16; // pedestal base→top; the statue stands on top
+export const SLAB_HEIGHT = 0.08; // wide-statue slab base→top (reclining pieces sit low)
 const STATUE_SCALE = 2.6; // ~1.5× a citizen — heroic but under a cottage's height
-const MODEL_STATUE_HEIGHT = 0.73; // scan GLBs are height-1; match the procedural statues (~0.28 × 2.6)
 
 // Warm Renaissance grounds/pigments for the procedural canvases.
 const CANVAS_PALETTE = ["#7a5c44", "#a8503a", "#8c9178", "#4f6b7a", "#b3936a", "#6b5335"];
@@ -79,16 +80,36 @@ export function createDisplayArt(scene: Scene) {
     return merged; // base at y=0, top ≈ PLINTH_HEIGHT (0.16)
   }
 
+  // Low masonry slab for wide/reclining statues (footprint from the loaded
+  // model via statueFit) — the round pedestal can't carry a 2:1 piece.
+  function createSlab(footX: number, footZ: number): Mesh {
+    const foot = MeshBuilder.CreateBox("slab-foot", { width: footX + 0.14, depth: footZ + 0.14, height: 0.03 }, scene);
+    foot.position.y = 0.015;
+    const cap = MeshBuilder.CreateBox("slab-cap", { width: footX + 0.06, depth: footZ + 0.06, height: SLAB_HEIGHT - 0.03 }, scene);
+    cap.position.y = 0.03 + (SLAB_HEIGHT - 0.03) / 2;
+    const merged = Mesh.MergeMeshes([foot, cap], true, true)!;
+    merged.material = stoneMat();
+    merged.isPickable = false;
+    return merged; // base at y=0, top = SLAB_HEIGHT
+  }
+
   // Titles with a real low-poly scan (artImages.ts) load it into a holder mesh
   // the caller can position immediately; unmapped titles keep the procedural
   // variants. onLoaded fires per streamed-in mesh (the caller's shadow-caster
-  // registration can't see children added after addShadowCaster).
-  function createStatue(artwork: Artwork, onLoaded?: (mesh: AbstractMesh) => void): Mesh {
+  // registration can't see children added after addShadowCaster). onWide fires
+  // instead of nothing when the loaded piece is reclining-wide (statueFit) —
+  // the holder is already fit-rescaled; the caller swaps its pedestal for a
+  // createSlab(footX, footZ) and re-seats the statue at SLAB_HEIGHT.
+  function createStatue(
+    artwork: Artwork,
+    onLoaded?: (mesh: AbstractMesh) => void,
+    onWide?: (footX: number, footZ: number) => void
+  ): Mesh {
     const mat = artwork.material === "bronze" ? bronzeMat() : marbleMat(); // undefined = marble
     const modelUrl = STATUE_MODELS[artwork.name];
     if (modelUrl) {
       const holder = new Mesh(`statue-${artwork.id}`, scene);
-      holder.scaling.setAll(MODEL_STATUE_HEIGHT); // GLB is normalized to height 1, feet at origin
+      holder.scaling.setAll(STATUE_DISPLAY_HEIGHT); // GLB is normalized to height 1, feet at origin
       void getContainer(modelUrl, scene).then((container) => {
         if (!container || holder.isDisposed()) return;
         const entries = container.instantiateModelsToScene((name) => name, false, {
@@ -101,6 +122,21 @@ export function createDisplayArt(scene: Scene) {
             mesh.isPickable = false;
             onLoaded?.(mesh);
           }
+        }
+        // Measure yaw-free (the caller has already turned the holder to face
+        // its host) so a long piece's x/z don't smear across both axes.
+        const yaw = holder.rotation.y;
+        holder.rotation.y = 0;
+        holder.computeWorldMatrix(true);
+        const { min, max } = holder.getHierarchyBoundingVectors(true);
+        holder.rotation.y = yaw;
+        const s0 = holder.scaling.x;
+        const nx = (max.x - min.x) / s0;
+        const nz = (max.z - min.z) / s0;
+        const fit = statueFit(nx, (max.y - min.y) / s0, nz);
+        if (fit.wide) {
+          holder.scaling.setAll(fit.scale);
+          onWide?.(nx * fit.scale, nz * fit.scale);
         }
       });
       return holder; // feet at local y=0
@@ -213,5 +249,5 @@ export function createDisplayArt(scene: Scene) {
     stone?.dispose();
   }
 
-  return { createPlinth, createStatue, createPainting, dispose };
+  return { createPlinth, createSlab, createStatue, createPainting, dispose };
 }

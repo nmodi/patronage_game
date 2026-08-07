@@ -29,6 +29,7 @@ import {
   createDisplayArt,
   MAX_FACADE_CANVASES,
   PLINTH_HEIGHT,
+  SLAB_HEIGHT,
   type DisplayArtHandle,
 } from "./displayArt";
 import {
@@ -244,13 +245,37 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       if (slot.kind !== "plinth" || !slot.cell) continue;
       const { x: dx, y: dy } = rotateSlotCell(slot.cell, metadata.footprint, r);
       const { x, z } = gridToWorld(tile.position.x + dx, tile.position.y + dy);
-      const pedestal = displayArt.createPlinth();
-      pedestal.position.set(x, 0.02, z);
-      shadowGenerator.addShadowCaster(pedestal);
-      art.push({ mesh: pedestal });
+      const pedestal: DisplayArtHandle = { mesh: displayArt.createPlinth() };
+      pedestal.mesh.position.set(x, 0.02, z);
+      shadowGenerator.addShadowCaster(pedestal.mesh);
+      art.push(pedestal);
       const work = bySlot?.get(i);
       if (work) {
-        const statue = displayArt.createStatue(work, (m) => shadowGenerator.addShadowCaster(m));
+        const statue = displayArt.createStatue(
+          work,
+          (m) => shadowGenerator.addShadowCaster(m),
+          (footX, footZ) => {
+            // Reclining-wide piece (statueFit): the round pedestal becomes a
+            // low slab under its footprint, and the statue re-seats on it.
+            // The facing rotation below aims the long axis at the footprint
+            // center (end-on); a quarter turn lays it parallel to the host's
+            // edge so the figure presents in profile, snapped to eighth
+            // turns — square with the grid or on the 45° diagonal (the kit's
+            // diagonal-building language), never in between, where the
+            // rectangular slab reads as crooked against the paved tiles (the
+            // round pedestal never showed its rotation).
+            const eighth = Math.PI / 4;
+            statue.rotation.y = Math.round((statue.rotation.y + Math.PI / 2) / eighth) * eighth;
+            const slab = displayArt.createSlab(footX, footZ);
+            slab.position.set(x, 0.02, z);
+            slab.rotation.y = statue.rotation.y;
+            shadowGenerator.addShadowCaster(slab);
+            shadowGenerator.removeShadowCaster(pedestal.mesh);
+            pedestal.mesh.dispose();
+            pedestal.mesh = slab; // handle mutation — teardown disposes the slab
+            statue.position.y = 0.02 + SLAB_HEIGHT;
+          }
+        );
         statue.position.set(x, 0.02 + PLINTH_HEIGHT, z);
         statue.rotation.y = Math.atan2(center.x - x, center.z - z); // face the footprint center
         shadowGenerator.addShadowCaster(statue);

@@ -12,6 +12,9 @@ import {
   plinthSlotAt,
   rotateSlotCell,
   slotAccepts,
+  STATUE_DISPLAY_HEIGHT,
+  statueFit,
+  WIDE_STATUE_MAX_LENGTH,
 } from "./display.ts";
 import type { Artwork } from "../types.ts";
 
@@ -135,6 +138,23 @@ for (const meta of Object.values(BUILDING_METADATA_BY_ID)) {
   assert.equal(sum.counts.get("0,0"), 2);
   assert.equal(sum.counts.get("20,0"), 1);
   assert.ok(!sum.counts.has("99,99"));
+}
+
+// statueFit: standing pieces keep the display height; wide pieces scale by
+// long axis onto a slab, and the length cap only bites when it's the binding
+// constraint.
+{
+  const standing = statueFit(0.45, 1, 0.49); // the four shipped standing scans' shape
+  assert.ok(!standing.wide);
+  assert.equal(standing.scale, STATUE_DISPLAY_HEIGHT);
+  const pan = statueFit(0.9, 1, 2.05); // reclining Pan
+  assert.ok(pan.wide);
+  assert.ok(Math.abs(pan.scale - WIDE_STATUE_MAX_LENGTH / 2.05) < 1e-9);
+  assert.ok(pan.scale * 2.05 <= WIDE_STATUE_MAX_LENGTH + 1e-9); // fits the slab budget
+  const slightlyWide = statueFit(1.25, 1, 0.5); // wide but short: height cap wins
+  assert.ok(slightlyWide.wide);
+  assert.equal(slightlyWide.scale, STATUE_DISPLAY_HEIGHT);
+  assert.ok(!statueFit(1.19, 1, 1.0).wide); // just under the ratio stays a pedestal piece
 }
 
 console.log("display.check: all assertions passed");

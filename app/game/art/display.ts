@@ -54,6 +54,26 @@ export function displayBoost(count: number): number {
   return 1 + DISPLAY_HOST_BONUS * Math.min(count, DISPLAY_HOST_BONUS_MAX_WORKS);
 }
 
+// --- Statue display fit -----------------------------------------------------
+// Scan GLBs are normalized to height 1 (make-low-poly-statue.py). Standing
+// figures render at STATUE_DISPLAY_HEIGHT on the round pedestal; a piece whose
+// horizontal long axis clearly beats its height (a reclining figure) instead
+// fit-scales onto a low slab sized to its footprint — the render side swaps
+// the pedestal for displayArt's createSlab when `wide` comes back true.
+export const STATUE_DISPLAY_HEIGHT = 0.73; // world units; ~1.5× a citizen
+export const WIDE_STATUE_RATIO = 1.2; // long-axis/height beyond this = wide
+export const WIDE_STATUE_MAX_LENGTH = 1.2; // slab long-axis budget (the 3×3 pedestal spans 1.5)
+
+/** Display scale + wideness for a statue model's normalized dimensions. */
+export function statueFit(nx: number, ny: number, nz: number) {
+  const long = Math.max(nx, nz);
+  const wide = long > ny * WIDE_STATUE_RATIO;
+  const scale = wide
+    ? Math.min(STATUE_DISPLAY_HEIGHT / ny, WIDE_STATUE_MAX_LENGTH / long)
+    : STATUE_DISPLAY_HEIGHT / ny;
+  return { wide, scale };
+}
+
 /**
  * A plinth's footprint cell (unrotated metadata frame) → its offset in the
  * stamped grid under rotation r. Quarter turns (0-3) use the exact integer

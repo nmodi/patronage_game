@@ -19,6 +19,6 @@ export const ART_IMAGES: Record<string, string> = {
 export const STATUE_MODELS: Record<string, string> = {
   "David in Marble": "/models/statues/cincinnatus.glb",
   "Nymph of the Arno": "/models/statues/eve.glb",
-  Bacchus: "/models/statues/hermes.glb",
-  "The Three Graces": "/models/statues/thorn.glb",
+  Bacchus: "/models/statues/pan.glb",
+  "The Three Graces": "/models/statues/pan.glb",
 };
