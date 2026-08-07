@@ -6,8 +6,13 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
+import type { AbstractMesh } from "@babylonjs/core/Meshes/abstractMesh";
+import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
+
+import { ART_IMAGES, STATUE_MODELS } from "~/game/art/artImages";
 import { hashString } from "~/game/random";
 import type { Artwork } from "~/game/types";
+import { getContainer } from "./assetLibrary";
 import { createStatueMesh } from "./citizenFigures";
 
 // Visuals for displayed works (Phase 9): a stone plinth + marble statue
@@ -18,6 +23,7 @@ import { createStatueMesh } from "./citizenFigures";
 export const MAX_FACADE_CANVASES = 2; // filled painting slots beyond this are popup-only
 export const PLINTH_HEIGHT = 0.16; // pedestal base→top; the statue stands on top
 const STATUE_SCALE = 2.6; // ~1.5× a citizen — heroic but under a cottage's height
+const MODEL_STATUE_HEIGHT = 0.73; // scan GLBs are height-1; match the procedural statues (~0.28 × 2.6)
 
 // Warm Renaissance grounds/pigments for the procedural canvases.
 const CANVAS_PALETTE = ["#7a5c44", "#a8503a", "#8c9178", "#4f6b7a", "#b3936a", "#6b5335"];
@@ -73,8 +79,32 @@ export function createDisplayArt(scene: Scene) {
     return merged; // base at y=0, top ≈ PLINTH_HEIGHT (0.16)
   }
 
-  function createStatue(artwork: Artwork): Mesh {
+  // Titles with a real low-poly scan (artImages.ts) load it into a holder mesh
+  // the caller can position immediately; unmapped titles keep the procedural
+  // variants. onLoaded fires per streamed-in mesh (the caller's shadow-caster
+  // registration can't see children added after addShadowCaster).
+  function createStatue(artwork: Artwork, onLoaded?: (mesh: AbstractMesh) => void): Mesh {
     const mat = artwork.material === "bronze" ? bronzeMat() : marbleMat(); // undefined = marble
+    const modelUrl = STATUE_MODELS[artwork.name];
+    if (modelUrl) {
+      const holder = new Mesh(`statue-${artwork.id}`, scene);
+      holder.scaling.setAll(MODEL_STATUE_HEIGHT); // GLB is normalized to height 1, feet at origin
+      void getContainer(modelUrl, scene).then((container) => {
+        if (!container || holder.isDisposed()) return;
+        const entries = container.instantiateModelsToScene((name) => name, false, {
+          doNotInstantiate: true,
+        });
+        for (const node of entries.rootNodes) {
+          node.parent = holder;
+          for (const mesh of (node as TransformNode).getChildMeshes(false)) {
+            mesh.material = mat;
+            mesh.isPickable = false;
+            onLoaded?.(mesh);
+          }
+        }
+      });
+      return holder; // feet at local y=0
+    }
     const statue = createStatueMesh(scene, hashString(artwork.id) % 5, mat);
     statue.scaling.setAll(STATUE_SCALE);
     return statue; // feet at local y=0
@@ -116,6 +146,21 @@ export function createDisplayArt(scene: Scene) {
       ctx.fill();
     }
     tex.update();
+
+    // Titles with a real pixelated painting (artImages.ts) overdraw the
+    // procedural interior once the PNG loads; the procedural fill above stays
+    // as the loading state and the fallback for unmapped titles.
+    const imageUrl = ART_IMAGES[artwork.name];
+    if (imageUrl) {
+      const img = document.createElement("img");
+      img.onload = () => {
+        if (!tex.getInternalTexture()) return; // disposed before the PNG arrived
+        (ctx as CanvasRenderingContext2D).imageSmoothingEnabled = false; // keep pixels crisp at 148x196
+        ctx.drawImage(img, 22, 22, 148, 196);
+        tex.update();
+      };
+      img.src = imageUrl;
+    }
 
     const mat = new StandardMaterial(`painting-mat-${artwork.id}`, scene);
     mat.diffuseTexture = tex;

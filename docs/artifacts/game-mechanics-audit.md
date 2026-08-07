@@ -124,6 +124,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Per-tick trickle** | By quality `q` (captured commission prestige, default 2): every host adds `q·0.25` inspiration/tick. (Church-host prestige trickle removed Aug 2026.) | `display.ts` → `computeDisplaySummary()` |
 | **Placement guard** | Artwork must be unassigned; host must be an origin with a matching free slot accepting the artist type. Shared by store + both assign UIs. | `display.ts` → `canDisplayWork()` |
 | **Plinth rotation** | Plinth slot cells rotate with the host (integer ring for quarter turns; nearest mask cell for diagonals). | `display.ts` → `rotateSlotCell()`, `plinthSlotAt()` |
+| **Real artwork assets** | Title-keyed maps swap procedural visuals for real art: pixelated PD paintings (thumbnails + easel canvas), 600-tri statue scans (holder mesh, async container load, shadow re-register). Unmapped titles keep procedural. | `art/artImages.ts` → `ART_IMAGES`, `STATUE_MODELS`; `render/displayArt.ts`; `scripts/make-pixel-art.py`, `scripts/make-low-poly-statue.py` |
 
 ## 12. Renaissance milestone (Phase 12, soft ending)
 

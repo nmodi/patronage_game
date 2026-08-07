@@ -203,6 +203,8 @@ Flow: commissions are offered periodically → player accepts and assigns to a w
 
 Works displayed in the plaza boost Inspiration permanently.
 
+**Real artwork assets** *(built — Aug 2026)*: mapped artwork titles render as real public-domain art instead of procedural placeholders, keyed by title in `app/game/art/artImages.ts` — unmapped titles keep the procedural canvas/statue variants, so coverage grows title by title with no system change. **Paintings**: Wikimedia PD-Art masters pixelated to 48×60/16 colors (`scripts/make-pixel-art.py`, per-source focal-x crop for wide panels; ~2 KB PNGs in `public/art/`), shown in every `ArtworkThumbnail` (`image-rendering: pixelated`) and overdrawn onto the easel canvas's DynamicTexture when the PNG loads. **Statues**: threedscans.com sculpture scans (no restrictions) decimated to a 600-tri flat-shaded baseline (`scripts/make-low-poly-statue.py` — two-stage cut with floater removal + auto z-up/flip; height-1 GLBs in `public/models/statues/`), loaded through the cached asset-container path into `createStatue`'s holder mesh with the shared marble/bronze materials (loaded meshes re-register as shadow casters via callback — `addShadowCaster` can't see late children). 600 was picked from an in-game 1200/600/300/150 ladder: 1200 reads a fidelity tier above the kit, 300 chunks up complex poses (Hermes). Scan shortlist + known gaps (no equestrian, no Pietà group): [artifacts/statue-scan-catalog.md](artifacts/statue-scan-catalog.md).
+
 Multiple commissions run simultaneously; the right panel shows active ones with progress bars.
 
 ---

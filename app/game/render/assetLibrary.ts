@@ -165,7 +165,8 @@ function convertMaterials(container: AssetContainer, file: string, scene: Scene)
 
 // Cache the in-flight promise, not just the resolved container: concurrent callers
 // (e.g. StrictMode double-mount) must share one load instead of racing duplicate ones.
-async function getContainer(file: string, scene: Scene) {
+// Exported for displayArt's statue models — same cache, conversion, and loaders.
+export async function getContainer(file: string, scene: Scene) {
   let load = containerLoads.get(file);
   if (!load) {
     // Generated pieces enter here rather than through a parallel path, so the

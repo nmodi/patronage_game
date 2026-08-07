@@ -1,5 +1,6 @@
 import { Crown } from "./gameIcons";
 
+import { ART_IMAGES } from "~/game/art/artImages";
 import { RANK_LABEL } from "~/game/art/artists";
 import { artworkQuality } from "~/game/art/display";
 import type { Artist, Artwork } from "~/game/types";
@@ -7,7 +8,7 @@ import { capitalizeLabel } from "./format";
 
 const VARIANT_CLASSES = {
   offer: "h-14 w-10 object-cover shadow-sm shadow-black/20",
-  gallery: "h-16 w-12 shadow-md shadow-black/30",
+  gallery: "h-16 w-12 object-cover shadow-md shadow-black/30",
 } as const;
 
 export function ArtworkThumbnail({
@@ -19,9 +20,9 @@ export function ArtworkThumbnail({
 }) {
   return (
     <img
-      src="/art-placeholder.svg"
+      src={ART_IMAGES[title] ?? "/art-placeholder.svg"}
       alt={title}
-      className={`shrink-0 rounded-sm border border-wood/50 ${VARIANT_CLASSES[variant]}`}
+      className={`shrink-0 rounded-sm border border-wood/50 [image-rendering:pixelated] ${VARIANT_CLASSES[variant]}`}
     />
   );
 }

@@ -23,7 +23,7 @@ Ranked after the July 2026 cuts (neighborhood zoning was cut outright; the diago
 - Per-plaza paving choice (all three drawers ship behind `?plaza=`; needs `Tile.variant` state, click-to-select, style picker)
 - Lake map archetype + hiding grid tiles over water
 - Distinct model for the studio placeholder (graphics)
-- Small carried-over opens: single Town Center Plaza enforcement, custom display-art models, boats/banners
+- Small carried-over opens: single Town Center Plaza enforcement, real-art roster expansion, boats/banners
 
 **Parallel track — Audio (music & SFX)** *(added July 2026; music, interaction-SFX, and crowd-ambience slices shipped)*: touches no sim systems, so it runs alongside the tiers rather than inside them. Remaining: Mid/Late-era tracks — see the backlog entry.
 
@@ -57,7 +57,7 @@ Ranked after the July 2026 cuts (neighborhood zoning was cut outright; the diago
 - **More map archetypes** — extend the seeded water system (`app/game/map/water.ts`, rolled from `mapSeed`) with new archetypes beyond inland/coastal/dry/scenic. First candidate: **Lake** — an enclosed body inside or clipping the buildable grid (fed by the existing river course), giving lakefront placement and Stone Bridge crossings without a full coast. Reuses the existing archetype roll, water-cell gating, and bridge/water rendering; mainly a new water-cell shape + probability-table slot. Also: **hide grid tiles over water** so the placement grid only draws on buildable cells, making it visually obvious where building is (and isn't) allowed — the grid is already hidden except while placing (`render/paths.ts`), so this is a water-cell mask on that overlay.
 - **Era tracks** *(the crowd-ambience bed + its local-bustle zoom coupling shipped August 2026 — see the design doc's Music & Sound section)* — Mid/Late-era tracks for the shipped era system (`TRACKS` in `app/game/audio/music.ts` — append and done). Possible later ambience layers: birdsong/wind at the map edges, and a shared AudioContext if runtime crossfading ever earns its way in (the shipped bed bakes its loop crossfade into the asset instead).
 - **Single Town Center Plaza enforcement** — carried over from phases 9/10: the Main Plaza should be one per city; nothing enforces it yet.
-- **Custom display-art models** — displayed statues/paintings are placeholder procedural (re-posed citizen figure, hashed canvas on an easel); real low-poly models later.
+- **Real-art roster expansion** — the real-artwork asset system is built (design doc → Commissions & Works); remaining is content: pixelate the other ~5 painter titles, cut more statues from [artifacts/statue-scan-catalog.md](artifacts/statue-scan-catalog.md) at 600 tris, and settle the title↔scan pairing (equestrian + Pietà titles keep procedural — no scan exists).
 - Distinct model for the architect studio placeholder (workshop hall minus dormer + drafting yard)
 - Graphics stretch leftovers: boats, banners
 - Campaign scenarios
