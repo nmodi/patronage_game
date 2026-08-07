@@ -18,7 +18,7 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 
 ## Current state
 
-Phases 0–12 are built (placement, tick loop, workers, artists + ranks + training, artworks, suppliers + five-material stockpiles, commissions + favor-bearing patrons, work display, plaza connectivity, Renaissance soft ending, architects/blueprint pipeline) plus graphics G1–G5 (water archetypes + bridges, diagonal roads, 45° buildings + snap-to-road, decorative crowds, SFX + crowd ambience) and a main menu. The design doc's *(built)* sections are the authority on how every shipped system works — read the relevant one before touching a game system. Next up: docs/roadmap.md.
+Phases 0–12 are built (placement, tick loop, workers, artists + ranks + city-tradition XP pools, artworks, suppliers + five-material stockpiles, commissions + favor-bearing patrons, work display, plaza connectivity, Renaissance soft ending, architects/blueprint pipeline) plus graphics G1–G5 (water archetypes + bridges, diagonal roads, 45° buildings + snap-to-road, decorative crowds, SFX + crowd ambience) and a main menu. The design doc's *(built)* sections are the authority on how every shipped system works — read the relevant one before touching a game system. Next up: docs/roadmap.md.
 
 Trap rules — invariants that break things when missed (details in the design doc):
 

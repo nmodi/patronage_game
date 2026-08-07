@@ -2,18 +2,19 @@
 // all derived from persisted state each call — no tracking, no save fields
 // beyond the store's one-shot renaissanceReached celebration flag.
 // No React/Zustand/Babylon imports: renaissance.check.ts runs this under plain Node.
-import { RANK_ORDER } from "./artists.ts";
+import type { DisciplineXp } from "./artists.ts";
 import {
   RENAISSANCE_NOBLE_HOUSES,
   RENAISSANCE_PRESTIGE,
+  RENAISSANCE_TRADITION_XP,
   WONDER_PRESTIGE,
 } from "../constants.ts";
 import { artworkQuality } from "./display.ts";
-import type { Artist, Artwork } from "../types.ts";
+import type { Artwork } from "../types.ts";
 
 export interface RenaissanceProgress {
   prestige: boolean; // city prestige at the threshold
-  master: boolean; // any artist ranked Master or above
+  master: boolean; // a completions-fed discipline pool at the tradition threshold
   wonder: Artwork | null; // a displayed work of WONDER_PRESTIGE quality — people travel to see it
   church: boolean; // a completed work for the Church
   nobleHouses: number; // distinct noble houses ("House …") with a completed work
@@ -25,7 +26,7 @@ export interface RenaissanceProgress {
 // may still hold their works) don't match either branch and are ignored.
 export function renaissanceProgress(
   prestige: number,
-  artists: Artist[],
+  disciplineXp: DisciplineXp,
   artworks: Artwork[]
 ): RenaissanceProgress {
   const wonder =
@@ -37,7 +38,11 @@ export function renaissanceProgress(
     else if (w.requester?.startsWith("House ")) houses.add(w.requester);
   }
   const prestigeMet = prestige >= RENAISSANCE_PRESTIGE;
-  const master = artists.some((a) => RANK_ORDER[a.rank] >= RANK_ORDER.master);
+  // Only the completions-fed pools count: pool.architect is construction-fed
+  // (no commissions while the blueprint roster is empty), and building spend
+  // alone must never satisfy an artistic-mastery gate.
+  const master =
+    Math.max(disciplineXp.painter, disciplineXp.sculptor) >= RENAISSANCE_TRADITION_XP;
   return {
     prestige: prestigeMet,
     master,

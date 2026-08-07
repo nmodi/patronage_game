@@ -3,17 +3,22 @@
 import assert from "node:assert";
 
 import {
+  accrueDisciplineXp,
+  applyXpFloor,
   createArtist,
   maybeArriveArtist,
+  pickGraduate,
   progressArtworks,
-  trainOnConstruction,
+  xpFloor,
   ARTIST_ARRIVAL_CHANCE,
   ARTIST_ARRIVAL_COOLDOWN_MONTHS,
   RANK_XP,
   XP_RATES,
+  type DisciplineXp,
   type WorkshopSlot,
 } from "./artists.ts";
-import type { Artist, ArtistType, Commission } from "../types.ts";
+import { FLOOR_FRACTION, POOL_PER_PRESTIGE } from "../constants.ts";
+import type { Artist, ArtistType, Artwork, Commission } from "../types.ts";
 
 const readyTick = ARTIST_ARRIVAL_COOLDOWN_MONTHS;
 const workshop = (
@@ -200,64 +205,35 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.equal(uninspired.artists[0], a);
 }
 
-// Idle workshop still trains: no work progress, but active-workshop members
-// gain passive practice XP every tick (stale workProgress on a non-founder
-// doesn't drive completion, but doesn't block practice either).
+// Completions are the only personal XP now: an idle active workshop mutates
+// nothing (identity), and stale non-founder workProgress is left untouched.
 {
   const a = painter();
   const out = progressArtworks([a], [workshop("5,5")], [commission("5,5")], 3, 10);
-  assert.equal(out.changed, true);
-  assert.ok(Math.abs(out.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
+  assert.equal(out.changed, false);
+  assert.equal(out.artists[0], a);
 
   const stale = [painter(), painter({ id: "p2", homeTileKey: "5,5", workProgress: 3 })];
   const ignored = progressArtworks(stale, [workshop("5,5")], [commission("5,5")], 3, 10);
-  assert.equal(ignored.changed, true);
-  assert.equal(ignored.artists[1]!.workProgress, 3); // stale progress untouched, only xp ticks
-  assert.ok(Math.abs(ignored.artists[1]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
+  assert.equal(ignored.changed, false);
+  assert.equal(ignored.artists[1], stale[1]); // stale progress untouched
 }
 
 // Founder with workProgress but no commission behind it → progress skipped,
-// but the active workshop still trains it, no crash.
+// identity kept, no crash.
 {
   const a = painter({ workProgress: 2 });
   const out = progressArtworks([a], [workshop("5,5")], [], 3, 10);
-  assert.equal(out.changed, true);
-  assert.equal(out.artists[0]!.workProgress, 2);
-  assert.ok(Math.abs(out.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
+  assert.equal(out.changed, false);
+  assert.equal(out.artists[0], a);
 }
 
-// An open offer (no workshopKey) drives no progress, but practice still runs.
+// An open offer (no workshopKey) drives no progress either.
 {
   const a = painter({ workProgress: 2 });
   const out = progressArtworks([a], [workshop("5,5")], [commission("5,5", { workshopKey: undefined })], 3, 10);
-  assert.equal(out.changed, true);
-  assert.ok(Math.abs(out.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
-}
-
-// A higher-ranked workshop-mate teaches: practice rate multiplies for anyone
-// ranked below the workshop's max; equal/top rank gets the untaught rate.
-{
-  const untaught = progressArtworks(
-    [painter({ rank: "master" }), painter({ id: "p2", homeTileKey: "5,5", rank: "master" })],
-    [workshop("5,5")],
-    [],
-    3,
-    10
-  );
-  assert.ok(Math.abs(untaught.artists[0]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
-  assert.ok(Math.abs(untaught.artists[1]!.xp! - XP_RATES.practicePerMonth) < 1e-9);
-
-  const taught = progressArtworks(
-    [painter(), painter({ id: "p2", homeTileKey: "5,5", rank: "master" })],
-    [workshop("5,5")],
-    [],
-    3,
-    10
-  );
-  const untaughtRate = XP_RATES.practicePerMonth;
-  const taughtRate = XP_RATES.practicePerMonth * XP_RATES.teachingMultiplier;
-  assert.ok(Math.abs(taught.artists[0]!.xp! - taughtRate) < 1e-9); // apprentice: taught
-  assert.ok(Math.abs(taught.artists[1]!.xp! - untaughtRate) < 1e-9); // master: never taught
+  assert.equal(out.changed, false);
+  assert.equal(out.artists[0], a);
 }
 
 // Completion mints the commissioned artwork and pays its reward; every member gains xp.
@@ -278,10 +254,9 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.deepEqual(out.finishedCommissionIds, ["c-5,5"]);
   assert.equal(out.prestige, 3);
   assert.equal(out.florins, 50);
-  const completionXp = XP_RATES.perCompletedWork + XP_RATES.practicePerMonth;
-  assert.ok(Math.abs(out.artists[0]!.xp! - completionXp) < 1e-9);
+  assert.equal(out.artists[0]!.xp, XP_RATES.perCompletedWork);
   assert.equal(out.artists[0]!.workProgress, undefined);
-  assert.ok(Math.abs(out.artists[1]!.xp! - completionXp) < 1e-9); // whole workshop learns
+  assert.equal(out.artists[1]!.xp, XP_RATES.perCompletedWork); // whole workshop learns
 }
 
 // A bronze commission's material is copied onto the minted artwork (for the
@@ -336,13 +311,6 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
     [workshop("5,5")], [commission("5,5")], 3, 10
   );
   assert.equal(toGrand.artists[0]!.rank, "grand_master");
-
-  // Practice alone (no commission, so no completion bonus) can also rank up.
-  const toJourneymanFromPractice = progressArtworks(
-    [painter({ xp: journeymanXp - XP_RATES.practicePerMonth })],
-    [workshop("5,5")], [], 3, 10
-  );
-  assert.equal(toJourneymanFromPractice.artists[0]!.rank, "journeyman");
 }
 
 // Workshop with no artists at all → no progress, no crash.
@@ -352,33 +320,79 @@ const commission = (workshopKey: string, extra: Partial<Commission> = {}): Commi
   assert.equal(out.completed.length, 0);
 }
 
-// The city teaches architects: placement XP scales with florins spent, goes
-// only to architects in the given active studios, and can rank up.
+// --- City discipline pools: accrual, floor, graduation ---
+
+const pools = (extra: Partial<DisciplineXp> = {}): DisciplineXp => ({
+  painter: 0,
+  sculptor: 0,
+  architect: 0,
+  ...extra,
+});
+
+// accrueDisciplineXp banks 100 + 10×prestige per work into its own discipline;
+// identity on empty, pure on input.
 {
-  const architect = painter({ id: "a1", type: "architect" });
-  const studios = new Set(["5,5"]);
+  const empty = pools();
+  assert.equal(accrueDisciplineXp(empty, []), empty);
+  const work = (artistType: ArtistType, prestige: number): Artwork => ({
+    id: "w", name: "W", artistId: "p1", artistType, completedTick: 0, prestige,
+  });
+  const fed = accrueDisciplineXp(empty, [work("painter", 3), work("sculptor", 12)]);
+  assert.equal(fed.painter, XP_RATES.perCompletedWork + POOL_PER_PRESTIGE * 3);
+  assert.equal(fed.sculptor, XP_RATES.perCompletedWork + POOL_PER_PRESTIGE * 12);
+  assert.equal(fed.architect, 0);
+  assert.equal(empty.painter, 0); // input untouched
+}
 
-  // 1500ƒ cathedral → floor(0.05 × 1500) = 75 XP to each architect in a studio.
-  const out = trainOnConstruction([architect, painter({ id: "p2" })], studios, 1500);
-  assert.equal(out[0]!.xp, 75);
-  assert.equal(out[1]!.xp, undefined, "non-architects untouched");
+// applyXpFloor lifts below-floor artists (rank re-derived), never demotes,
+// keeps identity when no one moves.
+{
+  const deep = pools({ painter: 2000 }); // floor 500 → journeyman (400)
+  const low = painter({ xp: 10 });
+  const sculptor = painter({ id: "s1", type: "sculptor" });
+  const out = applyXpFloor([low, sculptor], deep);
+  assert.equal(out[0]!.xp, xpFloor(deep, "painter"));
+  assert.equal(out[0]!.xp, FLOOR_FRACTION * 2000);
+  assert.equal(out[0]!.rank, "journeyman");
+  assert.equal(out[1], sculptor); // empty sculptor pool: untouched, same identity
 
-  // A 10ƒ fence floors to 0 — identity, no churn.
-  const same = trainOnConstruction([architect], studios, 10);
-  assert.equal(same[0], architect);
+  const master = painter({ rank: "master", xp: 2400 });
+  const same = [master];
+  assert.equal(applyXpFloor(same, deep), same); // above the floor: array identity
 
-  // Architect homed elsewhere (inactive/absent studio) learns nothing.
-  const away = trainOnConstruction([architect], new Set(["9,9"]), 1500);
-  assert.equal(away[0], architect);
-  assert.equal(trainOnConstruction([architect], new Set(), 1500)[0], architect);
+  // A rank held above the derived floor rank is never demoted.
+  const keptRank = applyXpFloor([painter({ rank: "master", xp: 10 })], deep);
+  assert.equal(keptRank[0]!.rank, "master");
+  assert.equal(keptRank[0]!.xp, 500);
+}
 
-  // A big-enough build ranks up (journeyman at 400).
-  const ranked = trainOnConstruction(
-    [painter({ id: "a2", type: "architect", xp: 390 })],
-    studios,
-    1500
-  );
-  assert.equal(ranked[0]!.rank, "journeyman");
+// pickGraduate: highest-xp non-founder of the discipline; founders never
+// graduate; ties keep the earlier artist; null when there's no bench.
+{
+  const founder = painter({ xp: 5000 }); // first at 5,5 — excluded despite top xp
+  const benchLow = painter({ id: "p2", xp: 300 });
+  const benchHigh = painter({ id: "p3", xp: 700 });
+  const benchTie = painter({ id: "p4", xp: 700 });
+  assert.equal(pickGraduate([founder, benchLow, benchHigh, benchTie], "painter"), benchHigh);
+  assert.equal(pickGraduate([founder], "painter"), null);
+  assert.equal(pickGraduate([founder, benchLow], "sculptor"), null); // wrong discipline
+}
+
+// Founders and arrivals spawn at the tradition floor, rank derived.
+{
+  const a = createArtist("7,3", "painter", win, 950);
+  assert.equal(a.xp, 950);
+  assert.equal(a.rank, "artisan"); // 900 threshold
+
+  const deep = pools({ painter: 4000 }); // floor 1000
+  const arrived = maybeArriveArtist([workshop("5,5")], [], 3, readyTick, win, deep);
+  assert.equal(arrived?.xp, 1000);
+  assert.equal(arrived?.rank, "artisan");
+
+  // No pools passed (legacy callers) → plain apprentice.
+  const plain = maybeArriveArtist([workshop("5,5")], [], 3, readyTick, win);
+  assert.equal(plain?.rank, "apprentice");
+  assert.equal(plain?.xp, undefined);
 }
 
 console.log("artists.check: all assertions passed");

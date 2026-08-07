@@ -1,6 +1,7 @@
 import { favorFromWorks } from "./art/commissions.ts";
+import { EMPTY_DISCIPLINE_XP } from "./constants.ts";
 
-export const SAVE_VERSION = 11;
+export const SAVE_VERSION = 12;
 
 /** Preserve compatible saves while explicitly discarding structurally obsolete versions. */
 export function migrateSave(persisted: unknown, version: number): unknown {
@@ -8,10 +9,11 @@ export function migrateSave(persisted: unknown, version: number): unknown {
   if (version < 5) return {};
   let save = persisted as {
     mapSeed?: unknown;
-    artists?: { xp?: number }[];
+    artists?: { xp?: number; type?: string }[];
     artworks?: { requester?: string; displayedAt?: { key: string; slot: number } }[];
     favor?: Record<string, number>;
     materials?: Record<string, number>;
+    disciplineXp?: Record<string, number>;
     commissions?: { building?: string }[];
     fundedBuilds?: string[];
     map?: { tiles?: Record<string, { buildingId?: string }> };
@@ -70,6 +72,20 @@ export function migrateSave(persisted: unknown, version: number): unknown {
     if (save.fundedBuilds?.some((b) => removed.has(b))) {
       save = { ...save, fundedBuilds: save.fundedBuilds.filter((b) => !removed.has(b)) };
     }
+  }
+  // v12 added the city discipline XP pools (tradition rework). They're
+  // persisted primary state — the construction contribution isn't recoverable
+  // from tiles. Seed each pool to the per-type max of existing artists' xp:
+  // conservative, since the 0.25 floor of a max can never promote anyone at
+  // load. Typeless pre-rework artists can't be attributed and are skipped.
+  if (version < 12) {
+    const disciplineXp: Record<string, number> = { ...EMPTY_DISCIPLINE_XP };
+    for (const a of save.artists ?? []) {
+      if (a.type && a.type in disciplineXp) {
+        disciplineXp[a.type] = Math.max(disciplineXp[a.type]!, a.xp ?? 0);
+      }
+    }
+    save = { ...save, disciplineXp };
   }
   return save;
 }

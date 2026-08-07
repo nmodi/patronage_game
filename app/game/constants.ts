@@ -1,4 +1,4 @@
-import type { ArtistRank } from "./types.ts";
+import type { ArtistRank, ArtistType } from "./types.ts";
 
 export const BASE_TICK_INTERVAL = 1500;
 export const GAME_SPEED_MULTIPLIERS = [1, 2, 3] as const;
@@ -37,8 +37,23 @@ export const CATCHMENT_FULL = 24;
 export const CATCHMENT_REACH = 15; // network cells from the stall
 
 // --- Artists & XP (artists.ts) ---
-export const ARTIST_ARRIVAL_CHANCE = 0.1; // per month, when a slot is open
+// Arrivals are rarer since the city-tradition rework: newcomers spawn already
+// at the tradition floor, so each arrival is worth more.
+export const ARTIST_ARRIVAL_CHANCE = 0.04; // per month, when a slot is open
 export const ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2;
+
+// --- City discipline XP pools (artists.ts, tick.ts) ---
+// The city itself accumulates XP per discipline: completions feed their own
+// pool, construction spend feeds the architect pool. Persisted primary state.
+// Always seed with { ...EMPTY_DISCIPLINE_XP } — accrual is pure/immutable and
+// must never mutate a shared reference (the EMPTY_POOLS precedent).
+export const EMPTY_DISCIPLINE_XP: Record<ArtistType, number> = {
+  painter: 0,
+  sculptor: 0,
+  architect: 0,
+};
+export const POOL_PER_PRESTIGE = 10; // pool XP per point of a completed work's prestige, atop the flat perCompletedWork
+export const FLOOR_FRACTION = 0.25; // every artist's xp sits at ≥ this share of their discipline's pool
 export const EXTRA_ARTIST_PACE_BONUS = 0.5; // +50% work pace per additional workshop-mate
 
 export const WORK_DURATION_MONTHS: Record<ArtistRank, number> = {
@@ -72,15 +87,13 @@ export const RANK_XP: { rank: ArtistRank; xp: number }[] = [
   { rank: "journeyman", xp: 400 },
 ];
 
-// Career averages ~3.3 works/yr, so practice at 24 XP/yr is ~7% extra (minor);
-// taught apprentices at 72 XP/yr get a ~20% head start.
+// Completions are the only personal XP source; the discipline pool's floor
+// (FLOOR_FRACTION) replaces the old practice/teaching trickle.
 export const XP_RATES = {
-  practicePerMonth: 2, // passive training, every artist, every month
-  teachingMultiplier: 3, // practice rate × this when a higher-ranked artist shares the workshop
   perCompletedWork: 100, // one-time gain for every member when the workshop completes a work
-  // The city teaches architects: XP per florin the player spends placing
-  // structures (fourth source, architects in active studios only). A 1500ƒ
-  // cathedral teaches 75 ≈ ¾ of a completed work; a 10ƒ fence floors to 0.
+  // The city teaches architects: pool XP per florin the player spends placing
+  // structures (feeds pool.architect, no studio required). A 1500ƒ cathedral
+  // banks 75 ≈ ¾ of a completed work; a 10ƒ fence floors to 0.
   perFlorinBuilt: 0.05,
 };
 
@@ -137,6 +150,10 @@ export const DENOUNCE_PRESTIGE = 15; // one-time city prestige hit on crossing i
 export const RENAISSANCE_PRESTIGE = 500;
 export const WONDER_PRESTIGE = 15;
 export const RENAISSANCE_NOBLE_HOUSES = 2; // distinct houses with a completed work (plus the Church)
+// The "Master" gate: a completions-fed discipline pool (painter/sculptor —
+// never the construction-fed architect pool) this deep ≈ 15–20 mid-game works,
+// matching the old grind to a personal Master.
+export const RENAISSANCE_TRADITION_XP = 6000;
 
 // --- Raze (raze.ts) ---
 export const RAZE_SALVAGE_FRACTION = 0.5; // half the build cost, salvaged

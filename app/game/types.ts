@@ -29,7 +29,7 @@ export interface Artist {
   type: ArtistType;
   rank: ArtistRank;
   homeTileKey: string; // origin key "x,y" of the hosting workshop
-  xp?: number; // completed artworks; undefined = 0 (pre-Phase-6 saves)
+  xp?: number; // from completions + the city's tradition floor (applyXpFloor); undefined = 0
   workProgress?: number; // fractional months of the workshop's current artwork; set only on the founding artist
 }
 

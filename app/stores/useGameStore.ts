@@ -3,12 +3,18 @@ import type { StateCreator } from "zustand";
 import { createJSONStorage, persist, type StateStorage } from "zustand/middleware";
 
 import type { Artist, Artwork, Commission, Material } from "~/game/types";
-import { origins, type BuildingId } from "~/game/buildings";
+import type { BuildingId } from "~/game/buildings";
 import type { GridPos, Tile, TileMap } from "~/game/grid";
 import { planPlacement } from "~/game/placement/placementRules";
 import { applyFavor, canAssignCommission } from "~/game/art/commissions";
 import { canDisplayWork } from "~/game/art/display";
-import { createArtist, trainOnConstruction } from "~/game/art/artists";
+import {
+  createArtist,
+  pickGraduate,
+  xpFloor,
+  XP_RATES,
+  type DisciplineXp,
+} from "~/game/art/artists";
 import { generateSeed, pickCityName } from "~/game/map/seed";
 import { DEMO_MAP_SEED } from "~/game/demo/demoLayout";
 import {
@@ -26,6 +32,7 @@ import { advanceTick } from "~/game/tick";
 import {
   BASE_TICK_INTERVAL,
   DENOUNCE_PRESTIGE,
+  EMPTY_DISCIPLINE_XP,
   FAVOR_SLIGHT,
   STARTING_FLORINS,
 } from "~/game/constants";
@@ -61,6 +68,9 @@ export type GameState = {
   // Per-faction favor 0–100 (factions slice 1); unwritten entries read FAVOR_START.
   favor: Record<string, number>;
   materials: MaterialPools;
+  // City tradition pools (persisted primary state): completions feed their
+  // discipline, construction spend feeds architect. See artists.ts.
+  disciplineXp: DisciplineXp;
   // Structures unlocked by completed blueprint commissions, awaiting placement
   // (one token each; consumed by placeTiles at 0 florins).
   fundedBuilds: string[];
@@ -147,6 +157,7 @@ const createInitialState = (runSeed?: string) => {
     commissions: [] as Commission[],
     favor: {} as Record<string, number>,
     materials: { ...EMPTY_POOLS } as MaterialPools,
+    disciplineXp: { ...EMPTY_DISCIPLINE_XP },
     fundedBuilds: [] as string[],
     renaissanceReached: false,
     hoveredTileKey: null as string | null,
@@ -223,6 +234,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
         commissions: next.commissions,
         favor: next.favor,
         materials: next.materials,
+        disciplineXp: next.disciplineXp,
         fundedBuilds: next.fundedBuilds,
         offerAlert: newOffer ? newOffer.id : s.offerAlert,
         denounceAlert: next.denounced[0] ?? s.denounceAlert,
@@ -328,30 +340,41 @@ const initializer: StateCreator<GameState> = (set, get) => ({
       const type = metadata.type;
       const workersRequired = metadata.workersRequired ?? 0;
 
-      // The city teaches architects: XP per florin spent, computed against
-      // pre-placement tiles/artists so a studio never trains on its own
-      // construction and new founders are excluded.
-      const activeStudios = new Set<string>();
-      for (const [k, t, m] of origins(s.map.tiles)) {
-        if (t.isActive && m.artistType === "architect") activeStudios.add(k);
-      }
-      const trained = trainOnConstruction(s.artists, activeStudios, totalCost);
+      // The city teaches architects: construction spend feeds the architect
+      // tradition pool (no studio required) — accrued before founding, so the
+      // first studio's own cost banks XP its founder inherits via the floor.
+      const constructionXp = Math.floor(XP_RATES.perFlorinBuilt * totalCost);
+      const disciplineXp =
+        constructionXp > 0
+          ? { ...s.disciplineXp, architect: s.disciplineXp.architect + constructionXp }
+          : s.disciplineXp;
 
       const newTiles = { ...s.map.tiles };
-      const founders: Artist[] = [];
+      let artists = s.artists;
 
       for (const position of positions) {
         const originX = position.x;
         const originY = position.y;
         const originVector: GridPos = { x: originX, y: originY };
 
-        // Workshops open with a founding artist. Guard: demolish + rebuild on the
-        // same origin within one tick leaves the old crew homed there (prune lags
-        // a tick) — don't spawn a second founder into an occupied key.
+        // Workshops open with a founder: the discipline's best bench artist
+        // graduates (rehomed — the .map keeps array order, so "first at key =
+        // founder" holds), else a fresh arrival at the tradition floor. Guard:
+        // demolish + rebuild on the same origin within one tick leaves the old
+        // crew homed there (prune lags a tick) — don't found into an occupied key.
         if (metadata.artistCapacity != null) {
           const key = `${originX},${originY}`;
-          if (!s.artists.some((a) => a.homeTileKey === key)) {
-            founders.push(createArtist(key, metadata.artistType ?? "painter"));
+          if (!artists.some((a) => a.homeTileKey === key)) {
+            const artistType = metadata.artistType ?? "painter";
+            const graduate = pickGraduate(artists, artistType);
+            artists = graduate
+              ? artists.map((a) =>
+                  a === graduate ? { ...a, homeTileKey: key, workProgress: undefined } : a
+                )
+              : [
+                  ...artists,
+                  createArtist(key, artistType, Math.random, xpFloor(disciplineXp, artistType)),
+                ];
           }
         }
 
@@ -398,9 +421,8 @@ const initializer: StateCreator<GameState> = (set, get) => ({
               ),
             }
           : {}),
-        ...(founders.length || trained !== s.artists
-          ? { artists: [...trained, ...founders] }
-          : {}),
+        ...(artists !== s.artists ? { artists } : {}),
+        ...(disciplineXp !== s.disciplineXp ? { disciplineXp } : {}),
         map: {
           ...s.map,
           tiles: newTiles,
@@ -459,6 +481,8 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
+    // v12: city discipline XP pools added (tradition rework) — seeded from
+    // artists' per-type max xp so the floor never promotes anyone at load.
     // v11: baptistery + loggia removed from the game — their tiles, blueprints,
     // and funded-build tokens are stripped; works displayed on them return to
     // storage. The blueprint pipeline stays, with an empty structure roster.
@@ -490,6 +514,9 @@ export const useGameStore = create<GameState>()(
       commissions: s.commissions,
       favor: s.favor,
       materials: s.materials,
+      // Absent on pre-v12 saves hydrates over the initial zeros; the v12
+      // migration seeds real values from artists' xp.
+      disciplineXp: s.disciplineXp,
       // Absent on old saves hydrates to the initial [] — no migration.
       fundedBuilds: s.fundedBuilds,
       // Absent on old saves reads falsy = not yet celebrated — no migration.

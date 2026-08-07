@@ -1,7 +1,7 @@
 import { Paintbrush } from "./gameIcons";
 
 import { useGameStore } from "~/stores/useGameStore";
-import { nextRankXp, RANK_LABEL } from "~/game/art/artists";
+import { nextRankXp, rankForXp, RANK_LABEL } from "~/game/art/artists";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { ARTIST_ICONS } from "./buildingIcons";
 import { useMaterialsRailVisible } from "./MaterialsPanel";
@@ -21,6 +21,8 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
   const artists = useGameStore((s) => s.artists);
   const tiles = useGameStore((s) => s.map.tiles);
   const commissions = useGameStore((s) => s.commissions);
+  const disciplineXp = useGameStore((s) => s.disciplineXp);
+  const traditions = Object.entries(disciplineXp).filter(([, xp]) => xp > 0);
   // Leftmost toggle: its card would land on the materials rail, so step right of it.
   const railVisible = useMaterialsRailVisible();
 
@@ -43,6 +45,22 @@ export function ArtistsPanel({ open, onToggle }: { open: boolean; onToggle: () =
       cardClass={railVisible ? "left-12" : "left-0"}
       className="flex max-h-[60vh] flex-col gap-2.5 overflow-y-auto"
     >
+        {traditions.length > 0 && (
+          <div className="flex flex-col gap-1 border-b border-wood/50 pb-2.5 leading-tight">
+            <span className="font-display text-base font-semibold text-ink">City tradition</span>
+            {traditions.map(([type, pool]) => {
+              const rank = rankForXp(pool);
+              const ceiling = nextRankXp(rank);
+              return (
+                <span key={type} className="text-sm text-ink-faint">
+                  {capitalizeLabel(type)} · {RANK_LABEL[rank]} ·{" "}
+                  {Math.floor(pool).toLocaleString()}
+                  {ceiling != null && ` / ${ceiling.toLocaleString()}`} XP
+                </span>
+              );
+            })}
+          </div>
+        )}
         {workshops.length === 0 && (
           <span className="text-sm text-ink-faint">
             No workshops yet — build a Painter's or Sculptor's Workshop and artists will arrive.

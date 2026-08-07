@@ -11,7 +11,14 @@ import { computeDisplaySummary, displayBoost } from "./art/display.ts";
 import type { TileMap } from "./grid.ts";
 import { addProduction, materialCaps, type MaterialPools } from "./art/materials.ts";
 import { computeCityMetrics, supplierRate } from "./city/metrics.ts";
-import { maybeArriveArtist, progressArtworks, type WorkshopSlot } from "./art/artists.ts";
+import {
+  accrueDisciplineXp,
+  applyXpFloor,
+  maybeArriveArtist,
+  progressArtworks,
+  type DisciplineXp,
+  type WorkshopSlot,
+} from "./art/artists.ts";
 import { applyFavor, maybeOfferCommission, reconcileCommissions } from "./art/commissions.ts";
 import { plazaBoost } from "./city/traffic.ts";
 import type { Artist, Artwork, BuildingMetadata, Commission, Material } from "./types.ts";
@@ -28,6 +35,7 @@ export interface TickSnapshot {
   favor: Record<string, number>;
   materials: MaterialPools;
   fundedBuilds: string[];
+  disciplineXp: DisciplineXp;
   time: { tickCount: number };
   map: { tiles: TileMap };
 }
@@ -43,6 +51,7 @@ export interface TickTransition {
   favor: Record<string, number>;
   materials: MaterialPools;
   fundedBuilds: string[]; // grows when a blueprint commission completes
+  disciplineXp: DisciplineXp; // city tradition pools, fed by this tick's completions
   denounced: string[]; // factions that crossed into affronted this tick
   tickCount: number;
   tiles: TileMap;
@@ -181,7 +190,8 @@ export function advanceTick(
     artists,
     inspiration,
     state.time.tickCount,
-    rng
+    rng,
+    state.disciplineXp
   );
   if (arrival) {
     artists = [...artists, arrival];
@@ -251,6 +261,16 @@ export function advanceTick(
     if (w.requester) moveFavor(w.requester, FAVOR_PER_WORK);
   }
 
+  // Bank completions into the city's tradition pools, then lift everyone to
+  // the floor — unconditionally, since pools can also have grown from a
+  // placement since last tick (construction feeds pool.architect in placeTiles).
+  const disciplineXp = accrueDisciplineXp(state.disciplineXp, work.completed);
+  const floored = applyXpFloor(artists, disciplineXp);
+  if (floored !== artists) {
+    artists = floored;
+    artistsChanged = true;
+  }
+
   return {
     florins: state.florins + Math.round(florinDelta) + work.florins,
     inspiration: state.inspiration + Math.round(inspirationDelta),
@@ -265,6 +285,7 @@ export function advanceTick(
     favor,
     materials: addProduction(state.materials, produced, materialCaps(updatedTiles)),
     fundedBuilds,
+    disciplineXp,
     denounced,
     tickCount: state.time.tickCount + 1,
     tiles: tilesChanged ? updatedTiles : tiles,

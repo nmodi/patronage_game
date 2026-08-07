@@ -5,6 +5,8 @@ import {
   ARTIST_ARRIVAL_CHANCE,
   ARTIST_ARRIVAL_COOLDOWN_MONTHS,
   EXTRA_ARTIST_PACE_BONUS,
+  FLOOR_FRACTION,
+  POOL_PER_PRESTIGE,
   RANK_XP,
   XP_RATES,
 } from "../constants.ts";
@@ -53,34 +55,97 @@ export function pick<T>(items: T[], rng: () => number): T {
   return items[Math.floor(rng() * items.length)]!;
 }
 
-/** Mint a fresh apprentice of the workshop's type, homed at its origin key. */
+/**
+ * Mint a fresh artist of the workshop's type, homed at its origin key.
+ * startXp is the city's tradition floor for arrivals/founders (xpFloor);
+ * rank derives from it, so a deep tradition spawns above apprentice.
+ */
 export function createArtist(
   homeTileKey: string,
   type: ArtistType,
-  rng: () => number = Math.random
+  rng: () => number = Math.random,
+  startXp = 0
 ): Artist {
   return {
     id: crypto.randomUUID(),
     name: pick(NAMES, rng),
     type,
-    rank: "apprentice",
+    rank: rankForXp(startXp),
     homeTileKey,
+    ...(startXp > 0 ? { xp: startXp } : {}),
   };
+}
+
+/**
+ * City discipline XP pools (persisted primary state — the construction
+ * contribution isn't recoverable from tiles). Completions feed their own
+ * discipline; construction spend feeds pool.architect (in placeTiles).
+ */
+export type DisciplineXp = Record<ArtistType, number>;
+
+/** The tradition floor: every artist of a discipline sits at ≥ this xp. */
+export function xpFloor(pools: DisciplineXp, type: ArtistType): number {
+  return FLOOR_FRACTION * pools[type];
+}
+
+/** Bank completed works into their discipline's pool. Identity when none. */
+export function accrueDisciplineXp(pools: DisciplineXp, completed: Artwork[]): DisciplineXp {
+  if (completed.length === 0) return pools;
+  const next = { ...pools };
+  for (const w of completed) {
+    next[w.artistType] += XP_RATES.perCompletedWork + POOL_PER_PRESTIGE * (w.prestige ?? 0);
+  }
+  return next;
+}
+
+/**
+ * Raise every artist to the tradition floor, rank re-derived (never demotes).
+ * Pools only grow, so this is monotonic. Identity when no one moves.
+ */
+export function applyXpFloor(artists: Artist[], pools: DisciplineXp): Artist[] {
+  let changed = false;
+  const next = artists.map((a) => {
+    const floor = xpFloor(pools, a.type);
+    if ((a.xp ?? 0) >= floor) return a;
+    changed = true;
+    return { ...a, ...gainXp(a, floor - (a.xp ?? 0)) };
+  });
+  return changed ? next : artists;
+}
+
+/**
+ * The highest-xp non-founder of a discipline — the bench artist who graduates
+ * to found a newly placed workshop. Founder = first artist at a key; ties
+ * break by array order (strict >). Null when there's no bench.
+ */
+export function pickGraduate(artists: Artist[], type: ArtistType): Artist | null {
+  const founders = new Set<string>();
+  let best: Artist | null = null;
+  for (const a of artists) {
+    if (!founders.has(a.homeTileKey)) {
+      founders.add(a.homeTileKey); // first at key = founder, never graduates
+      continue;
+    }
+    if (a.type !== type) continue;
+    if (!best || (a.xp ?? 0) > (best.xp ?? 0)) best = a;
+  }
+  return best;
 }
 
 /**
  * Passive artist arrival (design doc, Phase 5). Each month, if the city has any
  * inspiration and at least one active workshop with a free slot, there's a
- * chance one apprentice arrives, bound to the first open workshop by key sort
- * (same deterministic tiebreak as allocateWorkers). Returns null when nothing
- * arrives. rng is injectable for the self-test.
+ * chance one artist arrives at the city's tradition floor, bound to the first
+ * open workshop by key sort (same deterministic tiebreak as allocateWorkers).
+ * Returns null when nothing arrives. rng is injectable for the self-test.
  */
 export function maybeArriveArtist(
   workshops: WorkshopSlot[],
   artists: Artist[],
   inspiration: number,
   currentTick: number,
-  rng: () => number = Math.random
+  rng: () => number = Math.random,
+  disciplineXp?: DisciplineXp
 ): Artist | null {
   if (inspiration <= 0) return null;
 
@@ -99,7 +164,8 @@ export function maybeArriveArtist(
   if (open.length === 0) return null;
   if (rng() >= ARTIST_ARRIVAL_CHANCE) return null;
 
-  return createArtist(open[0]!.key, open[0]!.artistType, rng);
+  const type = open[0]!.artistType;
+  return createArtist(open[0]!.key, type, rng, disciplineXp ? xpFloor(disciplineXp, type) : 0);
 }
 
 export const RANK_LABEL: Record<ArtistRank, string> = {
@@ -183,36 +249,17 @@ export function nextRankXp(rank: ArtistRank): number | null {
   return null;
 }
 
+/** The rank a given xp total has earned outright. */
+export function rankForXp(xp: number): ArtistRank {
+  return RANK_XP.find((r) => xp >= r.xp)?.rank ?? "apprentice";
+}
+
 /** xp+amount with rank-up at the RANK_XP thresholds; never demotes. */
 function gainXp(a: Artist, amount: number): Pick<Artist, "xp" | "rank"> {
   const xp = (a.xp ?? 0) + amount;
-  const earned = RANK_XP.find((r) => xp >= r.xp)?.rank;
-  const rank = earned && RANK_ORDER[earned] > RANK_ORDER[a.rank] ? earned : a.rank;
+  const earned = rankForXp(xp);
+  const rank = RANK_ORDER[earned] > RANK_ORDER[a.rank] ? earned : a.rank;
   return { xp, rank };
-}
-
-/**
- * The city teaches architects (design doc, Architects): placing a structure
- * grants every architect homed in an active studio XP scaled by the florins
- * actually spent — a cathedral teaches much, a fence rounds to 0, and a funded
- * (0ƒ) blueprint build teaches nothing (the completion XP already paid).
- * Callers pass pre-placement studio keys so a studio never trains on its own
- * construction. Pure; same array identity when no one gains.
- */
-export function trainOnConstruction(
-  artists: Artist[],
-  activeStudioKeys: ReadonlySet<string>,
-  spentFlorins: number
-): Artist[] {
-  const lump = Math.floor(XP_RATES.perFlorinBuilt * spentFlorins);
-  if (lump <= 0 || activeStudioKeys.size === 0) return artists;
-  let changed = false;
-  const next = artists.map((a) => {
-    if (a.type !== "architect" || !activeStudioKeys.has(a.homeTileKey)) return a;
-    changed = true;
-    return { ...a, ...gainXp(a, lump) };
-  });
-  return changed ? next : artists;
 }
 
 /**
@@ -222,12 +269,16 @@ export function trainOnConstruction(
  * (more artists work faster, with diminishing returns), scaled up to ×1.25
  * by the workshop's plaza-connection strength (Phase 10). The assigned commission
  * sets duration, name, and payout; completion mints an Artwork, pays the
- * commission's florins + prestige, and grants every member 1 xp (each may rank
- * up). Pure; unchanged artists keep object identity.
+ * commission's florins + prestige, and grants every member perCompletedWork xp
+ * (each may rank up) — completions are the only personal XP source; the
+ * discipline pool's floor covers everything else. Pure; unchanged artists keep
+ * object identity.
  */
 // ponytail: work progress rides on the founder artist — 1:1 with the workshop,
-// avoids a new persisted map. Founder = first artist homed at the key; nothing
-// removes a single artist, so array order keeps that stable.
+// avoids a new persisted map. Founder = first artist homed at the key; array
+// order keeps that stable: keys gain members only by sole-founding (placement
+// or graduate rehome — a .map that preserves order and only ever moves
+// non-founders) or by appended arrivals, so "first at key" is always the founder.
 export function progressArtworks(
   artists: Artist[],
   workshops: WorkshopSlot[],
@@ -262,12 +313,9 @@ export function progressArtworks(
   const activeKeys = new Set(workshops.filter((at) => at.isActive).map((at) => at.key));
   const founders = new Map<string, Artist>();
   const counts = new Map<string, number>();
-  const workshopMaxRank = new Map<string, number>(); // for teaching: any workshop-mate, not just the founder
   for (const a of artists) {
     if (!founders.has(a.homeTileKey)) founders.set(a.homeTileKey, a);
     counts.set(a.homeTileKey, (counts.get(a.homeTileKey) ?? 0) + 1);
-    const rank = RANK_ORDER[a.rank];
-    if (rank > (workshopMaxRank.get(a.homeTileKey) ?? -1)) workshopMaxRank.set(a.homeTileKey, rank);
   }
 
   const advancing = new Map<string, number>(); // key → new progress
@@ -306,25 +354,19 @@ export function progressArtworks(
     florins += commission.florins;
   }
 
-  const anyPracticing = artists.some((a) => activeKeys.has(a.homeTileKey));
-  if (advancing.size === 0 && completedKeys.size === 0 && !anyPracticing) return idle;
+  if (advancing.size === 0 && completedKeys.size === 0) return idle;
 
   const next = artists.map((a) => {
     const key = a.homeTileKey;
-    if (!activeKeys.has(key)) return a; // workshop inactive: no practice, no progress
+    if (!activeKeys.has(key)) return a; // workshop inactive: no progress
 
     const completing = completedKeys.has(key);
-    const maxRank = workshopMaxRank.get(key) ?? RANK_ORDER[a.rank];
-    const taught = RANK_ORDER[a.rank] < maxRank;
-    const xpGain =
-      XP_RATES.practicePerMonth * (taught ? XP_RATES.teachingMultiplier : 1) +
-      (completing ? XP_RATES.perCompletedWork : 0);
-
     const isFounder = founders.get(key) === a;
     const progress = advancing.get(key);
+    if (!completing && !(isFounder && progress != null)) return a;
     return {
       ...a,
-      ...gainXp(a, xpGain),
+      ...(completing ? gainXp(a, XP_RATES.perCompletedWork) : {}),
       ...(completing && isFounder ? { workProgress: undefined } : {}),
       ...(!completing && progress != null && isFounder ? { workProgress: progress } : {}),
     };

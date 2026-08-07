@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
 import { XP_RATES } from "./art/artists.ts";
+import { EMPTY_DISCIPLINE_XP, POOL_PER_PRESTIGE } from "./constants.ts";
 import { materialCaps } from "./art/materials.ts";
 import { advanceTick, type TickSnapshot } from "./tick.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
@@ -23,6 +24,7 @@ function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapsh
     favor: {},
     materials: { pigment: 0, marble: 0, bronze: 0, timber: 0, stone: 0 },
     fundedBuilds: [],
+    disciplineXp: { ...EMPTY_DISCIPLINE_XP },
     time: { tickCount: 10 },
     map: { tiles },
     ...extra,
@@ -199,7 +201,12 @@ const noRandomEvent = () => 1;
   assert.equal(out.artworks.length, 1);
   assert.equal(out.artworks[0]?.name, "Fresco");
   assert.equal(out.artists[0]?.workProgress, undefined);
-  assert.ok(Math.abs(out.artists[0]!.xp! - (XP_RATES.perCompletedWork + XP_RATES.practicePerMonth)) < 1e-9);
+  // Completions are the only personal XP; the pool's floor (0.25 × 120 = 30)
+  // stays below it, so the gain is exactly perCompletedWork.
+  assert.equal(out.artists[0]!.xp, XP_RATES.perCompletedWork);
+  // The completion also banks into the city's painter tradition pool.
+  assert.equal(out.disciplineXp.painter, XP_RATES.perCompletedWork + POOL_PER_PRESTIGE * 2);
+  assert.equal(out.disciplineXp.sculptor, 0);
   // Completion honors the requester: +8 favor from the default 50.
   assert.deepEqual(out.favor, { "The Church": 58 });
   assert.deepEqual(out.denounced, []);

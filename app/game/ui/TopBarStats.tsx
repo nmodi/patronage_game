@@ -58,11 +58,11 @@ export function PopulationStat() {
 export function PrestigeStat() {
   const prestige = useGameStore((s) => s.prestige);
   const artworks = useGameStore((s) => s.artworks);
-  const artists = useGameStore((s) => s.artists);
+  const disciplineXp = useGameStore((s) => s.disciplineXp);
   const reached = useGameStore((s) => s.renaissanceReached);
   const progress = useMemo(
-    () => renaissanceProgress(prestige, artists, artworks),
-    [prestige, artists, artworks]
+    () => renaissanceProgress(prestige, disciplineXp, artworks),
+    [prestige, disciplineXp, artworks]
   );
 
   return (
@@ -81,7 +81,7 @@ export function PrestigeStat() {
               met={progress.prestige}
               detail={`${Math.floor(prestige)} / ${RENAISSANCE_PRESTIGE}`}
             />
-            <CheckRow label="A Master among your artists" met={progress.master} />
+            <CheckRow label="A deep artistic tradition" met={progress.master} />
             <CheckRow
               label="A Wonder on display"
               met={progress.wonder != null}

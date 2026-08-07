@@ -17,14 +17,14 @@ export function RenaissanceCard() {
   const reached = useGameStore((s) => s.renaissanceReached);
   const dismiss = useGameStore((s) => s.dismissRenaissance);
   const prestige = useGameStore((s) => s.prestige);
-  const artists = useGameStore((s) => s.artists);
+  const disciplineXp = useGameStore((s) => s.disciplineXp);
   const artworks = useGameStore((s) => s.artworks);
   const cityName = useGameStore((s) => s.cityName);
   const tickCount = useGameStore((s) => s.time.tickCount);
 
   const progress = useMemo(
-    () => renaissanceProgress(prestige, artists, artworks),
-    [prestige, artists, artworks]
+    () => renaissanceProgress(prestige, disciplineXp, artworks),
+    [prestige, disciplineXp, artworks]
   );
   const visible = !reached && progress.all;
   useEffect(() => {

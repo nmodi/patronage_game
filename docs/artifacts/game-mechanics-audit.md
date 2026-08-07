@@ -13,7 +13,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Monthly tick** | One tick = one game month. Fixed pipeline each tick: gather staffable buildings → allocate workers → activate tiles → plaza connectivity → display summary → city metrics + population drift → occupancy rent → diminishing returns → generation (florins/inspiration + material production) → artist arrival → commission reconcile/offer → artwork progress → funded-build collection → material pools clamp-add. Returns a `TickTransition`, preserving object identity for unchanged arrays. | `app/game/tick.ts` → `advanceTick()` |
+| **Monthly tick** | One tick = one game month. Fixed pipeline each tick: gather staffable buildings → allocate workers → activate tiles → plaza connectivity → display summary → city metrics + population drift → occupancy rent → diminishing returns → generation (florins/inspiration + material production) → artist arrival → commission reconcile/offer → artwork progress → tradition-pool accrual + XP floor → funded-build collection → material pools clamp-add. Returns a `TickTransition`, preserving object identity for unchanged arrays. | `app/game/tick.ts` → `advanceTick()` |
 | **Clock / speed** | `BASE_TICK_INTERVAL = 1500`ms real time per tick; speed multipliers `[1, 2, 3]`. | `constants.ts`; store `tick()` in `app/stores/useGameStore.ts` |
 | **Calendar** | Month = `MONTH_NAMES[tick % 12]`, year = `1400 + floor(tick / 12)` → "May 1482". | `useGameStore.ts` → `formatMonth` |
 
@@ -80,13 +80,14 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Starting economy** | `STARTING_FLORINS = 3000`; inspiration/prestige/population start at 0. | `constants.ts`; `useGameStore.ts` |
 | **Consecration lump** | Cathedral pays a one-time `prestigeOnBuild = 25` on placement. | `useGameStore.ts` → `placeTiles()` |
 
-## 9. Artists, XP & teaching
+## 9. Artists, XP & city tradition
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Passive arrival** | Each month, if inspiration > 0 and an active workshop has a free slot past its cooldown, chance `ARTIST_ARRIVAL_CHANCE = 0.1` an apprentice arrives (cooldown `ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2`). | `app/game/art/artists.ts` → `maybeArriveArtist()` |
-| **Continuous XP / teaching** | Every artist in an active workshop gains `practicePerMonth(2)·(taught ? teachingMultiplier(3) : 1)` XP/month; "taught" = ranked below a workshop-mate. Completing a work = `perCompletedWork(100)` for every member. | `artists.ts` → `progressArtworks()` XP block; `XP_RATES` in `constants.ts` |
-| **The city teaches architects** | Fourth XP source (architects slice 1): every placement grants architects in an active studio `perFlorinBuilt (0.05) × florins actually spent` (cathedral = 75 XP; fences floor to 0; funded 0ƒ builds teach 0). Computed against pre-placement state, so a studio never trains on its own construction. | `artists.ts` → `trainOnConstruction()`; called from `placeTiles()` |
+| **Passive arrival** | Each month, if inspiration > 0 and an active workshop has a free slot past its cooldown, chance `ARTIST_ARRIVAL_CHANCE = 0.04` an artist arrives **at the tradition floor** (cooldown `ARTIST_ARRIVAL_COOLDOWN_MONTHS = 2`). | `app/game/art/artists.ts` → `maybeArriveArtist()` |
+| **City tradition pools** | Persisted `disciplineXp` per discipline (save v12 seeds from artists' per-type max xp). Completions bank `perCompletedWork(100) + POOL_PER_PRESTIGE(10)·prestige`; each tick every artist is lifted to `FLOOR_FRACTION(0.25)·pool` (rank re-derived, never demotes; pools only grow). Personal XP beyond the floor = completions only (`perCompletedWork` per member). | `artists.ts` → `accrueDisciplineXp()`, `applyXpFloor()`, `xpFloor()`; wired in `tick.ts` |
+| **Workshop founding / graduation** | A new workshop is founded by the discipline's highest-xp non-founder (rehomed; founder = first artist at a key survives, since rehoming preserves array order and only moves non-founders), else a fresh floor-level arrival. Occupied-key guard unchanged. | `artists.ts` → `pickGraduate()`; store `placeTiles()` |
+| **The city teaches architects** | Every placement banks `perFlorinBuilt (0.05) × florins actually spent` into `disciplineXp.architect` — no studio required (cathedral = 75; fences floor to 0; funded 0ƒ builds bank 0). Accrued before founding, so a first studio's own cost reaches its founder via the floor. Excluded from the Renaissance tradition gate. | store `placeTiles()` |
 | **Rank thresholds** | Seven ranks by cumulative XP (never demotes): journeyman 400 / artisan 900 / virtuoso 1500 / master 2200 / renowned_master 3000 / grand_master 4000. One work = 100 XP. | `constants.ts` `RANK_XP`; `artists.ts` `nextRankXp()`, `RANK_ORDER` |
 | **Work durations by rank** | apprentice 6 → grand_master 3 months. | `constants.ts` `WORK_DURATION_MONTHS` |
 | **Artwork prestige by rank** | apprentice 1 → grand_master 10 (before requester skew). | `constants.ts` `ARTWORK_PRESTIGE` |
@@ -103,7 +104,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Assignment guard** | Assign only if offer open, founder exists + type matches + idle, host is an active matching workshop, and the city stock covers `materialCost` (4th param `available`). The store deducts the pool on success. | `commissions.ts` → `canAssignCommission()`; store `assignCommission()` |
 | **Blueprint commissions** | Every architect-type offer is a building commission drawn from `BUILDING_COMMISSIONS` at the title draw (same single rng call — painter/sculptor draw order untouched), one shared list for every requester — currently **empty** (Baptistery and Loggia removed Aug 2026; while empty, architects get no offers via an early-out after the type draw). No `materialCost` at assign (design work is free); completion mints a normal Artwork **plus** a funded-build token. The structure is `commissionOnly: true` — "Funded" badge in the Civic palette, placeable once per token at 0ƒ + its `buildCost` materials, salvage 0, no refund on raze-reopen. `SLOT_KINDS_BY_ARTIST.architect = []` keeps designs undisplayable. | `commissions.ts` → `BUILDING_COMMISSIONS`, `Commission.building`; `tick.ts` `fundedBuilds`; `placementRules.ts` |
 | **Reconciliation** | Each tick: commissions whose workshop vanished revert to open offers with fresh expiry; offers past expiry are dropped. | `commissions.ts` → `reconcileCommissions()`, `reopenCommission()` |
-| **Completion payout** | Mints a named `Artwork` (captures title, requester, prestige, material), pays florins + prestige, clears `workProgress`, grants all members 100 XP. A completed blueprint additionally appends its building id to persisted `fundedBuilds`. | `artists.ts` → `progressArtworks()`; `tick.ts` |
+| **Completion payout** | Mints a named `Artwork` (captures title, requester, prestige, material), pays florins + prestige, clears `workProgress`, grants all members 100 XP, and banks `100 + 10·prestige` into the discipline's tradition pool. A completed blueprint additionally appends its building id to persisted `fundedBuilds`. | `artists.ts` → `progressArtworks()`; `tick.ts` |
 
 ## 10a. Faction favor (factions slice 1)
 
@@ -128,7 +129,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Four/five derived gates** | Derived live, no tracking: prestige ≥ `RENAISSANCE_PRESTIGE(500)`; a Master-rank+ artist; a displayed Wonder (quality ≥ `WONDER_PRESTIGE(15)`); a completed work for The Church; and ≥ `RENAISSANCE_NOBLE_HOUSES(2)` distinct "House …" requesters with completed works. | `app/game/art/renaissance.ts` → `renaissanceProgress()` |
+| **Four/five derived gates** | Derived live, no gate tracking: prestige ≥ `RENAISSANCE_PRESTIGE(500)`; a completions-fed tradition pool (painter or sculptor — never the construction-fed architect pool) ≥ `RENAISSANCE_TRADITION_XP(6000)`; a displayed Wonder (quality ≥ `WONDER_PRESTIGE(15)`); a completed work for The Church; and ≥ `RENAISSANCE_NOBLE_HOUSES(2)` distinct "House …" requesters with completed works. | `app/game/art/renaissance.ts` → `renaissanceProgress()` |
 | **Celebration** | One-shot `renaissanceReached` flag → title card once; the checklist rides the prestige chip's hover tooltip all game. Play continues (Golden Age). | store `useGameStore.ts`; `ui/RenaissanceCard.tsx`; `ui/TopBar.tsx` `PrestigeStat` |
 
 ## 13. Buildings — catalog & placement geometry
@@ -237,8 +238,8 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 *Restructured July 2026: the phase history and backlog moved out — the doc now holds only current-system design; [roadmap.md](../roadmap.md) holds what's ahead.*
 
 **Built (everything the doc documents as a system):**
-- All numbered phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, commissions, work display, plaza connectivity, artist training/teaching, Renaissance milestone. (Phase 7's supplier capacity gating was superseded by the material stockpile rework — §3.)
-- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches XP, blueprint-commission pipeline; its two launch structures — Baptistery and Loggia — were removed Aug 2026, leaving the roster empty), sporadic era-based music + interaction SFX + crowd ambience (§20).
+- All numbered phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, commissions, work display, plaza connectivity, city tradition pools (replaced artist training/teaching, Aug 2026), Renaissance milestone. (Phase 7's supplier capacity gating was superseded by the material stockpile rework — §3.)
+- Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches pool XP, blueprint-commission pipeline; its two launch structures — Baptistery and Loggia — were removed Aug 2026, leaving the roster empty), sporadic era-based music + interaction SFX + crowd ambience (§20).
 - Graphics G1–G4 + generated kit pieces + category-identity pass; G5 mostly: river + bridge, decorative citizens, obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu.
 
 **Cut (July 2026):** neighborhood zoning (individual placement is the permanent model); the diagonal row-house-blending follow-up (closed by construction — houses fill their footprint).
