@@ -8,19 +8,38 @@ grows one title at a time with no system changes and no save migration
 
 System design: design doc → Commissions & Works → "Real artwork assets".
 Statue source shortlist: [../artifacts/statue-scan-catalog.md](../artifacts/statue-scan-catalog.md).
+Painting source shortlist: [../artifacts/painting-source-catalog.md](../artifacts/painting-source-catalog.md).
 
 ## Paintings (pixelated public-domain masters)
 
-1. **Pick a work.** Pre-1600 paintings are public domain, and faithful photos
-   of 2D PD art carry no new copyright (Bridgeman v. Corel) — Wikimedia
-   Commons PD-Art files are safe to ship. Prefer works that plausibly match
-   an existing title pool entry (`TITLES` / `CHURCH_TITLES` in
-   `app/game/art/artists.ts`). For panels wider than ~2:1, use an official
-   detail-crop file or plan a `focal_x` (the Leonardo Annunciation uses 0.82
-   to land on Mary — a center crop hits empty background).
+Painting titles ARE the works, same as the sculptures: both painter pools name
+real paintings and `ART_IMAGES` covers every one, so adding a painting means
+adding a title *and* its source in the same change (`artists.check.ts` fails
+on either half alone, and on any title that repeats across pools — the title
+is the asset key).
+
+1. **Pick a work** from [../artifacts/painting-source-catalog.md](../artifacts/painting-source-catalog.md)
+   (60 works, verified against the Commons API Aug 2026). Pre-1600 paintings
+   are public domain, and faithful photos of 2D PD art carry no new copyright
+   (Bridgeman v. Corel) — Commons PD-Art files are safe to ship. **Aspect
+   ratio picks the source, not fame**: the crop is 4:5, so 0.70–0.95 ships for
+   free, past ~1.2 needs a `focal_x`, and below 0.65 the vertical-center crop
+   can land between the two things worth seeing (there is no `focal_y`). Three
+   kinds of file waste a build: **wide frescoes** (the Last Supper at 4:5 is
+   four apostles — the composition is the point and the crop destroys it),
+   **tondi** (a circular panel crops to a rectangle of middle, and a
+   white-background tondo file keeps white corners that read as a bug —
+   the Fra Angelico Adoration was swapped for Botticelli's rectangular Zanobi
+   altar for exactly this), and **greyscale study photos**, which museum
+   uploads are full of and the file name never admits (every MET file of the
+   Petrus Christus *Goldsmith* is B&W except `DT711`; the tell before you look
+   is a PNG 2–3× the ~2 KB norm, because noise defeats the quantizer).
 2. **Add to `SOURCES`** in `scripts/make-pixel-art.py`: slug → (960px
-   Wikimedia thumb URL, focal_x). Get the URL from the Commons API
-   (`action=query&titles=File:...&prop=imageinfo&iiprop=url&iiurlwidth=960`).
+   Wikimedia thumb URL, focal_x). Get the URL from the Commons API — never
+   hand-assemble it, the `/a/ab/` hash prefix is not guessable and a guess
+   404s: `action=query&titles=File:...&prop=imageinfo&iiprop=url&iiurlwidth=960`
+   (batch with `|`). A file narrower than 960px serves the original instead,
+   under `/commons/` rather than `/commons/thumb/`.
 3. **Run** (needs `pip install Pillow`):
 
    ```sh
@@ -28,11 +47,19 @@ Statue source shortlist: [../artifacts/statue-scan-catalog.md](../artifacts/stat
    ```
 
    Idempotent — re-downloads every source, writes 48×60 16-color PNGs
-   (~2 KB) to `public/art/`. Eyeball the output at 4× nearest-neighbor; if a
-   wide panel reads as mush, tune its `focal_x`.
-4. **Wire**: add the title → `/art/<slug>.png` entry to `ART_IMAGES`. That's
-   the whole integration — thumbnails and the in-world easel canvas both read
-   the map.
+   (~2 KB) to `public/art/`.
+4. **Contact-sheet every build.** Paste all of `public/art/` into one grid at
+   4× nearest-neighbor (Pillow, `Image.NEAREST`) and look at it — this is what
+   caught the greyscale Goldsmith, the white-cornered tondo, and Uccello's
+   *Battle of San Romano*, which at 48×60 is an unreadable brown mass of
+   lances at every `focal_x` and got benched for Botticelli's *Pallas and the
+   Centaur*. Reject-and-replace is normal: budget for it the way the statue
+   pipeline does. Test a candidate before wiring it by importing the script
+   and calling `pixelate()` on the downloaded source.
+5. **Wire**: add the title → `/art/<slug>.png` entry to `ART_IMAGES` *and*
+   the title to the right pool in `artists.ts` (secular or church — the split
+   is who asks). Thumbnails and the in-world easel canvas both read the map;
+   `npm test` asserts the pools and the map agree in both directions.
 
 ## Statues (low-poly scans)
 

@@ -190,11 +190,21 @@ export const RANK_ORDER: Record<ArtistRank, number> = {
 
 // ponytail: fixed pool, duplicate titles tolerated — same deal as NAMES.
 export const TITLES: Record<ArtistType, string[]> = {
+  // Painting titles are real works too, each backed by a pixelated PD-Art
+  // source (ART_IMAGES in artImages.ts) — same rule as the sculptures below.
   painter: [
-    "Madonna of the Lilies",
-    "The Annunciation",
-    "Portrait of a Young Merchant",
     "Allegory of Spring",
+    "The Birth of Venus",
+    "Lady with an Ermine",
+    "Mona Lisa",
+    "Portrait of a Man with a Medal",
+    "An Old Man and His Grandson",
+    "Portrait of Baldassare Castiglione",
+    "The School of Athens",
+    "The Tempest",
+    "Pallas and the Centaur",
+    "A Goldsmith in His Shop",
+    "The Moneylender and His Wife",
   ],
   // Sculpture titles are real works, each backed by a scan (STATUE_MODELS in
   // artImages.ts) — antiquities here, the kind a patron collected all'antica.
@@ -221,10 +231,18 @@ export const TITLES: Record<ArtistType, string[]> = {
 // Church commissions draw devotional titles instead of TITLES (factions slice 1).
 export const CHURCH_TITLES: Record<ArtistType, string[]> = {
   painter: [
-    "Fresco of the Last Judgment",
-    "Altarpiece of the Virgin",
+    "The Annunciation",
     "The Adoration of the Magi",
     "Saint Jerome in His Study",
+    "The Last Judgment",
+    "The Madonna of the Goldfinch",
+    "The Sistine Madonna",
+    "The Lamentation of Christ",
+    "The Baptism of Christ",
+    "The Mystical Nativity",
+    "The Annunciation with Saint Emidius",
+    "The Expulsion from the Garden of Eden",
+    "The Montefeltro Altarpiece",
   ],
   sculptor: [
     "The Transi of René de Chalon",

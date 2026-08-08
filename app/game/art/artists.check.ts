@@ -4,7 +4,7 @@ import assert from "node:assert";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import { STATUE_MODELS } from "./artImages.ts";
+import { ART_IMAGES, STATUE_MODELS } from "./artImages.ts";
 import { CHURCH_TITLES, TITLES } from "./artists.ts";
 import {
   accrueDisciplineXp,
@@ -411,6 +411,27 @@ const pools = (extra: Partial<DisciplineXp> = {}): DisciplineXp => ({
   for (const title of Object.keys(STATUE_MODELS)) {
     assert.ok(titles.includes(title), `STATUE_MODELS maps a retired title: "${title}"`);
   }
+}
+
+// Same for paintings: every painter title is a real work with a pixel-art
+// source on disk (scripts/make-pixel-art.py), and no orphaned entries.
+{
+  const titles = [...TITLES.painter, ...CHURCH_TITLES.painter];
+  for (const title of titles) {
+    const url = ART_IMAGES[title];
+    assert.ok(url, `no painting source mapped for "${title}"`);
+    assert.ok(existsSync(join("public", url!)), `missing ${url} for "${title}"`);
+  }
+  for (const title of Object.keys(ART_IMAGES)) {
+    assert.ok(titles.includes(title), `ART_IMAGES maps a retired title: "${title}"`);
+  }
+}
+
+// Titles are the asset key, so a title may never repeat across the pools —
+// a collision would silently give two works one image.
+{
+  const all = Object.values(TITLES).flat().concat(Object.values(CHURCH_TITLES).flat());
+  assert.equal(new Set(all).size, all.length, "duplicate title across the pools");
 }
 
 console.log("artists.check: all assertions passed");

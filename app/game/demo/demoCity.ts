@@ -35,11 +35,11 @@ export function seedDemoCity() {
     const carve = sculptor.id;
     const artworks: Artwork[] = [
         // — Painter works, on facade easels (church hosts trickle prestige) —
-        { id: "demo-art-1", name: "Madonna of the Lilies", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 14, prestige: 8, displayedAt: { key: "18,34", slot: 0 } },
+        { id: "demo-art-1", name: "The Mystical Nativity", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 14, prestige: 8, displayedAt: { key: "18,34", slot: 0 } },
         { id: "demo-art-4", name: "The Annunciation", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 33, prestige: 7, displayedAt: { key: "18,34", slot: 1 } },
-        { id: "demo-art-5", name: "Saint Sebastian", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 61, prestige: 6, displayedAt: { key: "14,56", slot: 0 } },
-        { id: "demo-art-6", name: "Portrait of a Lady", requester: "House Medici", artistId: paint, artistType: "painter", completedTick: 47, prestige: 9, displayedAt: { key: "35,48", slot: 0 } },
-        { id: "demo-art-7", name: "A Village Kermis", requester: "The Guilds", artistId: paint, artistType: "painter", completedTick: 55, prestige: 4, displayedAt: { key: "46,48", slot: 0 } },
+        { id: "demo-art-5", name: "Saint Jerome in His Study", requester: "The Church", artistId: paint, artistType: "painter", completedTick: 61, prestige: 6, displayedAt: { key: "14,56", slot: 0 } },
+        { id: "demo-art-6", name: "Portrait of a Man with a Medal", requester: "House Medici", artistId: paint, artistType: "painter", completedTick: 47, prestige: 9, displayedAt: { key: "35,48", slot: 0 } },
+        { id: "demo-art-7", name: "A Goldsmith in His Shop", requester: "The Guilds", artistId: paint, artistType: "painter", completedTick: 55, prestige: 4, displayedAt: { key: "46,48", slot: 0 } },
         // — Sculptor works, on plinths (plazas + garden pedestals) —
         { id: "demo-art-3", name: "Cincinnatus", requester: "House Medici", artistId: carve, artistType: "sculptor", completedTick: 51, prestige: 12, displayedAt: { key: "34,34", slot: 0 } },
         { id: "demo-art-8", name: "Saint Hugh", requester: "House Strozzi", artistId: carve, artistType: "sculptor", completedTick: 40, prestige: 9, displayedAt: { key: "12,48", slot: 0 } },
