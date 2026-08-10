@@ -61,3 +61,28 @@ Ranked after the July 2026 cuts (neighborhood zoning was cut outright; the diago
 - Distinct model for the architect studio placeholder (workshop hall minus dormer + drafting yard)
 - Graphics stretch leftovers: boats, banners
 - Campaign scenarios
+
+---
+
+## Stretch ideas — showcase track
+
+*Career-facing, not game-facing: each of these exists to generate a resume line, an interview story, or domain learning for a target industry. An idea belongs here only if the game's needs and the domain's hard problems genuinely overlap. Separate from the tiers above — none of these block game work.*
+
+**Resume-signal features (domain-neutral):**
+
+1. **Deterministic replay + golden-master tests** — record seed + player decision log; replay must reproduce the city bit-for-bit. Proves the "deterministic, testable simulation core" resume claim instead of asserting it; gives golden-master regression tests in CI (replay a log, assert end-state hash) and an interview story about rng-draw-order discipline. Highest signal per unit of work, and genuinely useful for catching sim regressions.
+2. **Shareable cities (tiny backend)** — "Share my city" → POST save blob to a one-endpoint service, get a short read-only URL. The one feature that honestly earns "full-stack" for this project (~a day: one endpoint + object storage). Skip accounts/leaderboards/multiplayer — months of work, zero extra hiring signal.
+3. **Performance story with numbers** — in-game perf overlay (draw calls, tick ms, FPS at N buildings) + turn [performance-backlog.md](performance-backlog.md) into a before/after writeup ("1,000-building city: X draw calls → Y, tick under Z ms"). Measurement + prose, not new engineering.
+4. **Skip: LLM-generated content** (patron letters, flavor text) — Basketpal already carries the LLM-pipeline signal; duplicating it adds nothing and forces an API-key dependency into a self-contained game.
+
+**Mapping-industry track** (Mapbox, Esri, Felt, Overture, TomTom — ranked by how directly each maps to what these companies hire for):
+
+1. **Real-world map import — "build Renaissance Florence on real Florence"** — ingest an OSM extract, project it, snap streets/rivers/coastline to the grid, generate a playable map. Teaches the core skill set (OSM's messy schema, coordinate projections, geometry cleaning, Douglas-Peucker simplification to snap real streets to tiles) and doubles as the best viral feature ("play your hometown"). Biggest lift on this list; every hour is domain learning.
+2. **Isochrone overlay** — the 0-1 BFS from plazas already exists; render it as travel-time contour bands. Isochrones are a literal Mapbox API product, and it's a genuinely useful overlay for placing the next plaza. Days, not weeks. Fits design constraints: derived visualization, not citizen pathfinding.
+3. **Automatic label placement** — player-named districts/buildings rendered with collision avoidance, priority, zoom-dependent culling. A classic hard cartography problem and instant peer conversation in rendering-team interviews.
+4. **Antique-map export** — render the city as a period engraved map (cf. the 1584 Buonsignori map of Florence): stylized building glyphs, coastline generalization, labels, a cartouche. Combines labeling + generalization + stylized rendering; the output is a shareable portfolio artifact that fits the game's aesthetic.
+5. **GeoJSON export + spatial indexing** — export buildings as polygons / roads as linestrings so the city opens in QGIS/Felt/geojson.io (an afternoon); quadtree for picking/spatial queries. Real vocabulary, low wow-factor — warmups inside a bigger item, not headliners.
+
+Sequencing: 2 → 3 → 4 compound (isochrones teach the overlay plumbing, labels feed the antique map); 1 stands alone as the deep end. If mapping is a real target: start with 2 as the cheap win, commit to 1 as the centerpiece.
+
+**Other-industry tracks (same pattern, undeveloped):** game studios/graphics → WebGPU renderer port; simulation/robotics → headless sim + benchmark harness; data platforms → the replay/event-log system framed as event sourcing. Decide the target industry first — each track is weeks, and the domain match is what makes the time pay twice.
