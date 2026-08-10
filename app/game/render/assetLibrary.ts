@@ -610,11 +610,13 @@ export function createBuildingBatcher(
     rotation: number | undefined,
     extend: { negX: boolean; posX: boolean } | undefined,
     active: boolean,
-    segmentMask?: SegmentMask
+    segmentMask?: SegmentMask,
+    worldY = 0 // terrace base height — placement rules keep footprints on one level
   ): PlacedBuilding | null {
     const model = instantiateBuilding(buildingId, footprint, gridPos, scene, rotation, extend, segmentMask);
     if (!model) return null;
     model.root.position.x = worldX + model.offsetX;
+    model.root.position.y += worldY;
     model.root.position.z = worldZ + model.offsetZ;
     model.root.computeWorldMatrix(true);
 

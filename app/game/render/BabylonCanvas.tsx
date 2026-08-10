@@ -5,6 +5,7 @@ import type { BuildingId } from "~/game/buildings";
 import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
 import { setAmbienceLocal, setAmbienceRadius } from "~/game/ui/useAmbience";
 import { getWater } from "~/game/map/water";
+import { getElevation } from "~/game/map/elevation";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
   countModelFiles,
@@ -73,7 +74,12 @@ export function BabylonCanvas() {
       const water = wetWater();
       // Raw mapSeed, not wetWater(): dry-archetype maps still get seeded hills
       // and scatter; only pre-water saves and ?demo (null) keep the classic look.
-      terrain = createTerrain(scene, water, useGameStore.getState().mapSeed);
+      terrain = createTerrain(
+        scene,
+        water,
+        useGameStore.getState().mapSeed,
+        getElevation(useGameStore.getState().elevationSeed)
+      );
       if (water) waterVisuals = createWaterVisuals(scene, water, terrain.surfaceAt);
       maybeScatter();
     }

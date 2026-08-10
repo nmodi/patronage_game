@@ -1,12 +1,15 @@
 import { Color3 } from "@babylonjs/core/Maths/math.color";
 import { StandardMaterial } from "@babylonjs/core/Materials/standardMaterial";
+import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
+import { VertexData } from "@babylonjs/core/Meshes/mesh.vertexData";
 import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { mulberry32, positionToneIndex, seededRng, smoothstep01 } from "~/game/random";
 import type { WaterBody } from "~/game/map/water";
+import { getElevation, groundHeight, LEVEL_HEIGHT, type Elevation } from "~/game/map/elevation";
 
 const TERRAIN_SIZE = 320;
 // Raised from 110 when the water layer landed: the river carve needs vertices
@@ -81,6 +84,92 @@ const FIELD_TONES = ["#c4a45e", "#ad9a55", "#b98e58", "#a3ac60"].map(Color3.From
 // Shoreline sand and underwater bed for faces near/inside the carve.
 const SHORE_TONE = Color3.FromHexString("#b89d68");
 const BED_TONE = Color3.FromHexString("#6b6a4e");
+// Terrace cliff faces: exposed tufo, two tones so long walls don't read flat.
+const CLIFF_TONES = ["#a08a63", "#94805d"].map(Color3.FromHexString);
+
+// Terrace surfaces sit this far under the object base plane (groundHeight),
+// the same relationship the flat plain's -0.01 has to y=0 — aprons (base
+// +0.005) and roads (+0.01) clear it, and the rim stays above the big
+// terrain's continuation just outside the grid.
+const TERRACE_DROP = 0.008;
+
+/** Overlay mesh for in-grid terraces: a flat quad per raised cell plus cliff
+ * walls at every level step. Per-quad uniform colors keep the low-poly read;
+ * grass tones quantize to 2-wu blocks so the mottle matches the big terrain's
+ * facet scale instead of turning to per-cell noise. */
+function createTerraceOverlay(scene: Scene, elevation: Elevation): Mesh | null {
+  if (!elevation.hilly) return null;
+  const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
+  const positions: number[] = [];
+  const normals: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  type P = [number, number, number];
+  // Perimeter-ordered quad, winding resolved against the outward normal (the
+  // bridge-arch recipe) so no face comes out inverted.
+  const quad = (pts: P[], n: P, color: Color3) => {
+    const base = positions.length / 3;
+    for (const p of pts) {
+      positions.push(...p);
+      normals.push(...n);
+      colors.push(color.r, color.g, color.b, 1);
+    }
+    const [p0, p1, p2] = pts;
+    const ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+    const bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+    const cross =
+      (ay * bz - az * by) * n[0] + (az * bx - ax * bz) * n[1] + (ax * by - ay * bx) * n[2];
+    if (cross > 0) indices.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    else indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  };
+
+  const topY = (level: number) => level * LEVEL_HEIGHT - TERRACE_DROP;
+  for (let gy = 0; gy < GRID_SIZE; gy += 1) {
+    for (let gx = 0; gx < GRID_SIZE; gx += 1) {
+      const level = elevation.levelAt(gx, gy);
+      if (level === 0) continue;
+      const x0 = gx * CELL_SIZE - halfGrid;
+      const z0 = gy * CELL_SIZE - halfGrid;
+      const x1 = x0 + CELL_SIZE;
+      const z1 = z0 + CELL_SIZE;
+      const y = topY(level);
+      const cx = (x0 + x1) / 2;
+      const cz = (z0 + z1) / 2;
+      const grass =
+        GRASS_TONES[
+          positionToneIndex(Math.floor(cx / 2) * 2, Math.floor(cz / 2) * 2, GRASS_TONES.length)
+        ];
+      quad([[x0, y, z0], [x1, y, z0], [x1, y, z1], [x0, y, z1]], [0, 1, 0], grass);
+
+      // Cliff walls toward lower orthogonal neighbors (grid-edge cells skip:
+      // the big terrain continues the rim height outside). Bottoms tuck 0.05
+      // under the neighbor's surface so no seam shows.
+      const cliff = CLIFF_TONES[positionToneIndex(cx, cz, CLIFF_TONES.length)];
+      const wall = (nx: number, ny: number, pts: (b: number) => P[], n: P) => {
+        if (nx < 0 || ny < 0 || nx >= GRID_SIZE || ny >= GRID_SIZE) return;
+        const neighbor = elevation.levelAt(nx, ny);
+        if (neighbor < level) quad(pts(topY(neighbor) - 0.05), n, cliff);
+      };
+      wall(gx + 1, gy, (b) => [[x1, b, z0], [x1, b, z1], [x1, y, z1], [x1, y, z0]], [1, 0, 0]);
+      wall(gx - 1, gy, (b) => [[x0, b, z0], [x0, b, z1], [x0, y, z1], [x0, y, z0]], [-1, 0, 0]);
+      wall(gx, gy + 1, (b) => [[x0, b, z1], [x1, b, z1], [x1, y, z1], [x0, y, z1]], [0, 0, 1]);
+      wall(gx, gy - 1, (b) => [[x0, b, z0], [x1, b, z0], [x1, y, z0], [x0, y, z0]], [0, 0, -1]);
+    }
+  }
+  if (indices.length === 0) return null;
+
+  const mesh = new Mesh("terrace-overlay", scene);
+  const data = new VertexData();
+  data.positions = positions;
+  data.normals = normals;
+  data.colors = colors;
+  data.indices = indices;
+  data.applyToMesh(mesh);
+  mesh.receiveShadows = true;
+  mesh.isPickable = false;
+  mesh.freezeWorldMatrix();
+  return mesh;
+}
 
 type FieldPatch = { x: number; z: number; w: number; d: number; color: Color3 };
 
@@ -103,21 +192,34 @@ function makeFieldPatches(rand: () => number): FieldPatch[] {
 export function createTerrain(
   scene: Scene,
   water: WaterBody | null = null,
-  mapSeed: string | null = null
+  mapSeed: string | null = null,
+  elevation: Elevation = getElevation(null)
 ) {
-  const heightAt = makeHeightAt(water, makeHillHeight(mapSeed));
+  const baseHeightAt = makeHeightAt(water, makeHillHeight(mapSeed));
+  // In-grid terraces render as a separate overlay mesh (sharp per-cell cliffs
+  // the 2-wu lattice can't hold); the big terrain stays the flat plain under
+  // them. Beyond the grid the plain continues each rim cell's terrace height,
+  // so a plateau touching the edge flows into the countryside instead of
+  // dropping off — hills and the water carve add on top as before.
+  const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
+  const terraceBeyond = (x: number, z: number) =>
+    Math.max(Math.abs(x), Math.abs(z)) < halfGrid ? 0 : groundHeight(elevation, x, z);
+  const heightAt = (x: number, z: number) => baseHeightAt(x, z) + terraceBeyond(x, z);
   // Vertex displacement takes the min over a small neighborhood near water
-  // (see CARVE_DILATION) — identical to heightAt away from the channel.
-  const displacedAt = !water
-    ? heightAt
+  // (see CARVE_DILATION) — identical to heightAt away from the channel. The
+  // terrace continuation adds after the dilation so a tall rim cell can't
+  // read as "land to carve toward".
+  const baseDisplacedAt = !water
+    ? baseHeightAt
     : (x: number, z: number) =>
         Math.min(
-          heightAt(x, z),
-          heightAt(x + CARVE_DILATION, z),
-          heightAt(x - CARVE_DILATION, z),
-          heightAt(x, z + CARVE_DILATION),
-          heightAt(x, z - CARVE_DILATION)
+          baseHeightAt(x, z),
+          baseHeightAt(x + CARVE_DILATION, z),
+          baseHeightAt(x - CARVE_DILATION, z),
+          baseHeightAt(x, z + CARVE_DILATION),
+          baseHeightAt(x, z - CARVE_DILATION)
         );
+  const displacedAt = (x: number, z: number) => baseDisplacedAt(x, z) + terraceBeyond(x, z);
 
   const mesh = MeshBuilder.CreateGround(
     "terrain",
@@ -207,6 +309,9 @@ export function createTerrain(
   mesh.receiveShadows = true;
   mesh.isPickable = false;
   mesh.freezeWorldMatrix();
+
+  const terraces = createTerraceOverlay(scene, elevation);
+  if (terraces) terraces.material = material;
 
   return {
     mesh,

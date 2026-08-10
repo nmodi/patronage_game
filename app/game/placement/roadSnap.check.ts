@@ -11,6 +11,7 @@ const snapshot = (tiles: TileMap): PlacementSnapshot => ({
   florins: 10_000,
   materials: { pigment: 0, marble: 0, bronze: 0, timber: 100, stone: 100 },
   mapSeed: null,
+  elevationSeed: null,
   map: { tiles },
 });
 

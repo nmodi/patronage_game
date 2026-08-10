@@ -16,7 +16,9 @@ import {
 } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
 import { plinthSlotAt } from "~/game/art/display";
+import { getElevation, LEVEL_HEIGHT, MAX_LEVEL } from "~/game/map/elevation";
 import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game/grid";
+import { cellGroundY, worldGroundY } from "./groundLevel";
 import { canPlaceAt, planLinearPlacement } from "~/game/placement/placementRules";
 import { getRazeImpact } from "~/game/placement/raze";
 import { findRoadSnap } from "~/game/placement/roadSnap";
@@ -36,16 +38,27 @@ import {
   usesQuarterRotation,
 } from "./modelManifest";
 
-const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
+// One picking plane per terrace level; index = level (0 is the classic ground
+// plane). Tested top-down so a plateau's surface wins over the plain behind it.
+const LEVEL_PLANES = Array.from({ length: MAX_LEVEL + 1 }, (_, level) =>
+  Plane.FromPositionAndNormal(new Vector3(0, level * LEVEL_HEIGHT, 0), Vector3.Up())
+);
 
 function pickGroundPoint(scene: Scene): { x: number; z: number } | null {
   if (!scene.activeCamera) return null;
   const ray = scene.createPickingRay(scene.pointerX, scene.pointerY, null, scene.activeCamera);
-  const distance = ray.intersectsPlane(GROUND_PLANE);
-  if (distance === null) return null;
-
-  const hit = ray.origin.add(ray.direction.scale(distance));
-  return { x: hit.x, z: hit.z };
+  const elevation = getElevation(useGameStore.getState().elevationSeed);
+  // Raised planes count only where the cell really is that level; the level-0
+  // plane is the unconditional fallback (also off-grid, as before terraces).
+  for (let level = elevation.maxLevel; level >= 0; level -= 1) {
+    const distance = ray.intersectsPlane(LEVEL_PLANES[level]);
+    if (distance === null) continue;
+    const hit = ray.origin.add(ray.direction.scale(distance));
+    if (level === 0) return { x: hit.x, z: hit.z };
+    const cell = worldToGrid(hit.x, hit.z);
+    if (cell && elevation.levelAt(cell.x, cell.y) === level) return { x: hit.x, z: hit.z };
+  }
+  return null;
 }
 
 export function pickGridCell(scene: Scene): GridPos | null {
@@ -229,7 +242,7 @@ export function createPlacementController(scene: Scene) {
         continue;
       }
       const world = gridToWorld(position.x, position.y);
-      mesh.position.set(world.x, 0.004, world.z);
+      mesh.position.set(world.x, 0.004 + cellGroundY(position.x, position.y), world.z);
       // Diagonal stretches preview with the final ribbon transform; reset is
       // required because these pooled quads also serve the raze highlight.
       if (rotation) {
@@ -431,8 +444,13 @@ export function createPlacementController(scene: Scene) {
     );
 
     setGhostVisible(true);
+    const ghostGroundY = cellGroundY(placeOrigin.x, placeOrigin.y);
     if (ghostModel) {
-      ghostModel.root.position.set(xPos + ghostModel.offsetX, ghostModelBaseY, zPos + ghostModel.offsetZ);
+      ghostModel.root.position.set(
+        xPos + ghostModel.offsetX,
+        ghostModelBaseY + ghostGroundY,
+        zPos + ghostModel.offsetZ
+      );
       if (canPlaceHere !== ghostIsValid) {
         overrideMaterials(ghostModel, canPlaceHere ? validMat : invalidMat);
         ghostIsValid = canPlaceHere;
@@ -441,7 +459,10 @@ export function createPlacementController(scene: Scene) {
       if (front) {
         const [dirX, dirZ] = frontVector(front, ghostModel.root.rotation.y);
         const half = facadeHalfExtent(front, metadata.footprint);
-        arrow.position.set(xPos + dirX * (half + 0.3), 0.05, zPos + dirZ * (half + 0.3));
+        const ax = xPos + dirX * (half + 0.3);
+        const az = zPos + dirZ * (half + 0.3);
+        // The arrow floats just off the footprint — its cell may be a terrace down.
+        arrow.position.set(ax, 0.05 + worldGroundY(ax, az), az);
         arrow.rotation.y = Math.atan2(-dirZ, dirX);
         arrow.setEnabled(true);
       } else {
@@ -449,7 +470,7 @@ export function createPlacementController(scene: Scene) {
       }
     } else if (ghostBox) {
       const height = metadata.size.height ?? 0.2;
-      ghostBox.position.set(xPos, height / 2, zPos);
+      ghostBox.position.set(xPos, height / 2 + ghostGroundY, zPos);
       ghostBox.material = canPlaceHere ? validMat : invalidMat;
     }
 

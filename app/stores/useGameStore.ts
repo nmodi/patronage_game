@@ -56,6 +56,9 @@ export type GameState = {
   // from; null = no water anywhere (old saves, demo). Kept separate from
   // `seed` so pre-water saves stay dry.
   mapSeed: string | null;
+  // Seed the terrace levels (map/elevation.ts) derive from; null = flat
+  // (pre-elevation saves stay flat forever — the mapSeed precedent — and demo).
+  elevationSeed: string | null;
   cityName: string;
   setCityName: (value: string) => void;
   florins: number;
@@ -147,6 +150,9 @@ const createInitialState = (runSeed?: string) => {
     // Demo runs on DEMO_MAP_SEED — an inland river down the east, clear of the
     // hand-placed west-bank city (see demoLayout.ts). ?map= still overrides.
     mapSeed: devMapSeed() ?? (isDemo() ? DEMO_MAP_SEED : seed),
+    // Demo stays flat: the hand-placed layout assumes level ground, and
+    // screenshots want the classic look. ?map= forces hills with the water.
+    elevationSeed: devMapSeed() ?? (isDemo() ? null : seed),
     cityName: pickCityName(seed),
     florins: STARTING_FLORINS,
     inspiration: 0,
@@ -481,6 +487,9 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
+    // v13: terrain terraces added — pre-elevation saves get elevationSeed:
+    // null (forever flat, the v6 mapSeed precedent: rolling hills under an
+    // existing city would strand buildings across cliffs).
     // v12: city discipline XP pools added (tradition rework) — seeded from
     // artists' per-type max xp so the floor never promotes anyone at load.
     // v11: baptistery + loggia removed from the game — their tiles, blueprints,
@@ -504,6 +513,7 @@ export const useGameStore = create<GameState>()(
     partialize: (s) => ({
       seed: s.seed,
       mapSeed: s.mapSeed,
+      elevationSeed: s.elevationSeed,
       cityName: s.cityName,
       florins: s.florins,
       inspiration: s.inspiration,

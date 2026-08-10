@@ -9,11 +9,14 @@ const pools = { materials: { timber: 0, stone: 0, pigment: 0, marble: 0, bronze:
 // And every migration below v12 seeds the discipline pools — zeros when no
 // (typed) artists exist to seed from.
 const noTradition = { disciplineXp: { painter: 0, sculptor: 0, architect: 0 } };
+// And every migration below v13 pins the terrain flat (elevation rework).
+const flat = { elevationSeed: null };
 assert.deepEqual(migrateSave(legacy, 4), {});
 assert.deepEqual(migrateSave(legacy, 5), {
   ...legacy,
   ...pools,
   ...noTradition,
+  ...flat,
   mapSeed: null,
   artists: [],
   favor: {},
@@ -28,7 +31,8 @@ const v6 = {
 assert.deepEqual(migrateSave(v6, 6), {
   ...v6,
   ...pools,
-  ...noTradition, // fixtures are typeless — nothing to attribute
+  ...noTradition,
+  ...flat, // fixtures are typeless — nothing to attribute
   artists: [
     { rank: "journeyman", xp: 550 },
     { rank: "apprentice", xp: 0 },
@@ -52,19 +56,21 @@ assert.deepEqual(migrateSave(v7, 7), {
   ...v7,
   ...pools,
   ...noTradition,
+  ...flat,
   favor: { "The Church": 66, "House Medici": 58 },
 });
 
 // v8 → v9 adds the material pools, empty: pre-v9 offers carry no materialCost
 // so they stay assignable, and suppliers refill within a few months.
 const v8 = { ...legacy, mapSeed: "abc", favor: { "The Church": 66 } };
-assert.deepEqual(migrateSave(v8, 8), { ...v8, ...pools, ...noTradition });
+assert.deepEqual(migrateSave(v8, 8), { ...v8, ...pools, ...noTradition, ...flat });
 
 // v9 → v10 adds the construction pools, keeping earned stock untouched.
 const v9 = { ...legacy, mapSeed: "abc", materials: { pigment: 4, marble: 12, bronze: 0 } };
 assert.deepEqual(migrateSave(v9, 9), {
   ...v9,
   ...noTradition,
+  ...flat,
   materials: { timber: 0, stone: 0, pigment: 4, marble: 12, bronze: 0 },
 });
 
@@ -87,6 +93,7 @@ const v10 = {
 assert.deepEqual(migrateSave(v10, 10), {
   ...v10,
   ...noTradition,
+  ...flat,
   map: { tiles: { "1,1": {} } },
   commissions: [{ title: "A Fresco" }],
   fundedBuilds: [],
@@ -98,7 +105,7 @@ assert.deepEqual(migrateSave(v10, 10), {
 });
 // A v10 save with no blueprint structures gains only the discipline pools.
 const cleanV10 = { ...legacy, mapSeed: "abc" };
-assert.deepEqual(migrateSave(cleanV10, 10), { ...cleanV10, ...noTradition });
+assert.deepEqual(migrateSave(cleanV10, 10), { ...cleanV10, ...noTradition, ...flat });
 
 // v11 → v12 seeds each discipline pool to the per-type max of artists' xp —
 // conservative: the 0.25 floor of a max never promotes anyone at load.
@@ -115,10 +122,15 @@ const v11 = {
 };
 assert.deepEqual(migrateSave(v11, 11), {
   ...v11,
+  ...flat,
   disciplineXp: { painter: 2400, sculptor: 0, architect: 75 },
 });
 
-const current = { ...legacy, mapSeed: "abc" };
+// v12 → v13 pins elevation flat; a current save passes through untouched.
+const v12 = { ...legacy, mapSeed: "abc" };
+assert.deepEqual(migrateSave(v12, 12), { ...v12, ...flat });
+
+const current = { ...legacy, mapSeed: "abc", elevationSeed: "abc" };
 assert.equal(migrateSave(current, SAVE_VERSION), current);
 assert.equal(migrateSave(current, SAVE_VERSION + 1), current);
 

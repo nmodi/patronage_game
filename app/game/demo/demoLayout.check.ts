@@ -18,6 +18,7 @@ const state = {
   florins: Number.MAX_SAFE_INTEGER,
   materials: { pigment: Infinity, marble: Infinity, bronze: Infinity, timber: Infinity, stone: Infinity },
   mapSeed: DEMO_MAP_SEED,
+  elevationSeed: null, // demo runs flat, like its store state
   map: { tiles },
 };
 

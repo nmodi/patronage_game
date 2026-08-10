@@ -11,6 +11,7 @@ import { CELL_SIZE } from "~/game/constants";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/placement/roadStretch";
 import { bridgeLiftAt, bridgeStep } from "./bridgeProfile";
+import { cellGroundY, worldGroundY } from "./groundLevel";
 import {
   getApronMaterial,
   getDirtPadMaterial,
@@ -309,6 +310,7 @@ export function createRoadRenderer(scene: Scene) {
     // apart, so a √2-long quad abuts exactly; diagY (above the cardinal 0.01)
     // keeps junction/cross-row overlaps from coplanar shimmer.
     const diagScale = new Vector3(Math.SQRT2, 1, 1);
+    const rampScale = new Vector3(1, 1, 1);
     const diagQuat = new Quaternion();
     const diagPos = new Vector3();
     for (const tile of batch.tiles.values()) {
@@ -320,7 +322,11 @@ export function createRoadRenderer(scene: Scene) {
         Quaternion.RotationYawPitchRollToRef(theta, 0, 0, diagQuat);
         const kind = pads ? junctionKind(tiles, tile) : "none";
         if (kind !== "none") {
-          diagPos.set(x, padY(tile.position.x, tile.position.y), z);
+          diagPos.set(
+            x,
+            padY(tile.position.x, tile.position.y) + cellGroundY(tile.position.x, tile.position.y),
+            z
+          );
           if (kind === "hex") {
             const quat = tile.rotation === ROAD_DIAG_NE ? padQuatNE : padQuatNW;
             Matrix.ComposeToRef(padScale, quat, diagPos, matrix);
@@ -335,12 +341,44 @@ export function createRoadRenderer(scene: Scene) {
           }
           continue;
         }
-        diagPos.set(x, diagY, z);
+        // ponytail: diagonal ribbons stay flat at their own cell's terrace — a
+        // 45° staircase crossing a level step shows a small ledge; chord it
+        // like the cardinal ramp below if that ever reads badly.
+        diagPos.set(x, diagY + cellGroundY(tile.position.x, tile.position.y), z);
         Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
         matrix.copyToArray(scratch, 0);
         matrices.push(...scratch);
       } else {
-        Matrix.TranslationToRef(x, 0.01, z, matrix);
+        // Terrace ramps: where a cardinal road continues onto a neighbor one
+        // level up/down, the quad chords from edge to edge (the bridge-deck
+        // transform) so the street climbs instead of showing a bare cliff.
+        // Edge height meets the neighbor halfway; flat cells stay translations.
+        const { x: gx, y: gy } = tile.position;
+        const own = cellGroundY(gx, gy);
+        const roadEdge = (dx: number, dy: number) => {
+          const n = tiles[`${gx + dx},${gy + dy}`];
+          if (n?.type !== "road") return own;
+          const nGround = cellGroundY(gx + dx, gy + dy);
+          return nGround === own ? own : (own + nGround) / 2;
+        };
+        const ex0 = roadEdge(-1, 0);
+        const ex1 = roadEdge(1, 0);
+        const ez0 = roadEdge(0, -1);
+        const ez1 = roadEdge(0, 1);
+        if (ex0 !== own || ex1 !== own || ez0 !== own || ez1 !== own) {
+          // ponytail: one plane per cell — x-axis steps win when both axes
+          // step (a rare corner ramp shows a seam on its z side).
+          const alongX = ex0 !== own || ex1 !== own;
+          const [e0, e1] = alongX ? [ex0, ex1] : [ez0, ez1];
+          const yaw = alongX ? 0 : -Math.PI / 2;
+          const climb = Math.atan2(e1 - e0, CELL_SIZE);
+          Quaternion.RotationYawPitchRollToRef(yaw, 0, climb, diagQuat);
+          diagPos.set(x, 0.01 + (e0 + e1) / 2, z);
+          rampScale.set(Math.hypot(CELL_SIZE, e1 - e0) / CELL_SIZE, 1, 1);
+          Matrix.ComposeToRef(rampScale, diagQuat, diagPos, matrix);
+        } else {
+          Matrix.TranslationToRef(x, 0.01 + own, z, matrix);
+        }
         matrix.copyToArray(scratch, 0);
         matrices.push(...scratch);
       }
@@ -393,8 +431,11 @@ export function createRoadRenderer(scene: Scene) {
       const ux = (sx * CELL_SIZE) / stepLen;
       const uz = (sy * CELL_SIZE) / stepLen;
       const half = stepLen / 2;
-      const lift0 = bridgeLiftAt(tiles, x - ux * half, z - uz * half);
-      const lift1 = bridgeLiftAt(tiles, x + ux * half, z + uz * half);
+      // Terrace height joins the hump so land causeways ride their terrace
+      // and chords stay continuous across a level step.
+      const liftAt = (wx: number, wz: number) => bridgeLiftAt(tiles, wx, wz) + worldGroundY(wx, wz);
+      const lift0 = liftAt(x - ux * half, z - uz * half);
+      const lift1 = liftAt(x + ux * half, z + uz * half);
       const liftMid = (lift0 + lift1) / 2;
       const climb = Math.atan2(lift1 - lift0, 2 * half);
       const chordScale = Math.hypot(2 * half, lift1 - lift0) / CELL_SIZE;
@@ -452,7 +493,7 @@ export function createRoadRenderer(scene: Scene) {
           Matrix.RotationYToRef(sy === 0 ? Math.PI / 2 : 0, matrix);
           matrix.setTranslationFromFloats(
             x + s * ux * inset,
-            bridgeDeckY + parapetHeight / 2,
+            bridgeDeckY + parapetHeight / 2 + cellGroundY(gx, gy),
             z + s * uz * inset
           );
           matrix.copyToArray(rail, 0);

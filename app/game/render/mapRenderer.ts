@@ -44,6 +44,7 @@ import {
   type SegmentMask,
 } from "./modelManifest";
 import { createDirtPathOverlay } from "./dirtPathOverlay";
+import { cellGroundY, worldGroundY } from "./groundLevel";
 import { getApronMaterial } from "./paths";
 import { createRoadRenderer } from "./roadRenderer";
 import { createSmokePlume, type SmokePlume } from "./smoke";
@@ -198,7 +199,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     mesh.receiveShadows = true;
     shadowGenerator.addShadowCaster(mesh);
     const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-    mesh.position.set(x, y, z);
+    mesh.position.set(x, y + cellGroundY(tile.position.x, tile.position.y), z);
     mesh.rotation.y = yawOfRotation(tile.rotation);
     return mesh;
   }
@@ -217,7 +218,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     apron.material = getApronMaterial(width, depth, scene);
     apron.isPickable = false;
     const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-    apron.position.set(x, 0.005, z);
+    apron.position.set(x, 0.005 + cellGroundY(tile.position.x, tile.position.y), z);
     // Diagonal buildings: the quarter-frame dims above already carry the odd
     // swap, so a fixed 45° lands the apron parallel to the building at every
     // diagonal quarter. Corners spill onto unclaimed mask-gap cells; roads
@@ -238,6 +239,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     const bySlot = displayedByOrigin.get(originKey);
     const r = effectiveFullRotation(tile.buildingId, tile.position, tile.rotation);
     const center = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
+    // One height for everything on the footprint (placement keeps it level).
+    const gY = cellGroundY(tile.position.x, tile.position.y);
     const art: DisplayArtHandle[] = [];
 
     for (let i = 0; i < slots.length; i += 1) {
@@ -246,7 +249,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       const { x: dx, y: dy } = rotateSlotCell(slot.cell, metadata.footprint, r);
       const { x, z } = gridToWorld(tile.position.x + dx, tile.position.y + dy);
       const pedestal: DisplayArtHandle = { mesh: displayArt.createPlinth() };
-      pedestal.mesh.position.set(x, 0.02, z);
+      pedestal.mesh.position.set(x, 0.02 + gY, z);
       shadowGenerator.addShadowCaster(pedestal.mesh);
       art.push(pedestal);
       const work = bySlot?.get(i);
@@ -267,16 +270,16 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
             const eighth = Math.PI / 4;
             statue.rotation.y = Math.round((statue.rotation.y + Math.PI / 2) / eighth) * eighth;
             const slab = displayArt.createSlab(footX, footZ);
-            slab.position.set(x, 0.02, z);
+            slab.position.set(x, 0.02 + gY, z);
             slab.rotation.y = statue.rotation.y;
             shadowGenerator.addShadowCaster(slab);
             shadowGenerator.removeShadowCaster(pedestal.mesh);
             pedestal.mesh.dispose();
             pedestal.mesh = slab; // handle mutation — teardown disposes the slab
-            statue.position.y = 0.02 + SLAB_HEIGHT;
+            statue.position.y = 0.02 + gY + SLAB_HEIGHT;
           }
         );
-        statue.position.set(x, 0.02 + PLINTH_HEIGHT, z);
+        statue.position.set(x, 0.02 + gY + PLINTH_HEIGHT, z);
         statue.rotation.y = Math.atan2(center.x - x, center.z - z); // face the footprint center
         shadowGenerator.addShadowCaster(statue);
         art.push({ mesh: statue });
@@ -312,11 +315,10 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         const rank = Math.floor(idx / 2);
         const off = side * (doorGap + rank * spacing);
         const easel = displayArt.createPainting(work);
-        easel.mesh.position.set(
-          center.x + dirX * standDist + dirZ * off,
-          0.02,
-          center.z + dirZ * standDist - dirX * off
-        );
+        const ex = center.x + dirX * standDist + dirZ * off;
+        const ez = center.z + dirZ * standDist - dirX * off;
+        // Easels stand off the footprint — sample the terrace under their feet.
+        easel.mesh.position.set(ex, 0.02 + worldGroundY(ex, ez), ez);
         easel.mesh.rotation.y = yaw - side * TILT;
         art.push(easel);
       });
@@ -349,7 +351,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
           tile.rotation,
           extend,
           tile.isActive,
-          segment
+          segment,
+          cellGroundY(tile.position.x, tile.position.y)
         )
       : null;
     let box: Mesh | null = null;
@@ -475,7 +478,11 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       marker.material = markerMaterial;
       marker.isPickable = false;
       const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-      marker.position.set(x, markerHeight(nextEntry, metadata), z);
+      marker.position.set(
+        x,
+        markerHeight(nextEntry, metadata) + cellGroundY(tile.position.x, tile.position.y),
+        z
+      );
       marker.billboardMode = 7; // BILLBOARDMODE_ALL
       nextEntry.marker = marker;
     } else if (!needsMarker && nextEntry.marker) {

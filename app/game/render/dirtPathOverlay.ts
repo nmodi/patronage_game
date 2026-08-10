@@ -4,8 +4,11 @@ import { DynamicTexture } from "@babylonjs/core/Materials/Textures/dynamicTextur
 import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
+import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
+
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { DIRT_EDGE, drawDirtTexture } from "./dirtTexture";
+import { cornerGroundY } from "./groundLevel";
 
 /**
  * Neighbor-aware dirt paths, split into 4×4 canvas chunks. Each chunk keeps
@@ -79,7 +82,13 @@ export function createDirtPathOverlay(scene: Scene) {
     mat.specularColor = Color3.Black();
     mat.diffuseTexture = tex;
     mat.useAlphaFromDiffuseTexture = true;
-    const mesh = MeshBuilder.CreateGround(`dirt-overlay-${key}`, { width: worldChunkSize, height: worldChunkSize }, scene);
+    // One subdivision per cell so the sheet can follow terrace levels; on flat
+    // maps every vertex offset is 0 and this is the old single quad, subdivided.
+    const mesh = MeshBuilder.CreateGround(
+      `dirt-overlay-${key}`,
+      { width: worldChunkSize, height: worldChunkSize, subdivisions: CHUNK_CELLS },
+      scene
+    );
     mesh.material = mat;
     mesh.isPickable = false;
     mesh.position.set(
@@ -87,6 +96,21 @@ export function createDirtPathOverlay(scene: Scene) {
       0.008, // above building aprons (0.005), below paved roads (0.01)
       -((GRID_SIZE * CELL_SIZE) / 2) + (chunkY + 0.5) * worldChunkSize
     );
+    // ponytail: vertices drape to the highest touching cell (cornerGroundY), so
+    // dirt near a cliff top stretches down the face — sharp-stepped dirt would
+    // need per-cell quads; revisit if a draped path ever reads badly.
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind)!;
+    let displaced = false;
+    for (let i = 0; i < positions.length; i += 3) {
+      const cornerX = chunkX * CHUNK_CELLS + Math.round((positions[i] + worldChunkSize / 2) / CELL_SIZE);
+      const cornerY = chunkY * CHUNK_CELLS + Math.round((positions[i + 2] + worldChunkSize / 2) / CELL_SIZE);
+      const y = cornerGroundY(cornerX, cornerY);
+      if (y !== 0) {
+        positions[i + 1] = y;
+        displaced = true;
+      }
+    }
+    if (displaced) mesh.updateVerticesData(VertexBuffer.PositionKind, positions);
     mesh.setEnabled(false);
     const chunk = { chunkX, chunkY, tex, mat, mesh };
     chunks.set(key, chunk);

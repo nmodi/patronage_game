@@ -1,7 +1,7 @@
 import { favorFromWorks } from "./art/commissions.ts";
 import { EMPTY_DISCIPLINE_XP } from "./constants.ts";
 
-export const SAVE_VERSION = 12;
+export const SAVE_VERSION = 13;
 
 /** Preserve compatible saves while explicitly discarding structurally obsolete versions. */
 export function migrateSave(persisted: unknown, version: number): unknown {
@@ -9,6 +9,7 @@ export function migrateSave(persisted: unknown, version: number): unknown {
   if (version < 5) return {};
   let save = persisted as {
     mapSeed?: unknown;
+    elevationSeed?: unknown;
     artists?: { xp?: number; type?: string }[];
     artworks?: { requester?: string; displayedAt?: { key: string; slot: number } }[];
     favor?: Record<string, number>;
@@ -86,6 +87,11 @@ export function migrateSave(persisted: unknown, version: number): unknown {
       }
     }
     save = { ...save, disciplineXp };
+  }
+  // v13 added terrain terraces. Pre-elevation saves stay flat forever (the v6
+  // mapSeed rule): newly rolled hills would strand buildings across cliffs.
+  if (version < 13) {
+    save = { ...save, elevationSeed: null };
   }
   return save;
 }
