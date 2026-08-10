@@ -56,8 +56,8 @@ export type GameState = {
   // from; null = no water anywhere (old saves, demo). Kept separate from
   // `seed` so pre-water saves stay dry.
   mapSeed: string | null;
-  // Seed the terrace levels (map/elevation.ts) derive from; null = flat
-  // (pre-elevation saves stay flat forever — the mapSeed precedent — and demo).
+  // Seed the rolling elevation field (map/elevation.ts) derives from; null =
+  // flat (pre-elevation saves stay flat forever — the mapSeed precedent — and demo).
   elevationSeed: string | null;
   cityName: string;
   setCityName: (value: string) => void;
@@ -487,9 +487,9 @@ export const isDemo = () =>
 export const useGameStore = create<GameState>()(
   persist(initializer, {
     name: "patronage-save",
-    // v13: terrain terraces added — pre-elevation saves get elevationSeed:
-    // null (forever flat, the v6 mapSeed precedent: rolling hills under an
-    // existing city would strand buildings across cliffs).
+    // v13: terrain elevation added — pre-elevation saves get elevationSeed:
+    // null (forever flat, the v6 mapSeed precedent: hills rolled under an
+    // existing city would tilt ground its buildings were placed without).
     // v12: city discipline XP pools added (tradition rework) — seeded from
     // artists' per-type max xp so the floor never promotes anyone at load.
     // v11: baptistery + loggia removed from the game — their tiles, blueprints,

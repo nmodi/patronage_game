@@ -44,7 +44,7 @@ import {
   type SegmentMask,
 } from "./modelManifest";
 import { createDirtPathOverlay } from "./dirtPathOverlay";
-import { cellGroundY, worldGroundY } from "./groundLevel";
+import { footprintGroundRange, worldGroundY } from "./groundLevel";
 import { getApronMaterial } from "./paths";
 import { createRoadRenderer } from "./roadRenderer";
 import { createSmokePlume, type SmokePlume } from "./smoke";
@@ -53,14 +53,23 @@ const GRID_ALPHA_IDLE = 0;
 const GRID_ALPHA_PLACING = 0.8;
 const GRID_COLOR = "#ffffff";
 
-// Grid lines only need building once; drawn directly instead of pulling in @babylonjs/materials.
+// Placement grid, draped over the ground: polylines with a vertex per cell
+// so lines follow the elevation field (straight 2-point lines would bury
+// under hills). Built lazily on first show — the ground sampler registers
+// after this renderer is constructed.
 function createGridLines(scene: Scene) {
   const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
   const lines: Vector3[][] = [];
   for (let i = 0; i <= GRID_SIZE; i += 1) {
     const p = -halfGrid + i * CELL_SIZE;
-    lines.push([new Vector3(-halfGrid, 0.01, p), new Vector3(halfGrid, 0.01, p)]);
-    lines.push([new Vector3(p, 0.01, -halfGrid), new Vector3(p, 0.01, halfGrid)]);
+    const row: Vector3[] = [];
+    const col: Vector3[] = [];
+    for (let j = 0; j <= GRID_SIZE; j += 1) {
+      const q = -halfGrid + j * CELL_SIZE;
+      row.push(new Vector3(q, 0.02 + worldGroundY(q, p), p));
+      col.push(new Vector3(p, 0.02 + worldGroundY(p, q), q));
+    }
+    lines.push(row, col);
   }
   const grid = MeshBuilder.CreateLineSystem("grid", { lines, useVertexAlpha: true }, scene);
   grid.color = Color3.FromHexString(GRID_COLOR);
@@ -73,6 +82,10 @@ type TileMeshEntry = {
   box: Mesh | null;
   placed: PlacedBuilding | null;
   apron: Mesh | null;
+  /** Foundation skirt on sloped ground (hillside podium); null when flat. */
+  skirt: Mesh | null;
+  /** Ground height the building base sits at (highest footprint sample). */
+  seatY: number;
   marker: Mesh | null;
   smoke: SmokePlume | null;
   /** Displayed-work meshes (plinths, statues, facade canvases). */
@@ -153,7 +166,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   const dirtCells = new Set<string>();
   const occupiedCells = new Set<string>();
 
-  const gridLines = createGridLines(scene);
+  // Built lazily on first show so the draped lines see the ground sampler.
+  let gridLines: ReturnType<typeof createGridLines> | null = null;
 
   const roadRenderer = createRoadRenderer(scene);
   const dirtOverlay = createDirtPathOverlay(scene);
@@ -175,6 +189,11 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   markerMaterial.emissiveColor = Color3.FromHexString("#d97706");
   markerMaterial.alpha = 0.9;
 
+  // Foundation stone for hillside podium skirts (one shared material).
+  const skirtMaterial = new StandardMaterial("skirt-mat", scene);
+  skirtMaterial.diffuseColor = Color3.FromHexString("#b3a58a");
+  skirtMaterial.specularColor = Color3.Black();
+
   function getMaterial(color: string, type: BuildingType, inactive: boolean) {
     const key = `${color}:${type}:${inactive ? "inactive" : "active"}`;
     let mat = materialCache.get(key);
@@ -187,7 +206,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     return mat;
   }
 
-  function createBoxMesh(tile: Tile, metadata: BuildingMetadata) {
+  function createBoxMesh(tile: Tile, metadata: BuildingMetadata, seatY: number) {
     const { width, height, depth } = metadata.size;
     // size is in world units, not cells — don't scale by CELL_SIZE.
     const mesh = MeshBuilder.CreateBox(
@@ -199,7 +218,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     mesh.receiveShadows = true;
     shadowGenerator.addShadowCaster(mesh);
     const { x, y, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-    mesh.position.set(x, y + cellGroundY(tile.position.x, tile.position.y), z);
+    mesh.position.set(x, y + seatY, z);
     mesh.rotation.y = yawOfRotation(tile.rotation);
     return mesh;
   }
@@ -207,7 +226,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   // Flagstone ground over the full footprint, so `paved` buildings visually
   // join adjacent plazas/roads instead of showing a grass rim of fit slack.
   // ponytail: stays full-color when the building is inactive — it's just ground.
-  function createApron(tile: Tile, metadata: BuildingMetadata): Mesh | null {
+  function createApron(tile: Tile, metadata: BuildingMetadata, seatY: number): Mesh | null {
     if (!metadata.paved) return null;
     const { width, depth } = rotatedFootprint(metadata, tile.rotation);
     const apron = MeshBuilder.CreateGround(
@@ -218,7 +237,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     apron.material = getApronMaterial(width, depth, scene);
     apron.isPickable = false;
     const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-    apron.position.set(x, 0.005 + cellGroundY(tile.position.x, tile.position.y), z);
+    apron.position.set(x, 0.005 + seatY, z);
     // Diagonal buildings: the quarter-frame dims above already carry the odd
     // swap, so a fixed 45° lands the apron parallel to the building at every
     // diagonal quarter. Corners spill onto unclaimed mask-gap cells; roads
@@ -232,15 +251,15 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   // meshes, not thin instances — counts are tiny and each is unique per work.
   // ponytail: citizens may clip a plinth cell — the fountain keep-out
   // (citizens.ts) isn't extended to plinths; cosmetic, revisit if it reads badly.
-  function buildDisplayArt(tile: Tile, metadata: BuildingMetadata): DisplayArtHandle[] {
+  function buildDisplayArt(tile: Tile, metadata: BuildingMetadata, seatY: number): DisplayArtHandle[] {
     const slots = metadata.displaySlots;
     if (!slots) return [];
     const originKey = `${tile.position.x},${tile.position.y}`;
     const bySlot = displayedByOrigin.get(originKey);
     const r = effectiveFullRotation(tile.buildingId, tile.position, tile.rotation);
     const center = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-    // One height for everything on the footprint (placement keeps it level).
-    const gY = cellGroundY(tile.position.x, tile.position.y);
+    // Everything on the footprint shares the building's seat height.
+    const gY = seatY;
     const art: DisplayArtHandle[] = [];
 
     for (let i = 0; i < slots.length; i += 1) {
@@ -332,8 +351,30 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     extend?: { negX: boolean; posX: boolean },
     segment?: SegmentMask
   ): TileMeshEntry {
-    const apron = createApron(tile, metadata);
     const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
+    // Seat on the highest ground under the footprint (walls never bury); a
+    // stone podium skirt covers the downhill gap. Decorations (trees, statues)
+    // just stand on the ground under their center instead.
+    const { width, depth } = rotatedFootprint(metadata, tile.rotation);
+    const decoration = metadata.type === "decoration";
+    const range = decoration
+      ? { seat: worldGroundY(x, z), min: worldGroundY(x, z) }
+      : footprintGroundRange(x, z, (width * CELL_SIZE) / 2, (depth * CELL_SIZE) / 2);
+    const seatY = range.seat;
+    let skirt: Mesh | null = null;
+    if (!decoration && range.seat - range.min > 0.03) {
+      skirt = MeshBuilder.CreateBox(
+        `skirt-${tile.buildingId}`,
+        { width: width * CELL_SIZE + 0.06, height: 0.9, depth: depth * CELL_SIZE + 0.06 },
+        scene
+      );
+      skirt.material = skirtMaterial;
+      skirt.isPickable = false;
+      // Top just under the apron/base plane; bottom well inside the hill.
+      skirt.position.set(x, seatY + 0.004 - 0.45, z);
+      if (isDiagonalRotation(tile.rotation)) skirt.rotation.y = Math.PI / 4;
+    }
+    const apron = createApron(tile, metadata, seatY);
     // A pad-bearing building (plaza, market) whose kit parts haven't streamed in
     // yet would otherwise batch as pad-only and never recover — the batched pad
     // makes `placed` non-null, so no box placeholder is created and
@@ -352,7 +393,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
           extend,
           tile.isActive,
           segment,
-          cellGroundY(tile.position.x, tile.position.y)
+          seatY
         )
       : null;
     let box: Mesh | null = null;
@@ -366,13 +407,15 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
         smoke.setActive(tile.isActive);
       }
     } else {
-      box = createBoxMesh(tile, metadata);
+      box = createBoxMesh(tile, metadata, seatY);
     }
-    const art = buildDisplayArt(tile, metadata);
+    const art = buildDisplayArt(tile, metadata, seatY);
     return {
       box,
       placed,
       apron,
+      skirt,
+      seatY,
       marker: null,
       smoke,
       art,
@@ -388,6 +431,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     entry.box?.dispose();
     entry.smoke?.dispose();
     entry.apron?.dispose();
+    entry.skirt?.dispose();
     entry.placed?.dispose();
     for (const handle of entry.art) {
       shadowGenerator.removeShadowCaster(handle.mesh);
@@ -478,11 +522,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       marker.material = markerMaterial;
       marker.isPickable = false;
       const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
-      marker.position.set(
-        x,
-        markerHeight(nextEntry, metadata) + cellGroundY(tile.position.x, tile.position.y),
-        z
-      );
+      marker.position.set(x, markerHeight(nextEntry, metadata) + nextEntry.seatY, z);
       marker.billboardMode = 7; // BILLBOARDMODE_ALL
       nextEntry.marker = marker;
     } else if (!needsMarker && nextEntry.marker) {
@@ -591,7 +631,8 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   }
 
   function setGridVisible(placing: boolean) {
-    gridLines.alpha = placing ? GRID_ALPHA_PLACING : GRID_ALPHA_IDLE;
+    if (placing && !gridLines) gridLines = createGridLines(scene);
+    if (gridLines) gridLines.alpha = placing ? GRID_ALPHA_PLACING : GRID_ALPHA_IDLE;
   }
 
   function dispose() {
@@ -604,7 +645,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     batcher.dispose();
     dirtOverlay.dispose();
     displayArt.dispose();
-    gridLines.dispose();
+    gridLines?.dispose();
   }
 
   return { queueSync, syncDisplay, processSync, upgradeModels, dispose, setGridVisible };

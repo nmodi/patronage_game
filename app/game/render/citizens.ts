@@ -6,7 +6,7 @@ import { createBustleField } from "~/game/city/bustleField";
 import { crowdSize } from "~/game/city/crowd";
 import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
 import { bridgeLiftAt } from "./bridgeProfile";
-import { cellGroundY } from "./groundLevel";
+import { worldGroundY } from "./groundLevel";
 import { useGameStore } from "~/stores/useGameStore";
 import {
   createThinInstanceFigureFactory,
@@ -136,7 +136,7 @@ export function createCitizens(scene: Scene) {
     citizen.phase = Math.random() * Math.PI * 2; // desync the crowd's gait
     const p = gridToWorld(tile.x, tile.y);
     scratchLoco.x = p.x;
-    scratchLoco.y = FOOT_Y + bridgeLiftAt(tileMap, p.x, p.z) + cellGroundY(tile.x, tile.y);
+    scratchLoco.y = FOOT_Y + bridgeLiftAt(tileMap, p.x, p.z) + worldGroundY(p.x, p.z);
     scratchLoco.z = p.z;
     scratchLoco.yaw = citizen.yaw;
     scratchLoco.stridePhase = citizen.phase;
@@ -201,11 +201,8 @@ export function createCitizens(scene: Scene) {
         }
 
         scratchLoco.x = x;
-        // Terrace lift lerps between the two cells' levels — the crossing
-        // matches the road ramp's mid-edge height, so no pop at a step.
-        const ga = cellGroundY(citizen.from.x, citizen.from.y);
-        const gb = cellGroundY(citizen.to.x, citizen.to.y);
-        scratchLoco.y = FOOT_Y + bridgeLiftAt(tileMap, x, z) + ga + (gb - ga) * t;
+        // The ground field is smooth — sample under the feet each frame.
+        scratchLoco.y = FOOT_Y + bridgeLiftAt(tileMap, x, z) + worldGroundY(x, z);
         scratchLoco.z = z;
         scratchLoco.yaw = citizen.yaw;
         scratchLoco.stridePhase = citizen.phase;

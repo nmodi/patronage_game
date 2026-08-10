@@ -150,7 +150,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | **Per-cell check** | Classifies each footprint cell `blocked/occupied/free`. Occupied blocks unless a decoration overlaps a non-origin cell, or a `placesOnRoads` building overwrites a plain cardinal road cell / plaza rim cell. Empty cells block on water unless the building is a bridge. | `app/game/placement/placementRules.ts` → `checkCell()` |
 | **Plaza-rim guard** | A stall may only overwrite a plaza's outer-ring cells (mask-based) — never origin or interior, so stalls can't erode a plaza inward. | `placementRules.ts` → `isPlazaRimCell()` |
 | **Batch planner** | Authoritative batch validation: bounds, in-batch overlap, water gate, terrace-level gate, affordability via `Σ escalatedCost(startRank+i)`, material affordability via the batch `materialCost` bill (`PlacementSnapshot` carries `materials` + optional `fundedBuilds`; `commissionOnly` structures need a token). | `placementRules.ts` → `planPlacement()`; per-frame probe `canPlaceAt()` |
-| **Level (terrace) gate** | Buildings need every footprint cell on the origin's terrace level; roads/linear runs are exempt (adjacent cells never step >1 level, rendered as ramps). | `placementRules.ts` (footprint loops); `app/game/map/elevation.ts` |
+| **Flat-ground gate** | Buildings need footprint height spread ≤ `MAX_BUILD_SPREAD` (0.25 wu) — big footprints demand flatter ground; roads/linear runs are exempt and follow the surface. | `placementRules.ts` → `footprintSpread` check; `app/game/map/elevation.ts` |
 | **Linear/road drag** | Plans a road/linear-decoration drag in one pass; existing compatible cells join free, only new empty cells validated + charged; `totalCost = baseCost·newCells`. | `placementRules.ts` → `planLinearPlacement()` |
 
 ## 15. Roads
@@ -167,7 +167,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Mechanic | What it does | Code |
 |---|---|---|
 | **Archetype roll** | From a `water:${seed}` RNG: dry 15% / inland 30% / coastal 30% / scenic-river 15% / scenic-coast 10%. Scenic water stays ≥1.5wu clear of the buildable grid (plays like dry). | `app/game/map/water.ts` → `generateWater()` |
-| **Terrace levels** | Per-cell integer elevation 0–2 (0.3 wu/step) derived from `elevationSeed` (`elevation:` RNG namespace); ~40% of maps flat. Invariants: 4-neighbors never differ >1 level; land near water is level 0 (2.5 wu margin, higher levels set back 1.5 wu each). Memoized like water; null seed = flat (pre-v13 saves, demo). | `app/game/map/elevation.ts` → `generateElevation()`, `getElevation()`; `elevation.check.ts` |
+| **Elevation field** | Smooth rolling height field ≤ 1.2 wu (sine octaves, 40–60 wu wavelengths) derived from `elevationSeed` (`elevation:` RNG namespace); ~40% of maps flat. Invariants: fades to 0 within 1.5 wu of water (10 wu ease-in); gradient ≤ 0.35/wu; ≥60% of cottage windows buildable. Memoized like water; null seed = flat (pre-v13 saves, demo). | `app/game/map/elevation.ts` → `generateElevation()`, `getElevation()`, `footprintSpread()`; `elevation.check.ts` |
 | **River meander** | Centerline = two sine octaves with seeded amplitude/frequency jitter; width oscillates, floored at `MIN_RIVER_WIDTH = 1.2`; clamped `EDGE_MARGIN = 5` from edges. Slopes capped so raster rows overlap (no severed cells). | `water.ts` → `riverCenterAt`, `riverWidthAt`, `riverDistance` |
 | **Sea / estuary** | Coastal archetypes inset a wiggling coastline from a grid edge; estuary widens the river ~2× toward the mouth via smoothstep. | `water.ts` → `seaDistance`, `coastEdge` |
 | **Cell gating** | Water cells block building (mirrored in placement previews); the single sim gate is in `placeTiles`. Bridge is the one exception. Memoized on `mapSeed`. | `water.ts` → `getWaterCells()`; `placementRules.ts` |
@@ -200,8 +200,8 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Citizen figures + thin-instance batching (5 variants, 15 draw calls) + statue mesh | `render/citizenFigures.ts` → `createThinInstanceFigureFactory`, `createStatueMesh` |
 | Displayed art (plinths, marble/bronze statues, façade easel canvases) | `render/displayArt.ts` → `createDisplayArt` |
 | Road/bridge/diagonal-ribbon renderer | `render/roadRenderer.ts` |
-| Terrain (seeded hills, fields, analytic water carving, terrace overlay + cliff walls) | `render/terrain.ts` → `createTerrain` |
-| Ground-height samplers (terrace base y for buildings/roads/walkers/ghosts/dirt) | `render/groundLevel.ts` → `cellGroundY`, `worldGroundY`, `cornerGroundY` |
+| Terrain (seeded hills, fields, analytic water carving, in-grid elevation field) | `render/terrain.ts` → `createTerrain` |
+| Ground-height samplers (registered terrain surface; seats, skirts, road/walker/dirt drape) | `render/groundLevel.ts` → `setGroundSampler`, `worldGroundY`, `cellGroundY`, `footprintGroundRange` |
 | Water visuals (animated wobbling surface — the codebase's first animated material) | `render/waterMesh.ts` → `createWaterVisuals` |
 | Paving/apron/dirt materials (3 plaza styles behind `?plaza=`) | `render/paths.ts` |
 | Masonry wall textures (coursed patterns per category) | `render/wallTexture.ts` |

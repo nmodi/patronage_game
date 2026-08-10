@@ -8,7 +8,7 @@ import { VertexBuffer } from "@babylonjs/core/Buffers/buffer";
 
 import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 import { DIRT_EDGE, drawDirtTexture } from "./dirtTexture";
-import { cornerGroundY } from "./groundLevel";
+import { worldGroundY } from "./groundLevel";
 
 /**
  * Neighbor-aware dirt paths, split into 4×4 canvas chunks. Each chunk keeps
@@ -96,15 +96,12 @@ export function createDirtPathOverlay(scene: Scene) {
       0.008, // above building aprons (0.005), below paved roads (0.01)
       -((GRID_SIZE * CELL_SIZE) / 2) + (chunkY + 0.5) * worldChunkSize
     );
-    // ponytail: vertices drape to the highest touching cell (cornerGroundY), so
-    // dirt near a cliff top stretches down the face — sharp-stepped dirt would
-    // need per-cell quads; revisit if a draped path ever reads badly.
+    // Drape the sheet over the smooth ground field: one vertex per cell
+    // corner, each sampling the surface under it. Flat maps stay untouched.
     const positions = mesh.getVerticesData(VertexBuffer.PositionKind)!;
     let displaced = false;
     for (let i = 0; i < positions.length; i += 3) {
-      const cornerX = chunkX * CHUNK_CELLS + Math.round((positions[i] + worldChunkSize / 2) / CELL_SIZE);
-      const cornerY = chunkY * CHUNK_CELLS + Math.round((positions[i + 2] + worldChunkSize / 2) / CELL_SIZE);
-      const y = cornerGroundY(cornerX, cornerY);
+      const y = worldGroundY(mesh.position.x + positions[i], mesh.position.z + positions[i + 2]);
       if (y !== 0) {
         positions[i + 1] = y;
         displaced = true;

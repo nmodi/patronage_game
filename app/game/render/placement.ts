@@ -16,9 +16,9 @@ import {
 } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
 import { plinthSlotAt } from "~/game/art/display";
-import { getElevation, LEVEL_HEIGHT, MAX_LEVEL } from "~/game/map/elevation";
+import { getElevation, MAX_RISE } from "~/game/map/elevation";
 import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game/grid";
-import { cellGroundY, worldGroundY } from "./groundLevel";
+import { cellGroundY, footprintGroundRange, worldGroundY } from "./groundLevel";
 import { canPlaceAt, planLinearPlacement } from "~/game/placement/placementRules";
 import { getRazeImpact } from "~/game/placement/raze";
 import { findRoadSnap } from "~/game/placement/roadSnap";
@@ -38,27 +38,50 @@ import {
   usesQuarterRotation,
 } from "./modelManifest";
 
-// One picking plane per terrace level; index = level (0 is the classic ground
-// plane). Tested top-down so a plateau's surface wins over the plain behind it.
-const LEVEL_PLANES = Array.from({ length: MAX_LEVEL + 1 }, (_, level) =>
-  Plane.FromPositionAndNormal(new Vector3(0, level * LEVEL_HEIGHT, 0), Vector3.Up())
-);
+const GROUND_PLANE = Plane.FromPositionAndNormal(Vector3.Zero(), Vector3.Up());
 
 function pickGroundPoint(scene: Scene): { x: number; z: number } | null {
   if (!scene.activeCamera) return null;
   const ray = scene.createPickingRay(scene.pointerX, scene.pointerY, null, scene.activeCamera);
-  const elevation = getElevation(useGameStore.getState().elevationSeed);
-  // Raised planes count only where the cell really is that level; the level-0
-  // plane is the unconditional fallback (also off-grid, as before terraces).
-  for (let level = elevation.maxLevel; level >= 0; level -= 1) {
-    const distance = ray.intersectsPlane(LEVEL_PLANES[level]);
-    if (distance === null) continue;
+  // Flat maps keep the single-plane pick (also the off-grid fallback shape).
+  if (!getElevation(useGameStore.getState().elevationSeed).hilly) {
+    const distance = ray.intersectsPlane(GROUND_PLANE);
+    if (distance === null) return null;
     const hit = ray.origin.add(ray.direction.scale(distance));
-    if (level === 0) return { x: hit.x, z: hit.z };
-    const cell = worldToGrid(hit.x, hit.z);
-    if (cell && elevation.levelAt(cell.x, cell.y) === level) return { x: hit.x, z: hit.z };
+    return { x: hit.x, z: hit.z };
   }
-  return null;
+  // Hilly maps: march the ray against the smooth ground field from the
+  // MAX_RISE ceiling down past the plain, then bisect the first crossing —
+  // pure math, no mesh raycast (the terrain stays unpickable and frozen).
+  const { origin, direction } = ray;
+  if (direction.y >= 0) return null; // camera beta clamp keeps rays downward
+  const groundAt = (t: number) =>
+    worldGroundY(origin.x + direction.x * t, origin.z + direction.z * t);
+  let t0 = Math.max(0, (MAX_RISE - origin.y) / direction.y);
+  let t1 = (-0.05 - origin.y) / direction.y;
+  const STEPS = 48;
+  let previous = t0;
+  let found = false;
+  for (let i = 1; i <= STEPS; i += 1) {
+    const t = t0 + ((t1 - t0) * i) / STEPS;
+    if (origin.y + direction.y * t <= groundAt(t)) {
+      t0 = previous;
+      t1 = t;
+      found = true;
+      break;
+    }
+    previous = t;
+  }
+  if (found) {
+    for (let i = 0; i < 12; i += 1) {
+      const mid = (t0 + t1) / 2;
+      if (origin.y + direction.y * mid <= groundAt(mid)) t1 = mid;
+      else t0 = mid;
+    }
+  }
+  // Unfound only in degenerate cases (ground ≥ 0 guarantees a crossing by t1).
+  const t = (t0 + t1) / 2;
+  return { x: origin.x + direction.x * t, z: origin.z + direction.z * t };
 }
 
 export function pickGridCell(scene: Scene): GridPos | null {
@@ -444,7 +467,15 @@ export function createPlacementController(scene: Scene) {
     );
 
     setGhostVisible(true);
-    const ghostGroundY = cellGroundY(placeOrigin.x, placeOrigin.y);
+    // Seat the ghost like the real building will sit: highest ground sample
+    // under the rotated footprint.
+    const ghostFootprint = rotatedFootprint(metadata, effectiveRotation ?? undefined);
+    const ghostGroundY = footprintGroundRange(
+      xPos,
+      zPos,
+      (ghostFootprint.width * CELL_SIZE) / 2,
+      (ghostFootprint.depth * CELL_SIZE) / 2
+    ).seat;
     if (ghostModel) {
       ghostModel.root.position.set(
         xPos + ghostModel.offsetX,

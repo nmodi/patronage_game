@@ -1,34 +1,52 @@
-// The render side's one door to terrace heights: every mesh that stands on
-// the ground (buildings, roads, walkers, ghosts, display art) samples these,
-// so geometry and figures can't drift apart — the bridgeLiftAt precedent.
-// Reads the run's elevationSeed live from the store; flat maps return 0.
+// The render side's one door to ground height: BabylonCanvas registers the
+// terrain mesh's own bilinear sampler (surfaceAt) here at init, and every
+// mesh that stands on the ground — buildings, roads, walkers, ghosts,
+// display art, dirt chunks — reads through these, so geometry and figures
+// can't drift from the rendered surface (the bridgeLiftAt precedent).
+// Flat maps sample the flat plain and everything returns 0, as before hills.
 
-import { getElevation, groundHeight, LEVEL_HEIGHT } from "~/game/map/elevation";
-import { useGameStore } from "~/stores/useGameStore";
+import { CELL_SIZE, GRID_SIZE } from "~/game/constants";
 
-/** Terrace base height (world y) of a grid cell. */
-export function cellGroundY(gx: number, gy: number): number {
-  return LEVEL_HEIGHT * getElevation(useGameStore.getState().elevationSeed).levelAt(gx, gy);
+let sampler: ((x: number, z: number) => number) | null = null;
+
+/** Registered by BabylonCanvas once the terrain exists (before any tile
+ * renders); cleared on dispose. */
+export function setGroundSampler(next: ((x: number, z: number) => number) | null) {
+  sampler = next;
 }
 
-/** Terrace base height (world y) under a world-space point. */
+/** Ground height (world y) under a world-space point. Clamped at 0 so the
+ * water carve (negative surface near banks) keeps objects on the plain. */
 export function worldGroundY(wx: number, wz: number): number {
-  return groundHeight(getElevation(useGameStore.getState().elevationSeed), wx, wz);
+  return sampler ? Math.max(0, sampler(wx, wz)) : 0;
 }
 
-/** Drape height at a cell corner: the highest of the four touching cells —
- * a vertex-displaced sheet (the dirt overlay) hangs over cliff edges instead
- * of cutting into them. */
-export function cornerGroundY(cornerX: number, cornerY: number): number {
-  const elevation = getElevation(useGameStore.getState().elevationSeed);
-  if (!elevation.hilly) return 0;
-  return (
-    LEVEL_HEIGHT *
-    Math.max(
-      elevation.levelAt(cornerX - 1, cornerY - 1),
-      elevation.levelAt(cornerX, cornerY - 1),
-      elevation.levelAt(cornerX - 1, cornerY),
-      elevation.levelAt(cornerX, cornerY)
-    )
-  );
+/** Ground height at a grid cell's center. */
+export function cellGroundY(gx: number, gy: number): number {
+  const halfGrid = (GRID_SIZE * CELL_SIZE) / 2;
+  return worldGroundY(gx * CELL_SIZE - halfGrid + CELL_SIZE / 2, gy * CELL_SIZE - halfGrid + CELL_SIZE / 2);
+}
+
+/** Seat and lowest ground under a building footprint (world center + half
+ * extents): the base sits at `seat` (the highest sample, so walls never
+ * bury) and a foundation skirt covers down past `min` on sloped ground.
+ * Samples a grid at ≤1 wu spacing so large footprints can't miss a rise. */
+export function footprintGroundRange(
+  cx: number,
+  cz: number,
+  halfW: number,
+  halfD: number
+): { seat: number; min: number } {
+  let seat = 0;
+  let min = Infinity;
+  const stepsX = Math.max(2, Math.ceil(halfW * 2));
+  const stepsZ = Math.max(2, Math.ceil(halfD * 2));
+  for (let i = 0; i <= stepsX; i += 1) {
+    for (let j = 0; j <= stepsZ; j += 1) {
+      const h = worldGroundY(cx - halfW + (i / stepsX) * halfW * 2, cz - halfD + (j / stepsZ) * halfD * 2);
+      if (h > seat) seat = h;
+      if (h < min) min = h;
+    }
+  }
+  return { seat, min: Math.min(min, seat) };
 }

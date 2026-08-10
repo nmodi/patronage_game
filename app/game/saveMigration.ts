@@ -88,8 +88,8 @@ export function migrateSave(persisted: unknown, version: number): unknown {
     }
     save = { ...save, disciplineXp };
   }
-  // v13 added terrain terraces. Pre-elevation saves stay flat forever (the v6
-  // mapSeed rule): newly rolled hills would strand buildings across cliffs.
+  // v13 added terrain elevation. Pre-elevation saves stay flat forever (the
+  // v6 mapSeed rule): newly rolled hills would tilt under existing buildings.
   if (version < 13) {
     save = { ...save, elevationSeed: null };
   }

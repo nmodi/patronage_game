@@ -6,6 +6,7 @@ import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
 import { setAmbienceLocal, setAmbienceRadius } from "~/game/ui/useAmbience";
 import { getWater } from "~/game/map/water";
 import { getElevation } from "~/game/map/elevation";
+import { setGroundSampler } from "./groundLevel";
 import { RAZE_TOOL, useGameStore } from "~/stores/useGameStore";
 import {
   countModelFiles,
@@ -80,6 +81,10 @@ export function BabylonCanvas() {
         useGameStore.getState().mapSeed,
         getElevation(useGameStore.getState().elevationSeed)
       );
+      // Everything standing on the ground samples the rendered surface via
+      // groundLevel.ts. Registered before any tile builds (queueMap runs
+      // after this synchronous init).
+      setGroundSampler(terrain.surfaceAt);
       if (water) waterVisuals = createWaterVisuals(scene, water, terrain.surfaceAt);
       maybeScatter();
     }
@@ -284,6 +289,7 @@ export function BabylonCanvas() {
 
     return () => {
       disposed = true;
+      setGroundSampler(null);
       if (tileFrame != null) window.cancelAnimationFrame(tileFrame);
       if (environmentTimer != null) window.clearTimeout(environmentTimer);
       window.removeEventListener("keydown", handleKeyDown);

@@ -341,43 +341,36 @@ export function createRoadRenderer(scene: Scene) {
           }
           continue;
         }
-        // ponytail: diagonal ribbons stay flat at their own cell's terrace — a
-        // 45° staircase crossing a level step shows a small ledge; chord it
-        // like the cardinal ramp below if that ever reads badly.
-        diagPos.set(x, diagY + cellGroundY(tile.position.x, tile.position.y), z);
+        // Diagonal ribbons chord along their travel direction (the proven
+        // bridge yaw+roll composition); the quad's cross-axis stays level.
+        // ponytail: cross-slope tilt skipped on diagonals — narrow incidence,
+        // add the full plane fit like the cardinal branch if it reads badly.
+        const dzy = tile.rotation === ROAD_DIAG_NE ? 1 : -1;
+        const run = (Math.SQRT2 / 2) * CELL_SIZE;
+        const g0 = worldGroundY(x - run * Math.SQRT1_2, z - dzy * run * Math.SQRT1_2);
+        const g1 = worldGroundY(x + run * Math.SQRT1_2, z + dzy * run * Math.SQRT1_2);
+        const climb = Math.atan2(g1 - g0, 2 * run);
+        Quaternion.RotationYawPitchRollToRef(theta, 0, climb, diagQuat);
+        diagPos.set(x, diagY + worldGroundY(x, z), z);
         Matrix.ComposeToRef(diagScale, diagQuat, diagPos, matrix);
         matrix.copyToArray(scratch, 0);
         matrices.push(...scratch);
       } else {
-        // Terrace ramps: where a cardinal road continues onto a neighbor one
-        // level up/down, the quad chords from edge to edge (the bridge-deck
-        // transform) so the street climbs instead of showing a bare cliff.
-        // Edge height meets the neighbor halfway; flat cells stay translations.
-        const { x: gx, y: gy } = tile.position;
-        const own = cellGroundY(gx, gy);
-        const roadEdge = (dx: number, dy: number) => {
-          const n = tiles[`${gx + dx},${gy + dy}`];
-          if (n?.type !== "road") return own;
-          const nGround = cellGroundY(gx + dx, gy + dy);
-          return nGround === own ? own : (own + nGround) / 2;
-        };
-        const ex0 = roadEdge(-1, 0);
-        const ex1 = roadEdge(1, 0);
-        const ez0 = roadEdge(0, -1);
-        const ez1 = roadEdge(0, 1);
-        if (ex0 !== own || ex1 !== own || ez0 !== own || ez1 !== own) {
-          // ponytail: one plane per cell — x-axis steps win when both axes
-          // step (a rare corner ramp shows a seam on its z side).
-          const alongX = ex0 !== own || ex1 !== own;
-          const [e0, e1] = alongX ? [ex0, ex1] : [ez0, ez1];
-          const yaw = alongX ? 0 : -Math.PI / 2;
-          const climb = Math.atan2(e1 - e0, CELL_SIZE);
-          Quaternion.RotationYawPitchRollToRef(yaw, 0, climb, diagQuat);
-          diagPos.set(x, 0.01 + (e0 + e1) / 2, z);
-          rampScale.set(Math.hypot(CELL_SIZE, e1 - e0) / CELL_SIZE, 1, 1);
+        // Cardinal quads fit the local ground plane: sampled slopes along
+        // both axes tilt the quad so streets hug the hillside; flat ground
+        // keeps the cheap translation.
+        const half = CELL_SIZE / 2;
+        const gradX = (worldGroundY(x + half, z) - worldGroundY(x - half, z)) / CELL_SIZE;
+        const gradZ = (worldGroundY(x, z + half) - worldGroundY(x, z - half)) / CELL_SIZE;
+        const center = worldGroundY(x, z);
+        if (gradX !== 0 || gradZ !== 0) {
+          // Roll raises the +x edge (the bridge convention), pitch the +z edge.
+          Quaternion.RotationYawPitchRollToRef(0, -Math.atan(gradZ), Math.atan(gradX), diagQuat);
+          diagPos.set(x, 0.01 + center, z);
+          rampScale.set(Math.hypot(1, gradX), 1, Math.hypot(1, gradZ));
           Matrix.ComposeToRef(rampScale, diagQuat, diagPos, matrix);
         } else {
-          Matrix.TranslationToRef(x, 0.01 + own, z, matrix);
+          Matrix.TranslationToRef(x, 0.01 + center, z, matrix);
         }
         matrix.copyToArray(scratch, 0);
         matrices.push(...scratch);

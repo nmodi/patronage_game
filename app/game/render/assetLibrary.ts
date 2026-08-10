@@ -611,7 +611,7 @@ export function createBuildingBatcher(
     extend: { negX: boolean; posX: boolean } | undefined,
     active: boolean,
     segmentMask?: SegmentMask,
-    worldY = 0 // terrace base height — placement rules keep footprints on one level
+    worldY = 0 // ground seat height (highest footprint sample, mapRenderer)
   ): PlacedBuilding | null {
     const model = instantiateBuilding(buildingId, footprint, gridPos, scene, rotation, extend, segmentMask);
     if (!model) return null;

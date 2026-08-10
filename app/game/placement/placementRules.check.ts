@@ -10,7 +10,7 @@ import {
   type PlacementSnapshot,
 } from "./placementRules.ts";
 import { getWaterCells } from "../map/water.ts";
-import { generateElevation } from "../map/elevation.ts";
+import { footprintSpread, generateElevation, MAX_BUILD_SPREAD } from "../map/elevation.ts";
 
 const snapshot = (
   tiles: TileMap = {},
@@ -251,37 +251,37 @@ assert.equal(
   assert.equal(planLinearPlacement(snapshot(fence), [{ x: 0, y: 0 }], "road"), null);
 }
 
-// Elevation: buildings need a footprint on one terrace level; roads/linear
-// runs don't care (every adjacent step is ≤1 level, rendered as a ramp).
+// Elevation: buildings need flat-enough ground (footprint height spread ≤
+// MAX_BUILD_SPREAD); roads/linear runs are exempt and follow the surface.
 {
+  const cottageCells = footprintMask(BUILDING_METADATA_BY_ID.cottage).cells;
   let hillySeed = "";
-  let edge: { x: number; y: number } | null = null;
-  for (let i = 0; i < 100 && !edge; i += 1) {
+  let steep: { x: number; y: number } | null = null;
+  for (let i = 0; i < 100 && !steep; i += 1) {
     const seed = `placement-hill-${i}`;
     const e = generateElevation(seed);
     if (!e.hilly) continue;
-    // Find a level step with room for a 4x4 cottage on both sides.
-    for (let y = 2; y < 114 && !edge; y += 1) {
+    // Find a cottage origin whose footprint is too tilted to build on.
+    for (let y = 2; y < 114 && !steep; y += 1) {
       for (let x = 2; x < 114; x += 1) {
-        if (e.levelAt(x, y) !== e.levelAt(x + 1, y)) {
+        if (footprintSpread(e, { x, y }, cottageCells) > MAX_BUILD_SPREAD) {
           hillySeed = seed;
-          edge = { x, y };
+          steep = { x, y };
           break;
         }
       }
     }
   }
-  assert.ok(edge, "no hilly seed with a level step found");
+  assert.ok(steep, "no hilly seed with a too-steep cottage spot found");
   const hillState = snapshot({}, 10_000, null, undefined, hillySeed);
-  // A cottage straddling the step is rejected; shifted onto one terrace it fits.
-  assert.equal(planPlacement(hillState, [{ x: edge!.x - 1, y: edge!.y }], "cottage"), null);
-  assert.equal(canPlaceAt(hillState, { x: edge!.x - 1, y: edge!.y }, "cottage"), false);
-  // Roads cross the same step freely.
+  assert.equal(planPlacement(hillState, [steep!], "cottage"), null);
+  assert.equal(canPlaceAt(hillState, steep!, "cottage"), false);
+  // Roads cross the same slope freely.
   assert.ok(
-    planLinearPlacement(hillState, [{ x: edge!.x, y: edge!.y }, { x: edge!.x + 1, y: edge!.y }], "path")
+    planLinearPlacement(hillState, [steep!, { x: steep!.x + 1, y: steep!.y }], "path")
   );
   // Flat maps (null seed) are untouched by the rule.
-  assert.ok(planPlacement(snapshot(), [{ x: edge!.x - 1, y: edge!.y }], "cottage"));
+  assert.ok(planPlacement(snapshot(), [steep!], "cottage"));
 }
 
 console.log("placementRules.check: all assertions passed");

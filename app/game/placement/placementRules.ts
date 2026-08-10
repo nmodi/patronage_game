@@ -12,7 +12,7 @@ import type { GridPos, Tile, TileMap } from "../grid.ts";
 import type { MaterialPools } from "../art/materials.ts";
 import type { BuildingMetadata, Material } from "../types.ts";
 import { getWaterCells } from "../map/water.ts";
-import { getElevation } from "../map/elevation.ts";
+import { footprintSpread, getElevation, MAX_BUILD_SPREAD } from "../map/elevation.ts";
 
 export interface PlacementSnapshot {
   florins: number;
@@ -160,15 +160,15 @@ export function planPlacement(
   const onRoad = metadata.placesOnRoads === true;
 
   for (const position of positions) {
-    // Buildings need level ground: every footprint cell on the origin's terrace.
-    const level = elevation.levelAt(position.x, position.y);
+    // Buildings need flat-enough ground: footprint height spread ≤ the gate,
+    // so big footprints demand flatter ground than cottages. Roads are exempt.
+    if (footprintSpread(elevation, position, cells) > MAX_BUILD_SPREAD) return null;
     for (const offset of cells) {
       const x = position.x + offset.x;
       const y = position.y + offset.y;
       // Per-cell bounds: diagonal masks have negative x offsets, so an
       // origin-corner test can't stand in for the whole footprint.
       if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return null;
-      if (elevation.levelAt(x, y) !== level) return null;
       const key = `${x},${y}`;
       const cell = checkCell(
         state.map.tiles,
@@ -209,12 +209,11 @@ export function canPlaceAt(
   const canOverlap = metadata.type === "decoration";
   const isBridge = buildingId === "bridge";
   const onRoad = metadata.placesOnRoads === true;
-  const level = elevation.levelAt(position.x, position.y);
+  if (footprintSpread(elevation, position, cells) > MAX_BUILD_SPREAD) return false;
   for (const offset of cells) {
     const x = position.x + offset.x;
     const y = position.y + offset.y;
     if (x < 0 || y < 0 || x >= GRID_SIZE || y >= GRID_SIZE) return false;
-    if (elevation.levelAt(x, y) !== level) return false;
     const cell = checkCell(
       state.map.tiles,
       water,
@@ -234,8 +233,8 @@ export function canPlaceAt(
  * Plan a drag-placed road or linear decoration in one pass (these are all
  * 1×1-footprint cells). Existing compatible cells join the run for free; only
  * newly claimed cells are validated (water blocks all but bridges) and charged.
- * No elevation rule: every cell is 1×1 flat, and the generator guarantees
- * adjacent cells never step more than one level, so any run is rampable.
+ * No elevation rule: cells are 1×1 and the field's slopes are gentle by
+ * construction (elevation.check.ts), so roads simply follow the surface.
  */
 export function planLinearPlacement(
   state: PlacementSnapshot,
