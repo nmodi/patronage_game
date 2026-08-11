@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { getRazeImpact, getRazeSalvage } from "~/game/placement/raze";
+import { spawnRazeFx } from "~/game/render/razeFx";
 import { useGameStore } from "~/stores/useGameStore";
 import { Panel } from "./Panel";
 
@@ -59,6 +60,7 @@ export function RazeConfirm() {
           <button
             className="btn-primary px-3 py-1.5 text-sm"
             onClick={() => {
+              spawnRazeFx(razeTarget); // before removeTile: reads the still-standing tile
               removeTile(tile.origin);
               setRazeTarget(null);
             }}

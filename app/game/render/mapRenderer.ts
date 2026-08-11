@@ -23,6 +23,8 @@ import {
   desaturate,
   expectsModel,
   hasModel,
+  instantiateBuilding,
+  type BuildingModel,
   type PlacedBuilding,
 } from "./assetLibrary";
 import {
@@ -154,6 +156,44 @@ function computeSegment(tile: Tile, tiles: Record<string, Tile>): SegmentMask {
   const { x, y } = tile.position;
   const same = (cx: number, cy: number) => tiles[`${cx},${cy}`]?.buildingId === tile.buildingId;
   return { px: same(x + 1, y), nx: same(x - 1, y), pz: same(x, y + 1), nz: same(x, y - 1) };
+}
+
+/**
+ * A standalone positioned clone of a placed building — the exact model the
+ * batcher harvests, seated at its rendered spot (raze highlight / raze FX).
+ * Null for roads, modelless buildings, or unknown ids. Caller disposes root.
+ */
+export function instantiateTransientModel(
+  scene: Scene,
+  tile: Tile,
+  tiles: TileMap
+): BuildingModel | null {
+  const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+  if (!metadata) return null;
+  const extend = hasExtensions(tile.buildingId)
+    ? computeExtend(tile, metadata, tiles)
+    : undefined;
+  const segment = isSegment(tile.buildingId) ? computeSegment(tile, tiles) : undefined;
+  const { x, z } = gridToWorld(tile.position.x, tile.position.y, metadata, tile.rotation);
+  const { width, depth } = rotatedFootprint(metadata, tile.rotation);
+  const seatY =
+    metadata.type === "decoration"
+      ? worldGroundY(x, z)
+      : footprintGroundRange(x, z, (width * CELL_SIZE) / 2, (depth * CELL_SIZE) / 2).seat;
+  const model = instantiateBuilding(
+    tile.buildingId,
+    { width, depth },
+    tile.position,
+    scene,
+    tile.rotation,
+    extend,
+    segment
+  );
+  if (!model) return null;
+  model.root.position.x = x + model.offsetX;
+  model.root.position.y += seatY;
+  model.root.position.z = z + model.offsetZ;
+  return model;
 }
 
 export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerator) {

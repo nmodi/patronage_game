@@ -30,6 +30,8 @@ import {
   overrideMaterials,
   type BuildingModel,
 } from "./assetLibrary";
+import { instantiateTransientModel } from "./mapRenderer";
+import { spawnRazeFx } from "./razeFx";
 import {
   effectiveRotation as resolveRotation,
   facadeHalfExtent,
@@ -220,6 +222,34 @@ export function createPlacementController(scene: Scene) {
     arrow.setEnabled(false);
   }
 
+  // Raze target highlight: a red translucent clone shelled over the hovered
+  // building (the ground quads alone hide under the building's own mesh).
+  let razeGhost: BuildingModel | null = null;
+  let razeGhostKey: string | null = null;
+
+  function clearRazeGhost() {
+    razeGhost?.root.dispose();
+    razeGhost = null;
+    razeGhostKey = null;
+  }
+
+  function updateRazeGhost(state: GameState, originKey: string | null) {
+    // Roads keep the flat quad highlight; buildings get the red shell.
+    const key =
+      originKey && state.map.tiles[originKey]?.type !== "road" ? originKey : null;
+    if (key === razeGhostKey) return;
+    clearRazeGhost();
+    razeGhostKey = key;
+    if (!key) return;
+    const tile = state.map.tiles[key];
+    const model = tile && instantiateTransientModel(scene, tile, state.map.tiles);
+    if (!model) return;
+    overrideMaterials(model, invalidMat);
+    // Slightly proud of the batched mesh so the shell can't z-fight it.
+    model.root.scaling.scaleInPlace(1.02);
+    razeGhost = model;
+  }
+
   function clearRoadPreview() {
     for (const mesh of roadPreviewMeshes) mesh.dispose();
     roadPreviewMeshes = [];
@@ -333,6 +363,7 @@ export function createPlacementController(scene: Scene) {
 
     if (!selectedBuilding) {
       clearGhost();
+      clearRazeGhost();
       pendingClick = false;
       updateHoveredTile(state);
       if (inspectClick) {
@@ -384,6 +415,7 @@ export function createPlacementController(scene: Scene) {
         }
       }
       updateRoadPreview(cells, false);
+      updateRazeGhost(state, tile ? `${tile.origin.x},${tile.origin.y}` : null);
 
       if (tile && (pendingClick || mouseHeld)) {
         const originKey = `${tile.origin.x},${tile.origin.y}`;
@@ -393,7 +425,9 @@ export function createPlacementController(scene: Scene) {
           // on a deliberate click; a drag-sweep passes over them.
           if (pendingClick) state.setRazeTarget(originKey);
         } else {
+          spawnRazeFx(originKey);
           state.removeTile(tile.origin);
+          clearRazeGhost();
         }
       }
       pendingClick = false;
@@ -401,6 +435,7 @@ export function createPlacementController(scene: Scene) {
     }
 
     if (state.hoveredTileKey) state.setHoveredTile(null);
+    clearRazeGhost();
     const metadata = BUILDING_METADATA_BY_ID[selectedBuilding];
     if (!metadata) return;
 
@@ -523,6 +558,7 @@ export function createPlacementController(scene: Scene) {
     window.removeEventListener("blur", handleBlur);
     scene.onBeforeRenderObservable.remove(observer);
     clearGhost();
+    clearRazeGhost();
     clearRoadPreview();
     arrow.dispose();
     arrowMat.dispose();
@@ -534,6 +570,7 @@ export function createPlacementController(scene: Scene) {
   // Clearing it makes the next frame rebuild the preview from the loaded asset.
   function refresh() {
     clearGhost();
+    clearRazeGhost();
     ghostBuiltRotation = null;
   }
 

@@ -6,7 +6,7 @@ import type { Scene } from "@babylonjs/core/scene";
 
 const textures = new WeakMap<Scene, DynamicTexture>();
 
-function getPuffTexture(scene: Scene) {
+export function getPuffTexture(scene: Scene) {
   let texture = textures.get(scene);
   if (texture) return texture;
   texture = new DynamicTexture("smoke-puff", 32, scene, false);

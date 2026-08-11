@@ -18,6 +18,7 @@ import {
 import { createCitizens } from "./citizens";
 import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
+import { createRazeFx } from "./razeFx";
 import { createRenderScene } from "./sceneSetup";
 import { createTerrain } from "./terrain";
 import { createWaterVisuals } from "./waterMesh";
@@ -52,6 +53,7 @@ export function BabylonCanvas() {
 
     const tileRenderer = createTileRenderer(scene, shadowGenerator);
     const placementController = createPlacementController(scene);
+    const razeFx = createRazeFx(scene);
     const citizens = createCitizens(scene);
 
     let disposed = false;
@@ -299,6 +301,7 @@ export function BabylonCanvas() {
       offHydration();
       unsubscribe();
       placementController.dispose();
+      razeFx.dispose();
       citizens.dispose();
       tileRenderer.dispose();
       treeScatter?.dispose();
