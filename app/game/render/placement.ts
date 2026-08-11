@@ -18,6 +18,7 @@ import { CELL_SIZE } from "~/game/constants";
 import { plinthSlotAt } from "~/game/art/display";
 import { getElevation, MAX_RISE } from "~/game/map/elevation";
 import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos, type Tile } from "~/game/grid";
+import { bridgeLiftAt } from "./bridgeProfile";
 import { cellGroundY, footprintGroundRange, worldGroundY } from "./groundLevel";
 import { canPlaceAt, planLinearPlacement } from "~/game/placement/placementRules";
 import { getRazeImpact } from "~/game/placement/raze";
@@ -261,14 +262,51 @@ export function createPlacementController(scene: Scene) {
     if (!visible) arrow.setEnabled(false);
   }
 
-  // Ray vs each building's bounding box, so pointing at a wall or roof targets
-  // the building — the ground-plane pick alone lands on the cell BEHIND it.
-  // Nearest hit box wins (a front building beats one silhouetted behind it).
-  function pickBuildingBody(state: GameState): Tile | undefined {
+  /** Ray-entry distance into an AABB (slab test), or null on a miss. */
+  function rayBoxT(
+    origin: Vector3,
+    direction: Vector3,
+    min: Vector3,
+    max: Vector3
+  ): number | null {
+    let tmin = 0;
+    let tmax = Infinity;
+    for (const a of ["x", "y", "z"] as const) {
+      const o = origin[a];
+      const d = direction[a];
+      if (Math.abs(d) < 1e-9) {
+        if (o < min[a] || o > max[a]) return null;
+        continue;
+      }
+      let t1 = (min[a] - o) / d;
+      let t2 = (max[a] - o) / d;
+      if (t1 > t2) [t1, t2] = [t2, t1];
+      if (t1 > tmin) tmin = t1;
+      if (t2 < tmax) tmax = t2;
+      if (tmin > tmax) return null;
+    }
+    return tmin;
+  }
+
+  // What the cursor is on: ray vs each building's bounding box, so pointing at
+  // a wall or roof targets the building — the ground-plane pick alone lands on
+  // the cell BEHIND it. Nearest along the ray wins: a building beats the
+  // ground only when the ray enters its box before reaching the terrain, so a
+  // road or lot in front never loses its hover to a building behind it.
+  function pickHoverTile(state: GameState): Tile | undefined {
     if (!scene.activeCamera) return undefined;
     const ray = scene.createPickingRay(scene.pointerX, scene.pointerY, null, scene.activeCamera);
+    const point = pickGroundPoint(scene);
+    const groundCell = point ? worldToGrid(point.x, point.z) : null;
+    const groundTile = groundCell
+      ? state.map.tiles[`${groundCell.x},${groundCell.y}`]
+      : undefined;
+    const groundDist = point
+      ? Vector3.Distance(ray.origin, new Vector3(point.x, worldGroundY(point.x, point.z), point.z))
+      : Infinity;
+
     let best: Tile | undefined;
-    let bestDist = Infinity;
+    let bestT = Infinity;
     for (const key in state.map.tiles) {
       const tile = state.map.tiles[key];
       if (!tile.isOrigin || tile.type === "road") continue;
@@ -289,25 +327,19 @@ export function createPlacementController(scene: Scene) {
       const half = CELL_SIZE / 2;
       const min = new Vector3(lo.x - half, seat, lo.z - half);
       const max = new Vector3(hi.x + half, seat + metadata.size.height + 0.25, hi.z + half);
-      if (!ray.intersectsBoxMinMax(min, max)) continue;
-      const dist = Vector3.Distance(
-        ray.origin,
-        new Vector3((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2)
-      );
-      if (dist < bestDist) {
-        bestDist = dist;
+      const t = rayBoxT(ray.origin, ray.direction, min, max);
+      if (t !== null && t < bestT) {
+        bestT = t;
         best = tile;
       }
     }
-    return best;
+    return best && bestT < groundDist ? best : groundTile;
   }
 
   // Hover tooltip source: track which placed building the pointer is over
   // whenever we're not in placement mode. Roads are skipped as noise.
   function updateHoveredTile(state: GameState) {
-    const body = pickBuildingBody(state);
-    const cell = body ? null : pickGridCell(scene);
-    const tile = body ?? (cell ? state.map.tiles[`${cell.x},${cell.y}`] : undefined);
+    const tile = pickHoverTile(state);
     const key = tile && tile.type !== "road" ? `${tile.origin.x},${tile.origin.y}` : null;
     if (state.hoveredTileKey !== key) state.setHoveredTile(key);
   }
@@ -337,7 +369,11 @@ export function createPlacementController(scene: Scene) {
         continue;
       }
       const world = gridToWorld(position.x, position.y);
-      mesh.position.set(world.x, 0.004 + cellGroundY(position.x, position.y), world.z);
+      // Above the road ribbons (0.01) and bridge decks (0.025 + hump) — at the
+      // old 0.004 the quads buried under any paved cell and roads never showed
+      // a raze highlight; grass sits low enough that the float is invisible.
+      const lift = bridgeLiftAt(useGameStore.getState().map.tiles, world.x, world.z);
+      mesh.position.set(world.x, 0.035 + lift + cellGroundY(position.x, position.y), world.z);
       // Diagonal stretches preview with the final ribbon transform; reset is
       // required because these pooled quads also serve the raze highlight.
       if (rotation) {
@@ -440,10 +476,9 @@ export function createPlacementController(scene: Scene) {
     if (selectedBuilding === RAZE_TOOL) {
       clearGhost();
       roadAnchor = null;
-      // Body-first resolution shared by tooltip, highlight, and click, so all
-      // three agree; the ground cell still catches roads (no body to hit).
-      const cell = pickGridCell(scene);
-      const tile = pickBuildingBody(state) ?? (cell ? state.getTileAt(cell) : undefined);
+      // One shared resolution feeds tooltip, highlight, and click, so all
+      // three agree; roads resolve through the ground hit (no body to hit).
+      const tile = pickHoverTile(state);
       // Tooltip names the target and shows the salvage value (roads stay quiet).
       const hoverKey =
         tile && tile.type !== "road" ? `${tile.origin.x},${tile.origin.y}` : null;
