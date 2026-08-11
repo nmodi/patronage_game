@@ -5,7 +5,7 @@
 // so the visible water matches the blocked cells.
 //
 // Layering: terrain sits at y=-0.01 (dipped to ~-0.5 near water), the ribbon
-// bed at -0.35, water surfaces at -0.08, in-grid bank rims at -0.005 — above
+// bed at -0.35, water surfaces at -0.12, in-grid bank rims at -0.005 — above
 // grass, below building aprons (0.005), so banks slide under riverside
 // buildings instead of poking through them.
 
@@ -23,7 +23,9 @@ const HALF_GRID = (GRID_SIZE * CELL_SIZE) / 2;
 /** Rivers/sea render out to here; fog (end 95) hides the cutoff. */
 const EXTENT = 115;
 
-const SURFACE_Y = -0.08;
+// Keep above the bridge arches' springline (-0.145 in roadRenderer.ts) or
+// the masonry's waterline seam surfaces.
+const SURFACE_Y = -0.12;
 const BED_Y = -0.35;
 /** Bank rim/lip height inside the grid: above the terrain plain (-0.01),
  * below aprons/roads (0.005+). */
@@ -182,9 +184,11 @@ export function createWaterVisuals(
         const midCross = (prev.points[s][0] + prev.points[s + 1][0] + points[s][0]) / 3;
         const midZ = (prev.points[s][2] + prev.points[s + 1][2] + points[s][2]) / 3;
         // Diving banks at the mouth shade to bed tone — tan/grass under the
-        // shallow water reads as a milky patch otherwise. Lags the dive so
-        // banks only darken once they're underwater.
-        const dive = smoothstep01((water.seaDistance(midCross, midZ) + 2.1) / 2.1);
+        // shallow water reads as a milky patch otherwise. The ramp starts
+        // where the sinking bank floor actually crosses SURFACE_Y (sd ≈ -4.8,
+        // in step with the water flare that covers the banks there): starting
+        // later leaves a submerged-but-still-tan wedge fanning into the sea.
+        const dive = smoothstep01((water.seaDistance(midCross, midZ) + 4.8) / 1.8);
         ribbon.quad(
           prev.points[s],
           prev.points[s + 1],
@@ -291,7 +295,15 @@ export function createWaterVisuals(
     // 1.5 wu — ending at the coastline leaves a dark sliver across the mouth.
     const flare =
       5 * smoothstep01((sd + 4.5) / 4) * (1 - smoothstep01((sd + 0.6) / 0.8));
-    const half = water.riverWidthAt(t) / 2 + 0.08 + flare;
+    // Overshoot the bank rim (bedEdge 0.15 + rim offset, +0.25 curvature
+    // slack for the coarser 1.5-wu step) so the water edge hides under the
+    // bank/lip, which sit above SURFACE_Y everywhere the banks aren't diving
+    // into the sea — same trick the coastline uses, no seam to stitch.
+    const half =
+      water.riverWidthAt(t) / 2 +
+      0.4 +
+      lerp(0.55, 1.6, gridBlend(cx, cz)) +
+      flare;
     // At the surface until the sea sheet's edge (sd -0.2), then duck under it.
     const y = SURFACE_Y - 0.15 * smoothstep01((sd + 0.35) / 1.2);
     const points = [-half, 0, half].map((off) => {
@@ -310,7 +322,16 @@ export function createWaterVisuals(
     const SEA_STEP = 6;
     let prevRow: number[][] | null = null;
     for (let u = -EXTENT; u <= EXTENT; u += SEA_STEP) {
-      const start = coastlineAt(u) * coastSign - 0.2;
+      const tC = coastlineAt(u);
+      const [px, pz] = frame(water.riverAxis, tC, u);
+      // Tuck the sheet's landward edge under the shore rim (rim offset from
+      // the shore pass + 0.75 slack for the 6-wu u-step) — same no-gap trick
+      // as the river strip: the rim is clamped above the surface, so the
+      // overlap hides under the beach instead of leaving a dry bank face
+      // between the waterline and the old 0.2 sheet edge. Stays short of the
+      // lip line (rim + 1.6), where the terrain rises back above the water.
+      const start =
+        tC * coastSign - lerp(0.7, 1.7, gridBlend(px, pz)) - 0.75;
       const row: number[][] = [];
       for (let d = 0; d <= 22; d += 1) {
         const t = (start + d * SEA_STEP) * coastSign;
@@ -336,6 +357,9 @@ export function createWaterVisuals(
   waterMat.specularPower = 128;
   waterMat.emissiveColor = new Color3(0.04, 0.05, 0.045);
   waterMat.backFaceCulling = false;
+  // Only the topmost water surface draws: river and sea overlap freely (the
+  // mouth funnel ducks under the sea sheet) without double-alpha pale patches.
+  waterMat.needDepthPrePass = true;
   waterMesh.material = waterMat;
   waterMesh.isPickable = false;
   // Vertices wobble in place — skip per-frame bounds work.

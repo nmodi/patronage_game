@@ -17,7 +17,7 @@ const SUBDIVISIONS = 160;
 const FLAT_RADIUS = (GRID_SIZE * CELL_SIZE) / 2 + 3;
 const HILL_RAMP = 18;
 
-// Water shaping (G5). The channel dips well below the water surface (-0.08)
+// Water shaping (G5). The channel dips well below the water surface (-0.12)
 // so the coarse terrain never pokes up through it; the *visible* banks are
 // waterMesh's fine ribbons — terrain just gets out of the way underneath.
 const VALLEY_HALF_WIDTH = 6; // hills part this far around the river
