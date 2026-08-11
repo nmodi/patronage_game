@@ -60,8 +60,11 @@ export function createRazeFx(scene: Scene) {
     dust.blendMode = ParticleSystem.BLENDMODE_STANDARD;
     dust.emitRate = 0;
     dust.manualEmitCount = Math.min(192, 48 + width * depth * 24);
-    dust.targetStopDuration = 1.5; // past max lifetime, so disposeOnStop can't cut live puffs
-    dust.disposeOnStop = true;
+    dust.targetStopDuration = 1.5; // past max lifetime, so stopping can't cut live puffs
+    // NOT disposeOnStop: that path calls dispose() with its default
+    // disposeTexture=true, destroying the SHARED puff texture (smoke.ts) — the
+    // first raze then kills every later burst and the chimney smoke with it.
+    dust.onStoppedObservable.add(() => queueMicrotask(() => dust.dispose(false)));
     dust.start();
   };
 
