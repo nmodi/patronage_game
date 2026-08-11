@@ -1,7 +1,6 @@
 import { Color4 } from "@babylonjs/core/Maths/math.color";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 import { ParticleSystem } from "@babylonjs/core/Particles/particleSystem";
-import type { TransformNode } from "@babylonjs/core/Meshes/transformNode";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID, rotatedFootprint } from "~/game/buildings";
@@ -9,7 +8,6 @@ import { CELL_SIZE } from "~/game/constants";
 import { useGameStore } from "~/stores/useGameStore";
 import { worldGroundY } from "./groundLevel";
 import { gridToWorld } from "~/game/grid";
-import { instantiateTransientModel } from "./mapRenderer";
 import { getPuffTexture } from "./smoke";
 
 // Module-level handler slot so DOM callers (RazeConfirm) can trigger the
@@ -21,36 +19,16 @@ export function spawnRazeFx(originKey: string) {
   handler?.(originKey);
 }
 
-const SINK_SECONDS = 0.45;
-
 /**
- * Demolition feedback: the razed building's transient clone sinks into the
- * ground under a dust burst, covering the batched mesh's instant removal.
- * Cosmetic-only, real time (plays while paused, like UI feedback).
+ * Demolition feedback: a footprint-sized dust cloud where the building stood.
+ * Cosmetic-only, real time (plays while paused, like UI feedback). A sink-out
+ * clone was tried and cut — the building sliding into the ground read comical.
  */
 export function createRazeFx(scene: Scene) {
-  type Sinking = { root: TransformNode; baseY: number; depth: number; elapsed: number };
-  const sinking: Sinking[] = [];
-
-  const observer = scene.onBeforeRenderObservable.add(() => {
-    if (sinking.length === 0) return;
-    const dt = scene.getEngine().getDeltaTime() / 1000;
-    for (let i = sinking.length - 1; i >= 0; i -= 1) {
-      const s = sinking[i];
-      s.elapsed += dt;
-      const t = Math.min(1, s.elapsed / SINK_SECONDS);
-      s.root.position.y = s.baseY - s.depth * t * t; // ease-in: the collapse accelerates
-      if (t >= 1) {
-        s.root.dispose();
-        sinking.splice(i, 1);
-      }
-    }
-  });
-
   handler = (originKey: string) => {
     const state = useGameStore.getState();
     const tile = state.map.tiles[originKey];
-    if (!tile || tile.type === "road") return; // roads are flat ribbons — no body to sink
+    if (!tile || tile.type === "road") return; // roads are flat ribbons — no body to dust
     const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
     if (!metadata) return;
 
@@ -59,49 +37,37 @@ export function createRazeFx(scene: Scene) {
     const halfW = (width * CELL_SIZE) / 2;
     const halfD = (depth * CELL_SIZE) / 2;
 
-    const dust = new ParticleSystem("raze-dust", 96, scene);
+    const dust = new ParticleSystem("raze-dust", 192, scene);
     dust.particleTexture = getPuffTexture(scene);
-    dust.emitter = new Vector3(x, worldGroundY(x, z) + 0.06, z);
+    dust.emitter = new Vector3(x, worldGroundY(x, z) + 0.08, z);
+    // The burst is the whole effect (the building itself vanishes in a frame),
+    // so it fills the volume the building occupied, not just a ground skirt.
     dust.minEmitBox = new Vector3(-halfW, 0, -halfD);
-    dust.maxEmitBox = new Vector3(halfW, 0.15, halfD);
-    dust.color1 = new Color4(0.66, 0.61, 0.52, 0.5);
-    dust.color2 = new Color4(0.58, 0.54, 0.47, 0.4);
-    dust.colorDead = new Color4(0.62, 0.58, 0.5, 0);
-    dust.minSize = 0.16;
-    dust.maxSize = 0.32;
+    dust.maxEmitBox = new Vector3(halfW, 0.6, halfD);
+    dust.color1 = new Color4(0.72, 0.66, 0.56, 0.85);
+    dust.color2 = new Color4(0.6, 0.55, 0.47, 0.7);
+    dust.colorDead = new Color4(0.65, 0.6, 0.52, 0);
+    dust.minSize = 0.35;
+    dust.maxSize = 0.6;
     dust.addSizeGradient(0, 0.5);
-    dust.addSizeGradient(1, 1.8);
-    dust.minLifeTime = 0.5;
-    dust.maxLifeTime = 0.9;
-    dust.direction1 = new Vector3(-0.35, 0.5, -0.35);
-    dust.direction2 = new Vector3(0.35, 0.9, 0.35);
-    dust.minEmitPower = 0.3;
-    dust.maxEmitPower = 0.7;
+    dust.addSizeGradient(1, 2.2);
+    dust.minLifeTime = 0.8;
+    dust.maxLifeTime = 1.4;
+    dust.direction1 = new Vector3(-0.5, 0.4, -0.5);
+    dust.direction2 = new Vector3(0.5, 1, 0.5);
+    dust.minEmitPower = 0.4;
+    dust.maxEmitPower = 0.9;
     dust.blendMode = ParticleSystem.BLENDMODE_STANDARD;
     dust.emitRate = 0;
-    dust.manualEmitCount = Math.min(96, 16 + width * depth * 10);
-    dust.targetStopDuration = 1; // past max lifetime, so disposeOnStop can't cut live puffs
+    dust.manualEmitCount = Math.min(192, 48 + width * depth * 24);
+    dust.targetStopDuration = 1.5; // past max lifetime, so disposeOnStop can't cut live puffs
     dust.disposeOnStop = true;
     dust.start();
-
-    const model = instantiateTransientModel(scene, tile, state.map.tiles);
-    if (model) {
-      for (const mesh of model.meshes) mesh.isPickable = false;
-      sinking.push({
-        root: model.root,
-        baseY: model.root.position.y,
-        depth: model.height + 0.1,
-        elapsed: 0,
-      });
-    }
   };
 
   return {
     dispose() {
       handler = null;
-      scene.onBeforeRenderObservable.remove(observer);
-      for (const s of sinking) s.root.dispose();
-      sinking.length = 0;
     },
   };
 }
