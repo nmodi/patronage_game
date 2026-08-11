@@ -251,37 +251,34 @@ assert.equal(
   assert.equal(planLinearPlacement(snapshot(fence), [{ x: 0, y: 0 }], "road"), null);
 }
 
-// Elevation: buildings need flat-enough ground (footprint height spread ≤
-// MAX_BUILD_SPREAD); roads/linear runs are exempt and follow the surface.
+// Elevation: the spread gate (footprint height spread ≤ MAX_BUILD_SPREAD)
+// survives as a backstop, but the field is sized so it never fires — hills
+// are visual, not difficulty (elevation.check.ts asserts the cathedral worst
+// case field-wide; here we assert the gate's plumbing through planPlacement).
 {
-  const cottageCells = footprintMask(BUILDING_METADATA_BY_ID.cottage).cells;
-  let hillySeed = "";
-  let steep: { x: number; y: number } | null = null;
-  for (let i = 0; i < 100 && !steep; i += 1) {
-    const seed = `placement-hill-${i}`;
-    const e = generateElevation(seed);
-    if (!e.hilly) continue;
-    // Find a cottage origin whose footprint is too tilted to build on.
-    for (let y = 2; y < 114 && !steep; y += 1) {
-      for (let x = 2; x < 114; x += 1) {
-        if (footprintSpread(e, { x, y }, cottageCells) > MAX_BUILD_SPREAD) {
-          hillySeed = seed;
-          steep = { x, y };
-          break;
-        }
+  const warehouseCells = footprintMask(BUILDING_METADATA_BY_ID.warehouse).cells;
+  const hillySeed = Array.from({ length: 20 }, (_, i) => `placement-hill-${i}`).find(
+    (s) => generateElevation(s).hilly
+  )!;
+  const e = generateElevation(hillySeed);
+  // The steepest warehouse spot on this map still places.
+  let steep = { x: 2, y: 2 };
+  let worst = 0;
+  for (let y = 2; y < 105; y += 1) {
+    for (let x = 2; x < 105; x += 1) {
+      const s = footprintSpread(e, { x, y }, warehouseCells);
+      if (s > worst) {
+        worst = s;
+        steep = { x, y };
       }
     }
   }
-  assert.ok(steep, "no hilly seed with a too-steep cottage spot found");
+  assert.ok(worst > 0 && worst <= MAX_BUILD_SPREAD, `field breaches the gate: ${worst}`);
   const hillState = snapshot({}, 10_000, null, undefined, hillySeed);
-  assert.equal(planPlacement(hillState, [steep!], "cottage"), null);
-  assert.equal(canPlaceAt(hillState, steep!, "cottage"), false);
-  // Roads cross the same slope freely.
-  assert.ok(
-    planLinearPlacement(hillState, [steep!, { x: steep!.x + 1, y: steep!.y }], "path")
-  );
-  // Flat maps (null seed) are untouched by the rule.
-  assert.ok(planPlacement(snapshot(), [steep!], "cottage"));
+  assert.ok(planPlacement(hillState, [steep], "warehouse"));
+  assert.ok(canPlaceAt(hillState, steep, "warehouse"));
+  // Roads follow the surface freely too.
+  assert.ok(planLinearPlacement(hillState, [steep, { x: steep.x + 1, y: steep.y }], "path"));
 }
 
 console.log("placementRules.check: all assertions passed");
