@@ -17,7 +17,7 @@ import {
 import { CELL_SIZE } from "~/game/constants";
 import { plinthSlotAt } from "~/game/art/display";
 import { getElevation, MAX_RISE } from "~/game/map/elevation";
-import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos } from "~/game/grid";
+import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos, type Tile } from "~/game/grid";
 import { cellGroundY, footprintGroundRange, worldGroundY } from "./groundLevel";
 import { canPlaceAt, planLinearPlacement } from "~/game/placement/placementRules";
 import { getRazeImpact } from "~/game/placement/raze";
@@ -261,11 +261,53 @@ export function createPlacementController(scene: Scene) {
     if (!visible) arrow.setEnabled(false);
   }
 
+  // Ray vs each building's bounding box, so pointing at a wall or roof targets
+  // the building — the ground-plane pick alone lands on the cell BEHIND it.
+  // Nearest hit box wins (a front building beats one silhouetted behind it).
+  function pickBuildingBody(state: GameState): Tile | undefined {
+    if (!scene.activeCamera) return undefined;
+    const ray = scene.createPickingRay(scene.pointerX, scene.pointerY, null, scene.activeCamera);
+    let best: Tile | undefined;
+    let bestDist = Infinity;
+    for (const key in state.map.tiles) {
+      const tile = state.map.tiles[key];
+      if (!tile.isOrigin || tile.type === "road") continue;
+      const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
+      if (!metadata) continue;
+      // AABB over the footprint cells (handles diagonal diamonds uniformly);
+      // height is the design size — close enough for hover targeting.
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const c of footprintMask(metadata, tile.rotation).cells) {
+        if (c.x < minX) minX = c.x;
+        if (c.x > maxX) maxX = c.x;
+        if (c.y < minY) minY = c.y;
+        if (c.y > maxY) maxY = c.y;
+      }
+      const lo = gridToWorld(tile.position.x + minX, tile.position.y + minY);
+      const hi = gridToWorld(tile.position.x + maxX, tile.position.y + maxY);
+      const seat = worldGroundY((lo.x + hi.x) / 2, (lo.z + hi.z) / 2);
+      const half = CELL_SIZE / 2;
+      const min = new Vector3(lo.x - half, seat, lo.z - half);
+      const max = new Vector3(hi.x + half, seat + metadata.size.height + 0.25, hi.z + half);
+      if (!ray.intersectsBoxMinMax(min, max)) continue;
+      const dist = Vector3.Distance(
+        ray.origin,
+        new Vector3((min.x + max.x) / 2, (min.y + max.y) / 2, (min.z + max.z) / 2)
+      );
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = tile;
+      }
+    }
+    return best;
+  }
+
   // Hover tooltip source: track which placed building the pointer is over
   // whenever we're not in placement mode. Roads are skipped as noise.
   function updateHoveredTile(state: GameState) {
-    const cell = pickGridCell(scene);
-    const tile = cell ? state.map.tiles[`${cell.x},${cell.y}`] : undefined;
+    const body = pickBuildingBody(state);
+    const cell = body ? null : pickGridCell(scene);
+    const tile = body ?? (cell ? state.map.tiles[`${cell.x},${cell.y}`] : undefined);
     const key = tile && tile.type !== "road" ? `${tile.origin.x},${tile.origin.y}` : null;
     if (state.hoveredTileKey !== key) state.setHoveredTile(key);
   }
@@ -398,9 +440,14 @@ export function createPlacementController(scene: Scene) {
     if (selectedBuilding === RAZE_TOOL) {
       clearGhost();
       roadAnchor = null;
-      updateHoveredTile(state); // tooltip names the target and shows the salvage value
+      // Body-first resolution shared by tooltip, highlight, and click, so all
+      // three agree; the ground cell still catches roads (no body to hit).
       const cell = pickGridCell(scene);
-      const tile = cell ? state.getTileAt(cell) : undefined;
+      const tile = pickBuildingBody(state) ?? (cell ? state.getTileAt(cell) : undefined);
+      // Tooltip names the target and shows the salvage value (roads stay quiet).
+      const hoverKey =
+        tile && tile.type !== "road" ? `${tile.origin.x},${tile.origin.y}` : null;
+      if (state.hoveredTileKey !== hoverKey) state.setHoveredTile(hoverKey);
 
       // Red footprint highlight over the doomed structure (the road-preview
       // quads with invalidMat, repurposed).
