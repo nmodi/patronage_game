@@ -212,31 +212,36 @@ function FooterLink({ onClick, children }: { onClick: () => void; children: Reac
   );
 }
 
-/** Traced Palladio plates (scripts/make-menu-plates.py) as faint blueprint
- * linework behind the menu — the tint is baked into the SVGs, opacity here. */
+/** Traced Palladio plates (scripts/make-menu-plates.py) laid out as a full
+ * drafting-sheet spread behind the menu — the tint is baked into the SVGs,
+ * opacity here. */
+const BLUEPRINT_PLATES: [file: string, className: string][] = [
+  // top band
+  ["plan-cross", "left-[1vw] top-[-7vh] w-[12vw]"],
+  ["colonnade", "left-[26vw] top-[-5vh] w-[12vw]"],
+  ["capital", "left-[59vw] top-[1vh] w-[10vw]"],
+  ["rotonda", "right-[-2vw] top-[5vh] w-[22vw]"],
+  // mid band
+  ["temple", "left-[-3vw] top-[26vh] w-[18vw]"],
+  ["plan-porto", "left-[19vw] top-[38vh] w-[16vw]"],
+  ["facade-thiene", "right-[1vw] top-[42vh] w-[18vw]"],
+  // bottom band
+  ["plan-square", "bottom-[-15vh] left-[-5vw] w-[22vw]"],
+  ["facade-porto", "bottom-[-4vh] left-[29vw] w-[20vw]"],
+  ["plan-round", "bottom-[-18vh] right-[12vw] w-[16vw]"],
+];
+
 function BlueprintPlates() {
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden opacity-[0.16]">
-      <img
-        src="/menu/palladio-temple.svg"
-        alt=""
-        className="absolute left-[-3vw] top-1/2 w-[24vw] -translate-y-1/2"
-      />
-      <img
-        src="/menu/palladio-rotonda.svg"
-        alt=""
-        className="absolute right-[-2vw] top-[14%] w-[30vw]"
-      />
-      <img
-        src="/menu/palladio-plan-square.svg"
-        alt=""
-        className="absolute bottom-[-9vw] left-[-5vw] w-[26vw]"
-      />
-      <img
-        src="/menu/palladio-plan-round.svg"
-        alt=""
-        className="absolute bottom-[-12vw] right-[6vw] w-[18vw]"
-      />
+      {BLUEPRINT_PLATES.map(([file, className]) => (
+        <img
+          key={file}
+          src={`/menu/palladio-${file}.svg`}
+          alt=""
+          className={`absolute ${className}`}
+        />
+      ))}
     </div>
   );
 }

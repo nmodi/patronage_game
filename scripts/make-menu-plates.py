@@ -38,13 +38,33 @@ PLATES = [
     # Pantheon plan, Bertotti Scamozzi's engraved Palladio edition (1770s)
     (COMMONS + "thumb/d/d5/Pantheon_Palladio.jpg/1280px-Pantheon_Palladio.jpg",
      "palladio-plan-round", (0.05, 0.03, 0.95, 0.97), 175, 700, 2.0),
+    # Villa La Rotonda cross plan — the other half of the elevation plate
+    (COMMONS + "7/7c/Palladio_La_Rotonda.png",
+     "palladio-plan-cross", (0.02, 0.0, 0.98, 0.625), 150, 553, 0.5),
+    # Palazzo Iseppo Porto facade elevation, Book 2 (plan half cropped off)
+    (COMMONS + "thumb/5/5a/Palais_Iseppo_Porto.jpg/1280px-Palais_Iseppo_Porto.jpg",
+     "palladio-facade-porto", (0.02, 0.55, 0.98, 1.0), 140, 700, 0),
+    # Palazzo Iseppo Porto plan — the other half of the facade plate
+    (COMMONS + "thumb/5/5a/Palais_Iseppo_Porto.jpg/1280px-Palais_Iseppo_Porto.jpg",
+     "palladio-plan-porto", (0.02, 0.0, 0.98, 0.54), 140, 700, 0),
+    # Palazzo Thiene facade — the other half of the plan plate
+    (COMMONS + "thumb/5/54/Palais_Thiene.jpg/1280px-Palais_Thiene.jpg",
+     "palladio-facade-thiene", (0.03, 0.65, 0.97, 1.0), 140, 700, 0),
+    # Corinthian capital study, I quattro libri (1570), Book 1
+    (COMMONS + "thumb/4/40/13_-_palladio_capitello_1570.JPG/1280px-13_-_palladio_capitello_1570.JPG",
+     "palladio-capital", (0.30, 0.58, 1.0, 1.0), 150, 450, 0.5),
+    # Tuscan colonnade, I quattro libri
+    (COMMONS + "f/f1/PalladioTuscan.jpg",
+     "palladio-colonnade", (0.0, 0.0, 1.0, 0.98), 140, 451, 0),
 ]
 
 for url, name, (l, t, r, b), thresh, maxw, blur in PLATES:
     src = CACHE / url.rsplit("/", 1)[-1]
     if not src.exists():
         print("fetch", url)
-        urllib.request.urlretrieve(url, src)
+        # Commons 403s the default urllib User-Agent
+        req = urllib.request.Request(url, headers={"User-Agent": "patronage-build/1.0"})
+        src.write_bytes(urllib.request.urlopen(req).read())
     im = Image.open(src).convert("L")
     w, h = im.size
     im = im.crop((int(l * w), int(t * h), int(r * w), int(b * h)))
