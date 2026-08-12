@@ -22,7 +22,7 @@ export default function GameRoute() {
   // Boot lands on the main menu; ?demo skips straight into the demo city
   // (the menu's tour link — no longer dev-only; its storage is a no-op, so
   // it never touches the real save). Hydrating the save is the menu's job
-  // (Continue), so just visiting never clobbers it.
+  // (on mount, when one exists), so just visiting never clobbers it.
   // Decided synchronously (not in an effect) so ?demo never flashes the menu.
   // seedDemoCity is idempotent, so StrictMode's double init is harmless.
   const [screen, setScreen] = useState<"menu" | "game">(() => {

@@ -63,46 +63,7 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
           }
           className="flex w-72 flex-col gap-2.5 text-sm"
         >
-          <CreditRow
-            what="3D models"
-            who="Kenney — Fantasy Town Kit & Nature Kit"
-            license="CC0"
-            href="https://kenney.nl"
-          />
-          <CreditRow
-            what="Sound effects"
-            who="Kenney — Impact, RPG Audio & Jingles packs"
-            license="CC0"
-            href="https://kenney.nl"
-          />
-          <CreditRow
-            what="Crowd ambience"
-            who="Medieval market — Metzik, freesound.org"
-            license="CC BY 4.0"
-            href="https://freesound.org/people/Metzik/sounds/371222/"
-          />
-          {/* Full attributions with license terms live in CREDITS.md. */}
-          <div className="flex flex-col gap-1 leading-snug">
-            <span className="text-[10px] uppercase tracking-wide text-ink-faint">Music</span>
-            <a
-              href="https://www.jsayles.com/familypages/EarlyMusic.htm"
-              target="_blank"
-              rel="noreferrer"
-              className="text-ink transition hover:text-sienna"
-            >
-              Early music recordings{" "}
-              <span className="text-xs text-ink-faint">perf. Jon Sayles</span>
-            </a>
-            <a
-              href="https://incompetech.com"
-              target="_blank"
-              rel="noreferrer"
-              className="text-ink transition hover:text-sienna"
-            >
-              Suonatore di Liuto — Kevin MacLeod{" "}
-              <span className="text-xs text-ink-faint">(CC BY 4.0)</span>
-            </a>
-          </div>
+          <CreditsBody />
         </Panel>
       </div>
     );
@@ -197,7 +158,8 @@ function SectionLabel({ children }: { children: ReactNode }) {
   );
 }
 
-function VolumeRow({
+/** Shared with the main menu's Settings modal. */
+export function VolumeRow({
   icon: Icon,
   label,
   value,
@@ -230,7 +192,60 @@ function VolumeRow({
 }
 
 // All assets are CC0/open — shared as courtesy now, and the list is ready
-// the day something non-CC0 lands.
+// the day something non-CC0 lands. Rendered in the in-game settings panel and
+// the main menu's Credits modal; full attributions live in CREDITS.md.
+export function CreditsBody() {
+  return (
+    <>
+      <CreditRow
+        what="3D models"
+        who="Kenney — Fantasy Town Kit & Nature Kit"
+        license="CC0"
+        href="https://kenney.nl"
+      />
+      <CreditRow
+        what="Sound effects"
+        who="Kenney — Impact, RPG Audio & Jingles packs"
+        license="CC0"
+        href="https://kenney.nl"
+      />
+      <CreditRow
+        what="Crowd ambience"
+        who="Medieval market — Metzik, freesound.org"
+        license="CC BY 4.0"
+        href="https://freesound.org/people/Metzik/sounds/371222/"
+      />
+      <CreditRow
+        what="Menu artwork"
+        who="Andrea Palladio plate engravings — Wikimedia Commons"
+        license="public domain"
+        href="https://commons.wikimedia.org/wiki/Category:I_quattro_libri_dell%27architettura"
+      />
+      <div className="flex flex-col gap-1 leading-snug">
+        <span className="text-[10px] uppercase tracking-wide text-ink-faint">Music</span>
+        <a
+          href="https://www.jsayles.com/familypages/EarlyMusic.htm"
+          target="_blank"
+          rel="noreferrer"
+          className="text-ink transition hover:text-sienna"
+        >
+          Early music recordings{" "}
+          <span className="text-xs text-ink-faint">perf. Jon Sayles</span>
+        </a>
+        <a
+          href="https://incompetech.com"
+          target="_blank"
+          rel="noreferrer"
+          className="text-ink transition hover:text-sienna"
+        >
+          Suonatore di Liuto — Kevin MacLeod{" "}
+          <span className="text-xs text-ink-faint">(CC BY 4.0)</span>
+        </a>
+      </div>
+    </>
+  );
+}
+
 function CreditRow({
   what,
   who,

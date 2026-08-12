@@ -8,6 +8,18 @@ Kitbashed from [Kenney](https://kenney.nl)'s **Fantasy Town Kit** and **Nature K
 
 Day skybox panorama from [Kenney](https://kenney.nl)'s **Skyboxes** pack (CC0).
 
+## Main menu artwork
+
+The blueprint linework behind the main menu is traced (`scripts/make-menu-plates.py`)
+from public-domain scans of Andrea Palladio plate engravings on Wikimedia Commons —
+from *I quattro libri dell'architettura* (1570) and Ottavio Bertotti Scamozzi's
+engraved Palladio edition (1770s):
+
+- [Tempio della Fortuna Virile facade](https://commons.wikimedia.org/wiki/File:TempioFortunaVirilePalladio.png)
+- [Villa La Rotonda elevation/section](https://commons.wikimedia.org/wiki/File:Palladio_La_Rotonda.png)
+- [Palazzo Thiene plan](https://commons.wikimedia.org/wiki/File:Palais_Thiene.jpg)
+- [Pantheon plan](https://commons.wikimedia.org/wiki/File:Pantheon_Palladio.jpg)
+
 ## Interface icons
 
 Most in-game icons are from **[game-icons.net](https://game-icons.net)**, licensed

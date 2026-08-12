@@ -250,7 +250,14 @@ const initializer: StateCreator<GameState> = (set, get) => ({
     }),
 
   // seed: player-supplied (or archetype-picked) run seed; omitted = random.
-  resetGame: (seed) => set(createInitialState(seed)),
+  // Volumes survive the reset: they're player preferences, not game state.
+  resetGame: (seed) =>
+    set((s) => ({
+      ...createInitialState(seed),
+      musicVolume: s.musicVolume,
+      sfxVolume: s.sfxVolume,
+      ambienceVolume: s.ambienceVolume,
+    })),
 
   assignCommission: (commissionId, workshopKey) =>
     set((s) => {
