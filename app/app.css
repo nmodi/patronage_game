@@ -39,6 +39,24 @@ button:not(:disabled) {
   outline-offset: 2px;
 }
 
+/* Menu/loading drafting sheet (DraftingSheet in nightSky.tsx): the plate rows
+   drift one 480px tile along the 12° bias and loop — the translate distance
+   must stay equal to the row backgroundSize width or the wrap jumps. */
+.survey-drift {
+  transform: rotate(12deg);
+  animation: survey-drift 75s linear infinite;
+}
+@keyframes survey-drift {
+  to {
+    transform: rotate(12deg) translateX(-480px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .survey-drift {
+    animation: none;
+  }
+}
+
 /* Compact volume slider — the UA's accent-color thumb is oversized for the
    settings dropdown. Fill left of the thumb comes from a value-bound inline
    gradient on the element (VolumeRow). */

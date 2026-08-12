@@ -1,4 +1,4 @@
-import { GameTitle, NIGHT_SKY_BG, NightStars } from "./nightSky";
+import { DraftingSheet, GameTitle, NIGHT_SKY_BG } from "./nightSky";
 
 /**
  * Full-screen boot backdrop shown while the city loads (fonts, the Babylon
@@ -12,7 +12,7 @@ export function LoadingScreen({ message = "Preparing the city…" }: { message?:
       className="relative flex h-screen w-full flex-col items-center justify-center gap-8"
       style={{ background: NIGHT_SKY_BG }}
     >
-      <NightStars />
+      <DraftingSheet />
       <GameTitle />
       <div className="relative flex flex-col items-center gap-3">
         <LoadingDots />

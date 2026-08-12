@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Vector3 } from "@babylonjs/core/Maths/math.vector";
 
 import type { BuildingId } from "~/game/buildings";
-import { GameTitle, NIGHT_SKY_BG, NightStars } from "~/game/ui/nightSky";
+import { DraftingSheet, GameTitle, NIGHT_SKY_BG } from "~/game/ui/nightSky";
 import { setAmbienceLocal, setAmbienceRadius } from "~/game/ui/useAmbience";
 import { getWater } from "~/game/map/water";
 import { getElevation } from "~/game/map/elevation";
@@ -325,7 +325,7 @@ export function BabylonCanvas() {
           }`}
           style={{ background: NIGHT_SKY_BG }}
         >
-          <NightStars />
+          <DraftingSheet />
           <GameTitle />
           <div className="relative h-1.5 w-64 overflow-hidden rounded-full bg-parchment-deep">
             <div
