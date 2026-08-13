@@ -559,8 +559,10 @@ const houseBack = (floors: number[]): Part[] =>
 const WORKSHOP_WALLS: Part[] = [
   { file: "proc:block", position: [-0.5, 0, 0], tint: "facade" },
   // stone door on the front bay, surround-framed windows on the other faces
-  // (same generated fittings as the houses; the hall spans x ±1, faces z ±0.5)
-  ...doorOn("posZ", -0.5),
+  // (same generated fittings as the houses; the hall spans x ±1, faces z ±0.5).
+  // 1.2 lifts the door to ~0.8wu world (person-scale audit, Aug 2026) — frame
+  // tops out at 0.97 units, just under the unit wall.
+  ...doorOn("posZ", -0.5, 0.5, [1, 1.2, 1.2]),
   ...windowOn("posZ", 0, 0),
   ...windowOn("posZ", 0, 0.5),
   ...windowOn("negZ", 0, -0.5),
@@ -745,7 +747,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...[-1, 0, 1].map(
         (x): Part => ({ file: "proc:block", position: [x, 0, -0.25], scale: [1, 1, 1.5], tint: "facade" })
       ),
-      ...doorOn("posZ", -0.5, 0.5, [1, 1.05, 1.1]),
+      ...doorOn("posZ", -0.5, 0.5, [1, 1.2, 1.26]),
       // main block upper stories overhanging the loggia: four unit @1x2 columns
       ...[-1, 0].flatMap((x) =>
         [-0.5, 0.5].map(
@@ -766,7 +768,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // one-story annex on −X, set slightly behind the colonnade line
       { file: "proc:block", position: [-2, 0, 0.25], tint: "facade" },
       ...gableRoof([-2, 1, 0.25], [1, 1, 1], { tint: "stone" }),
-      ...doorOn("posZ", -2, 0.75),
+      ...doorOn("posZ", -2, 0.75, [1, 1.2, 1.2]),
       // loggia colonnade — generated pietra-serena arcade (proc:arch-bay), five
       // bays tiling the front (shared piers) and opening ±Z; untinted STONE
       // matches the piano-nobile archWindows above. Full unit tall so the solid
@@ -1007,7 +1009,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // low hip, not a spire — spires read civic now
       hipRoof([0, 1.25, 0], [1.25, 0.5, 1.25]),
       // shop door under the banner, windows on the long sides (faces at ±0.625)
-      ...doorOn("posX", 0, 0.625),
+      ...doorOn("posX", 0, 0.625, [1, 1.2, 1.2]),
       ...windowOn("posZ", 0.3, -0.28, 0.625),
       ...windowOn("posZ", 0.3, 0.28, 0.625),
       ...windowOn("negZ", 0.3, -0.28, 0.625),
@@ -1032,7 +1034,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
       hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
       // shed door opening onto the yard (+X face at 0.395), window on the side
-      ...doorOn("posX", -0.28, 0.395),
+      ...doorOn("posX", -0.28, 0.395, [1, 1.2, 1.2]),
       ...windowOn("posZ", 0.15, -0.62, 0.395),
       ...windowOn("posZ", 0.15, 0.02, 0.395),
       ...windowOn("negZ", 0.15, -0.28, 0.955),
@@ -1096,7 +1098,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     parts: [
       { file: "proc:block", position: [-0.28, 0, -0.28], scale: [1.35, 1.05, 1.35], tint: "facade" },
       hipRoof([-0.28, 1.05, -0.28], [1.35, 0.45, 1.35]),
-      ...doorOn("posX", -0.28, 0.395),
+      ...doorOn("posX", -0.28, 0.395, [1, 1.2, 1.2]),
       ...windowOn("posZ", 0.15, -0.62, 0.395),
       ...windowOn("posZ", 0.15, 0.02, 0.395),
       ...windowOn("negZ", 0.15, -0.28, 0.955),
@@ -1229,7 +1231,9 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...gableRoof([0.45, 0.75, 0], [0.4, 0.4, 0.55]),
       // shop door on the bay front (face at 0.65, frame top 0.69 under the
       // bay's 0.75 wall), sign banner on the street-side wall
-      ...doorOn("posX", 0, 0.65, [1, 0.85, 0.8]),
+      // y 0.92 is this door's ceiling: the shop bay wall is 0.75 units and the
+      // frame is 0.81 — a person-proportioned (~0.8wu) door needs a taller bay.
+      ...doorOn("posX", 0, 0.65, [1, 0.92, 0.87]),
       { file: TOWN + "banner-green.glb", position: [0, 0.25, 0.02], rotationY: -Math.PI / 2 },
       ...windowOn("posZ", 0, -0.22),
       ...windowOn("posZ", 0, 0.22),
@@ -1327,7 +1331,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       { file: "proc:block@1x5", position: [0, 0, 0], scale: [BT_W, 1, BT_W], tint: "lightbrick" },
       // arched bronze-door portal at the base (wall face at BT_WALL); 0.75
       // keeps it ~60% of the 0.72 face and under the first window at 1.35
-      ...portalOn("posX", BT_WALL, 0, 0.75),
+      ...portalOn("posX", BT_WALL, 0, 0.95),
       // bifore (twin lights under one arch) on every face, one per storey at
       // a uniform size — just under half the 0.72 face
       ...BT_FACES.flatMap((f) =>
