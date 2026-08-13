@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState, type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { Music, Users, Volume2 } from "lucide-react";
 
 import { seedForArchetype } from "~/game/map/seed";
@@ -30,20 +30,21 @@ function peekSave(): SavePeek | null {
 }
 
 export function MainMenu({ onStart }: { onStart: () => void }) {
-  const [save, setSave] = useState<SavePeek | null>(null);
+  // Peeked synchronously (SPA, no SSR) so Continue is there on first paint —
+  // an effect-then-setState here flashed New Game in the primary voice and
+  // shifted the buttons down once Continue popped in.
+  const [save] = useState<SavePeek | null>(peekSave);
   const [newGameOpen, setNewGameOpen] = useState(false);
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [seedDraft, setSeedDraft] = useState("");
   const [archetype, setArchetype] = useState<WaterArchetype | "random">("random");
   const [modal, setModal] = useState<"settings" | "credits" | null>(null);
   useEffect(() => {
-    const peeked = peekSave();
-    setSave(peeked);
     // Hydrate now, not on Continue: the Settings modal writes volumes through
     // the persist layer, and any set() on an unhydrated store would overwrite
     // the save with initial state.
-    if (peeked) useGameStore.persist.rehydrate();
-  }, []);
+    if (save) useGameStore.persist.rehydrate();
+  }, [save]);
 
   const startNewGame = () => {
     // Two-click confirm in place of window.confirm — the guard stays, the
@@ -71,8 +72,10 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
         <TitleDivider />
       </div>
       <Panel frameClassName="relative rounded-lg" className="flex w-80 flex-col gap-2">
+        {/* One sienna voice per state: the primary follows the player's intent
+            into the New Game well ("Found the City") and returns on close. */}
         {save && (
-          <MenuButton primary onClick={onStart}>
+          <MenuButton primary={!newGameOpen} onClick={onStart}>
             Continue
             <span className="block text-xs font-normal opacity-80">
               {save.cityName}, {formatMonth(save.tickCount)}
@@ -80,7 +83,8 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
           </MenuButton>
         )}
         <MenuButton
-          primary={!save}
+          primary={!save && !newGameOpen}
+          aria-expanded={newGameOpen}
           onClick={() => {
             setNewGameOpen((open) => !open);
             setConfirmOverwrite(false);
@@ -89,12 +93,15 @@ export function MainMenu({ onStart }: { onStart: () => void }) {
           New Game
         </MenuButton>
         {newGameOpen && (
-          <div className="flex flex-col gap-2 rounded-lg bg-parchment-deep/60 p-3">
+          // Well at /30, not /60 — ink-faint helper text needs 4.5:1 on the tint.
+          <div className="flex flex-col gap-2 rounded-lg bg-parchment-deep/30 p-3">
             <input
               value={seedDraft}
               onChange={(e) => setSeedDraft(e.target.value)}
               placeholder="Seed (optional)"
               maxLength={16}
+              spellCheck={false}
+              autoComplete="off"
               className="rounded border border-wood/50 bg-parchment px-2 py-1.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-sienna"
             />
             {seedDraft.trim() ? (
@@ -214,17 +221,13 @@ function FooterLink({ onClick, children }: { onClick: () => void; children: Reac
 
 function MenuButton({
   primary,
-  onClick,
   children,
-}: {
-  primary?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+  ...rest
+}: { primary?: boolean } & ComponentPropsWithoutRef<"button">) {
   return (
     <button
       className={`px-4 py-2.5 ${primary ? "btn-primary" : "btn-secondary"}`}
-      onClick={onClick}
+      {...rest}
     >
       {children}
     </button>

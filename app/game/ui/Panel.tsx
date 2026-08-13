@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X, type LucideIcon } from "lucide-react";
 import type { IconComponent } from "./gameIcons";
@@ -61,9 +61,9 @@ export function Row({ label, value }: { label: string; value: ReactNode }) {
 }
 
 /** Fullscreen dimmed modal backdrop, portaled to body so it escapes any panel
- * stacking context. Click-outside dismisses only when onDismiss is given
- * (RenaissanceCard passes none — a once-per-game moment gets a deliberate
- * click). */
+ * stacking context. Click-outside and Escape dismiss only when onDismiss is
+ * given (RenaissanceCard passes none — a once-per-game moment gets a
+ * deliberate click). */
 export function ModalBackdrop({
   onDismiss,
   children,
@@ -71,6 +71,14 @@ export function ModalBackdrop({
   onDismiss?: () => void;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    if (!onDismiss) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onDismiss();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
   return createPortal(
     <div
       data-hud="true"
