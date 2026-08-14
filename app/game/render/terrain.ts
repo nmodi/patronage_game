@@ -10,9 +10,11 @@ import type { WaterBody } from "~/game/map/water";
 import { getElevation, type Elevation } from "~/game/map/elevation";
 
 const TERRAIN_SIZE = 320;
-// Raised from 110 when the water layer landed: the river carve needs vertices
-// close enough (2 wu) that the dilated channel dip always catches some.
-const SUBDIVISIONS = 160;
+// Raised from 110 when the water layer landed (river carve needs vertices the
+// dilated channel dip always catches), then 160 -> 240 in the tone-field pass:
+// 1.33-wu facets sculpt the banks and hill shoulders without dissolving the
+// faceted read (320 tips open meadows into per-facet tone speckle — don't).
+const SUBDIVISIONS = 240;
 /** Terrain stays flat out to here so the city sits on a plain. */
 const FLAT_RADIUS = (GRID_SIZE * CELL_SIZE) / 2 + 3;
 const HILL_RAMP = 18;
@@ -79,6 +81,31 @@ function makeHeightAt(
 
 const GRASS_TONES = ["#98a861", "#91a15d", "#9fac66"].map(Color3.FromHexString);
 const FIELD_TONES = ["#c4a45e", "#ad9a55", "#b98e58", "#a3ac60"].map(Color3.FromHexString);
+// Tone field (Aug 2026): meadows stop being one even green. Straw sits near
+// FIELD_TONES on purpose — scorched meadow reads as kin to farmland, not a
+// fourth material; lush stays inside the grass hue, darker and damper.
+const STRAW_TONES = ["#c2ab5f", "#b39a55"].map(Color3.FromHexString);
+const LUSH_TONES = ["#7d9454", "#6f8a50"].map(Color3.FromHexString);
+const DUSTY_TONE = Color3.FromHexString("#a8a06b");
+
+// Low-frequency meadow field driving the straw/dusty patches — the same
+// seeded two-sine-octave idiom as makeHillHeight (null seed keeps fixed
+// constants so ?demo and pre-water saves render identically every load).
+// Wavelengths ~12-30 wu: patches read as meadow-scale, not hill-scale.
+function makeMeadowField(mapSeed: string | null) {
+  let [f1, f2, f3, f4] = [0.21, 0.24, 0.55, 0.5];
+  let [p1, p2, p3, p4] = [0.8, 2.1, 4.4, 1.2];
+  if (mapSeed != null) {
+    const rand = seededRng(`meadow:${mapSeed}`);
+    const jitter = () => 0.8 + rand() * 0.4;
+    [f1, f2, f3, f4] = [f1 * jitter(), f2 * jitter(), f3 * jitter(), f4 * jitter()];
+    const phase = () => rand() * Math.PI * 2;
+    [p1, p2, p3, p4] = [phase(), phase(), phase(), phase()];
+  }
+  return (x: number, z: number) =>
+    Math.sin(x * f1 + p1) * Math.cos(z * f2 + p2) +
+    0.45 * Math.sin(x * f3 + p3) * Math.cos(z * f4 + p4);
+}
 // Shoreline sand and underwater bed for faces near/inside the carve.
 const SHORE_TONE = Color3.FromHexString("#b89d68");
 const BED_TONE = Color3.FromHexString("#6b6a4e");
@@ -143,7 +170,7 @@ export function createTerrain(
 
   // Bilinear sampler over the displaced vertex lattice: waterMesh's bank rims
   // must hug the *rendered* surface (the analytic height cuts corners on the
-  // 2-wu facets), so they sample this instead of heightAt.
+  // 1.33-wu facets), so they sample this instead of heightAt.
   const step = TERRAIN_SIZE / SUBDIVISIONS;
   const half = TERRAIN_SIZE / 2;
   const nodes = new Float32Array((SUBDIVISIONS + 1) * (SUBDIVISIONS + 1));
@@ -174,12 +201,32 @@ export function createTerrain(
   const patches = makeFieldPatches(
     mapSeed != null ? seededRng(`fields:${mapSeed}`) : mulberry32(1482)
   );
+  const meadowField = makeMeadowField(mapSeed);
   const flat = mesh.getVerticesData(VertexBuffer.PositionKind)!;
   const colors = new Float32Array((flat.length / 3) * 4);
   for (let f = 0; f < flat.length; f += 9) {
     const x = (flat[f] + flat[f + 3] + flat[f + 6]) / 3;
     const z = (flat[f + 2] + flat[f + 5] + flat[f + 8]) / 3;
     let color = GRASS_TONES[positionToneIndex(x, z, GRASS_TONES.length)];
+    // Tone field: still exactly one tone per facet — the field only moves
+    // *which* tone a facet lands on. Scorched straw where the field peaks,
+    // an occasional dusty worn patch where it troughs, lush damp green
+    // bleeding out from the water. Farmland patches and shore/bed override.
+    const meadow = meadowField(x, z);
+    if (meadow > 0.55) {
+      const k = smoothstep01((meadow - 0.55) / 0.5);
+      color = Color3.Lerp(color, STRAW_TONES[positionToneIndex(x + 31, z, STRAW_TONES.length)], k * 0.75);
+    } else if (meadow < -0.95) {
+      color = Color3.Lerp(color, DUSTY_TONE, smoothstep01((-0.95 - meadow) / 0.4) * 0.5);
+    }
+    const rd = water ? water.riverDistance(x, z) : Infinity;
+    const sd = water ? water.seaDistance(x, z) : -Infinity;
+    if (water) {
+      const lush = Math.max(1 - smoothstep01((rd - 1.6) / 7), smoothstep01((sd + 8) / 6));
+      if (lush > 0) {
+        color = Color3.Lerp(color, LUSH_TONES[positionToneIndex(x, z + 17, LUSH_TONES.length)], lush * 0.7);
+      }
+    }
     for (const p of patches) {
       if (Math.abs(x - p.x) < p.w / 2 && Math.abs(z - p.z) < p.d / 2) {
         color = p.color;
@@ -187,8 +234,6 @@ export function createTerrain(
       }
     }
     if (water) {
-      const rd = water.riverDistance(x, z);
-      const sd = water.seaDistance(x, z);
       // Depth joins the distance tests so the estuary funnel tints itself:
       // facets fully under the water surface read bed; facets that touch
       // the waterline read sand (a steep wall poking above water is a sandy
