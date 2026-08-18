@@ -146,6 +146,29 @@ export function scatterEnvironment(
     n += 1;
   }
 
+  // A few formal cypress avenues — straight planted rows, the classic Tuscan
+  // silhouette against the wild clumps above. One variant file and one base
+  // scale per row (planted at once), tiny per-tree jitter.
+  for (let attempts = 0, n = 0; n < 5 && attempts < 60; attempts += 1) {
+    const p = ringPoint();
+    if (!p) continue;
+    const theta = rand() * Math.PI * 2;
+    const count = 4 + Math.floor(rand() * 4);
+    const scale = 1.7 + rand() * 0.5;
+    const variant = CYPRESS_VARIANTS[Math.floor(rand() * CYPRESS_VARIANTS.length)];
+    for (let i = 0; i < count; i += 1) {
+      const x = p.x + Math.cos(theta) * i * 1.7;
+      const z = p.z + Math.sin(theta) * i * 1.7;
+      if (Math.max(Math.abs(x), Math.abs(z)) < minDistance) continue;
+      place(variant.file, x, z, {
+        scale: scale * (0.94 + rand() * 0.12),
+        stretch: [1, CYPRESS_STRETCH, 1],
+        sinkY: variant.sinkY,
+      });
+    }
+    n += 1;
+  }
+
   // Very rare: a short run of old fencing or a crumbling low stone wall —
   // traces of past hands on the land.
   for (let attempts = 0, n = 0; n < 4 && attempts < 40; attempts += 1) {

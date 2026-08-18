@@ -15,6 +15,8 @@ import { Mesh } from "@babylonjs/core/Meshes/mesh";
 import { DefaultRenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline";
 import { SSAO2RenderingPipeline } from "@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline";
 import { Scene } from "@babylonjs/core/scene";
+
+import { initCloudShadows } from "./cloudShadows";
 // Side-effect registrations required by the tree-shaken post-process build.
 import "@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent";
 import "@babylonjs/core/Rendering/geometryBufferRendererSceneComponent";
@@ -105,6 +107,10 @@ export function createRenderScene(canvas: HTMLCanvasElement) {
   scene.imageProcessingConfiguration.colorCurvesEnabled = true;
 
   if (!window.location.search.includes("nofx")) {
+    // Must run before any world materials exist — the plugin only attaches to
+    // materials created after registration.
+    initCloudShadows(scene);
+
     try {
       const ssao = new SSAO2RenderingPipeline(
         "ssao",

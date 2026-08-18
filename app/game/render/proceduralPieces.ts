@@ -248,16 +248,42 @@ function shadeByPosition(mesh: Mesh, shade: (x: number, y: number, z: number) =>
   mesh.setVerticesData(VertexBuffer.ColorKind, colors);
 }
 
+// Rising-damp footing: the bottom DAMP_H of every block drops an extra DAMP of
+// shade, feathered to nothing at the band top, so walls read weathered into the
+// ground instead of placed on it. Baked into the shared mesh, so elevated block
+// refs (the palazzo's upper columns, stacked crates) carry a faint band too —
+// at this strength it reads as a floor-line shadow, accepted over threading an
+// opt-in suffix through every manifest ref.
+const DAMP_H = 0.3;
+const DAMP = 0.12;
+
 function buildBlock(scene: Scene, _courses: number, storeys: number) {
-  const mesh = MeshBuilder.CreateBox("proc-block", { width: 1, height: storeys, depth: 1 }, scene);
+  // Two boxes merged so a vertex row exists at DAMP_H: a box only has verts at
+  // its ends, and linear corner-to-corner interpolation can't hold a dip
+  // steeper than the storey-long AO ramp.
+  const footing = MeshBuilder.CreateBox(
+    "proc-block-footing",
+    { width: 1, height: DAMP_H, depth: 1 },
+    scene
+  );
+  const upper = MeshBuilder.CreateBox(
+    "proc-block",
+    { width: 1, height: storeys - DAMP_H, depth: 1 },
+    scene
+  );
   // CreateBox centers on the origin; the kit's blocks sit on their base so
   // parts stack by integer y.
-  mesh.bakeTransformIntoVertices(Matrix.Translation(0, storeys / 2, 0));
-  // The kit's ramp, rebuilt: dark at the footing, full at the eave. A box only
-  // has verts at its ends, so this interpolates across the face for free — and a
-  // multi-storey block runs ONE continuous ramp over the whole wall (no dark
-  // seam where two stacked blocks used to meet — see the townhouse).
-  shadeByPosition(mesh, (_x, y) => STUCCO_AO + (1 - STUCCO_AO) * (y / storeys));
+  footing.bakeTransformIntoVertices(Matrix.Translation(0, DAMP_H / 2, 0));
+  upper.bakeTransformIntoVertices(Matrix.Translation(0, (storeys + DAMP_H) / 2, 0));
+  const mesh = Mesh.MergeMeshes([footing, upper], true)!;
+  mesh.name = "proc-block";
+  // The kit's ramp, rebuilt: dark at the footing, full at the eave, one
+  // continuous ramp over a multi-storey block (no dark seam where two stacked
+  // blocks used to meet — see the townhouse) — plus the damp dip below DAMP_H.
+  shadeByPosition(
+    mesh,
+    (_x, y) => STUCCO_AO + (1 - STUCCO_AO) * (y / storeys) - DAMP * Math.max(0, 1 - y / DAMP_H)
+  );
   // CreateBox's UVs rotate 90° on the ±X faces, which stands a facade
   // texture's stone courses on end on a house's front. Remap by face normal
   // so v is world height on every wall — and the ±X mapping matches

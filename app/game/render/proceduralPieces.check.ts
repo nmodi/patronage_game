@@ -242,9 +242,13 @@ for (const file of ["proc:block", "proc:gable-end"]) {
 // buildings carry it. The first cut replaced that whole ramp with its brightest
 // band, so every wall rendered at peak brightness. Pin the average against the
 // kit's, measured off colormap.png area-weighted: #dcd0b6.
-const KIT_STUCCO_AVG = [0xdc, 0xd0, 0xb6];
+// The damp footing (see DAMP in proceduralPieces.ts) sits the block's
+// vertex-mean deliberately below the kit's baked average (#dcd0b6): the footing
+// box contributes as many verts as the whole upper wall, so the mean
+// overweights the dark band. Area-weighted the wall is only ~2% darker.
+const DAMP_BLOCK_AVG = [209, 196, 173];
 for (const [file, want] of [
-  ["proc:block", KIT_STUCCO_AVG],
+  ["proc:block", DAMP_BLOCK_AVG],
   // The gable is flat at the ramp's TOP: its base meets the bright end of the
   // block's ramp, so it matches the wall there rather than on average.
   ["proc:gable-end", [0xf3, 0xe4, 0xc9]],
