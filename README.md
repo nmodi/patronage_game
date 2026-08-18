@@ -57,6 +57,8 @@ npm test           # sim check suites (node:test)
 npm run typecheck  # strict TS
 ```
 
+The citizen figures are a licensed [Studio Ochi](https://studioochi.com) model pack, so the GLBs aren't in this repo (the license covers shipping them inside a build, not republishing the source files). Everything else runs without them; the streets just come out empty. Drop the pack's per-figure GLBs into `public/models/people/` to get the crowd.
+
 Or with Docker:
 
 ```bash

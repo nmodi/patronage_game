@@ -50,7 +50,8 @@ export interface FigureFactory {
 }
 
 // Renaissance-muted cloth: terracotta, brown, tan, ivory, sage, dusty indigo, wine.
-const ROBE_COLORS = ["#a8503a", "#7a5c44", "#b3936a", "#ded3ba", "#8c9178", "#5c6274", "#7d4a4f"];
+// Exported for the ochiFigures experiment's flat tints.
+export const ROBE_COLORS = ["#a8503a", "#7a5c44", "#b3936a", "#ded3ba", "#8c9178", "#5c6274", "#7d4a4f"];
 // Headwear / cape / basket accents — the robe palette plus a charcoal brown.
 const ACCENT_COLORS = [...ROBE_COLORS, "#4f4038"];
 const SKIN_COLOR = "#c9a07e";

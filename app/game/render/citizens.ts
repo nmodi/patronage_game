@@ -3,16 +3,13 @@ import type { Scene } from "@babylonjs/core/scene";
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
 import { createBustleField } from "~/game/city/bustleField";
-import { crowdSize } from "~/game/city/crowd";
+import { CROWD_TUNING, crowdSize } from "~/game/city/crowd";
 import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
 import { bridgeLiftAt } from "./bridgeProfile";
 import { worldGroundY } from "./groundLevel";
 import { useGameStore } from "~/stores/useGameStore";
-import {
-  createThinInstanceFigureFactory,
-  type CitizenFigure,
-  type FigureLocomotion,
-} from "./citizenFigures";
+import { type CitizenFigure, type FigureLocomotion } from "./citizenFigures";
+import { createOchiFigureFactory } from "./ochiFigures";
 
 // Cosmetic wanderers (design doc G5). They random-walk the tile network below;
 // no pathfinding, no sim meaning. The figure *count* scales with population —
@@ -35,6 +32,14 @@ const FOOT_Y = 0.03;
 const STRIDE_LEN = 0.22;
 // Yaw smoothing rate (per second) — a 90° grid turn resolves in ~0.2s.
 const TURN_RATE = 12;
+// Chance to keep walking straight when the tile ahead allows it (see
+// pickDestination) — the calm-crowd knob alongside DWELL below.
+const STRAIGHT_BIAS = 0.7;
+// On arrival, occasionally stand for a moment: people linger in a piazza,
+// and the static-posed figures read best when some of them aren't gliding.
+const DWELL_CHANCE = 0.12;
+const DWELL_MIN = 1.5; // seconds, at 1x sim speed
+const DWELL_MAX = 4;
 
 type Citizen = {
   figure: CitizenFigure;
@@ -44,6 +49,7 @@ type Citizen = {
   speed: number; // world units per second
   yaw: number; // current smoothed heading, radians
   phase: number; // gait stride phase, radians
+  rest: number; // seconds left standing still before the next hop
   cell: string | null; // cell currently counted in the bustle field
 };
 
@@ -81,7 +87,7 @@ function isFountainCell(tile: Tile) {
 }
 
 export function createCitizens(scene: Scene) {
-  const factory = createThinInstanceFigureFactory(scene);
+  const factory = createOchiFigureFactory(scene);
   const override = crowdOverride();
 
   let walkable = new Set<string>();
@@ -118,6 +124,20 @@ export function createCitizens(scene: Scene) {
       { x: x - 1, y: y + 1 },
       { x: x - 1, y: y - 1 },
     ].filter((n) => walkable.has(key(n)));
+    // Strongly prefer continuing straight: rerolling a random direction every
+    // tile made walkers zigzag on open plazas — legible human figures (unlike
+    // the old cones) read as flies darting. Roads are unaffected (straight is
+    // usually the only "ahead" option there anyway).
+    const dx = citizen.from.x - cameFrom.x;
+    const dy = citizen.from.y - cameFrom.y;
+    if ((dx !== 0 || dy !== 0) && Math.random() < STRAIGHT_BIAS) {
+      const straight = { x: x + dx, y: y + dy };
+      if (walkable.has(key(straight))) {
+        citizen.to = straight;
+        citizen.t = 0;
+        return;
+      }
+    }
     const ahead = options.filter((n) => n.x !== cameFrom.x || n.y !== cameFrom.y);
     const pool = ahead.length > 0 ? ahead : options;
     // Isolated tile: stand in place (t keeps cycling, so this re-checks periodically).
@@ -158,6 +178,7 @@ export function createCitizens(scene: Scene) {
       speed: 0.3 + Math.random() * 0.2, // a stroll, with a little variety
       yaw: Math.random() * Math.PI * 2,
       phase: 0,
+      rest: 0,
       cell: null,
     };
     placeAt(citizen, randomTile());
@@ -170,16 +191,24 @@ export function createCitizens(scene: Scene) {
       // Walk speed tracks sim speed (tickInterval = BASE / multiplier).
       const dt = (scene.getEngine().getDeltaTime() / 1000) * (BASE_TICK_INTERVAL / tickInterval);
       for (const citizen of citizens) {
-        // A diagonal hop spans √2 cells — scale progress so walk speed stays
-        // constant in world units.
-        const stepLen =
-          citizen.from.x !== citizen.to.x && citizen.from.y !== citizen.to.y ? Math.SQRT2 : 1;
-        citizen.t += (citizen.speed * dt) / (CELL_SIZE * stepLen);
-        if (citizen.t >= 1) {
-          const cameFrom = citizen.from;
-          citizen.from = citizen.to;
-          setCell(citizen, key(citizen.from));
-          pickDestination(citizen, cameFrom);
+        const resting = citizen.rest > 0;
+        if (resting) {
+          citizen.rest -= dt;
+        } else {
+          // A diagonal hop spans √2 cells — scale progress so walk speed stays
+          // constant in world units.
+          const stepLen =
+            citizen.from.x !== citizen.to.x && citizen.from.y !== citizen.to.y ? Math.SQRT2 : 1;
+          citizen.t += (citizen.speed * dt) / (CELL_SIZE * stepLen);
+          if (citizen.t >= 1) {
+            const cameFrom = citizen.from;
+            citizen.from = citizen.to;
+            setCell(citizen, key(citizen.from));
+            pickDestination(citizen, cameFrom);
+            if (Math.random() < DWELL_CHANCE) {
+              citizen.rest = DWELL_MIN + Math.random() * (DWELL_MAX - DWELL_MIN);
+            }
+          }
         }
         const a = gridToWorld(citizen.from.x, citizen.from.y);
         const b = gridToWorld(citizen.to.x, citizen.to.y);
@@ -189,7 +218,8 @@ export function createCitizens(scene: Scene) {
 
         const dx = b.x - a.x;
         const dz = b.z - a.z;
-        const moving = dx !== 0 || dz !== 0;
+        // A resting citizen sits at t=0 of its next segment — not moving yet.
+        const moving = !resting && (dx !== 0 || dz !== 0);
         if (moving) {
           // Smoothly turn toward the travel direction (shortest angle).
           const targetYaw = Math.atan2(dx, dz);
@@ -222,6 +252,18 @@ export function createCitizens(scene: Scene) {
   function retarget() {
     const desired =
       spawnTiles.length === 0 ? 0 : (override ?? crowdSize(population, spawnTiles.length));
+    // crowdCurve's rounding flips ±1 as population drifts (every few in-game
+    // months), and chasing it exactly teleport-cycles the newest figure: walk
+    // a bit, vanish, respawn across town. One figure of slack absorbs the
+    // flap. Only past the countable range — below exactMatchMax the 1:1
+    // population contract pins the count.
+    if (
+      population > CROWD_TUNING.exactMatchMax &&
+      desired > 0 &&
+      Math.abs(citizens.length - desired) <= 1
+    ) {
+      return;
+    }
     while (citizens.length > desired) {
       const citizen = citizens.pop()!;
       setCell(citizen, null);

@@ -16,3 +16,8 @@
 .impeccable/config.local.json
 __pycache__/
 scripts/menu-plates/
+
+# Studio Ochi citizen models: the license covers shipping them inside a build,
+# not republishing the source files, and this repo is public. See README.
+/public/models/people/
+/public/models/Studio-Ochi-Free-Low-Poly-Faceted-People/

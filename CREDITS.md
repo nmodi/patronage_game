@@ -4,6 +4,9 @@
 
 Kitbashed from [Kenney](https://kenney.nl)'s **Fantasy Town Kit** and **Nature Kit** (CC0).
 
+Citizen figures from [Studio Ochi](https://studioochi.com)'s low poly people, used under
+license. The model files are not redistributed in this repository (see the README).
+
 ## Sky
 
 Day skybox panorama from [Kenney](https://kenney.nl)'s **Skyboxes** pack (CC0).
