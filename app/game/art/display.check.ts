@@ -97,6 +97,23 @@ for (const meta of Object.values(BUILDING_METADATA_BY_ID)) {
   assert.ok(slotAccepts("plinth", "sculptor"));
   assert.ok(!slotAccepts("painting", "sculptor"));
   assert.ok(!slotAccepts("painting", "architect"));
+  assert.ok(slotAccepts("fountain", "sculptor"));
+  assert.ok(!slotAccepts("fountain", "painter"));
+  assert.ok(!slotAccepts("fountain", "architect"));
+}
+
+// Fountain slot: a sculptor work fills it, a painting can't, and the cell-less
+// slot is invisible to the plinth click-mapper (clicks open the building card).
+{
+  const tiles = stamp("fountain", { x: 0, y: 0 });
+  const scu = work({ id: "fs" });
+  const pai = work({ id: "fp", artistType: "painter" });
+  assert.ok(canDisplayWork(scu, "0,0", 0, tiles, [scu, pai]));
+  assert.ok(!canDisplayWork(pai, "0,0", 0, tiles, [scu, pai]));
+  const fountain = BUILDING_METADATA_BY_ID["fountain"]!;
+  for (let dx = 0; dx < 3; dx += 1)
+    for (let dy = 0; dy < 3; dy += 1)
+      assert.equal(plinthSlotAt(fountain.displaySlots!, fountain.footprint, 0, dx, dy), undefined);
 }
 
 // displayBoost: +5% per work, capped +25%.

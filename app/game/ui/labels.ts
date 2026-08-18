@@ -19,4 +19,5 @@ export const SLOT_LABEL: Record<DisplaySlotKind, string> = {
   painting: "painting",
   statue: "statue",
   plinth: "statue",
+  fountain: "fountain",
 };

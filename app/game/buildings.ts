@@ -414,6 +414,20 @@ export const BUILDING_TYPES = [
     footprint: { width: 1, depth: 1 },
     roadWidth: 2,
   },
+  // Freeform plaza ground: rect-drag surface, cost per cell like other roads.
+  // type "road" buys connectivity conduction, walkability, verge halo, stall
+  // placement, and raze-sweep free; hub status is derived in connectivity.ts
+  // (centerpiece/open-square qualification), never stored here.
+  {
+    type: "road",
+    id: "plaza_paving",
+    name: "Plaza Paving",
+    baseCost: 12, // per cell — drag a rect
+    size: { width: 0.5, height: 0.02, depth: 0.5 },
+    color: "#d9b877",
+    footprint: { width: 1, depth: 1 },
+    areaDrag: true,
+  },
   {
     type: "decoration",
     id: "tree",
@@ -454,6 +468,8 @@ export const BUILDING_TYPES = [
     footprint: { width: 3, depth: 3 },
     paved: true,
     generates: { inspiration: 2 },
+    // A sculptor's work can crown the basin (the piazza-centerpiece payoff).
+    displaySlots: [{ kind: "fountain" }],
   },
   {
     type: "decoration",

@@ -5,6 +5,7 @@ import { stamp, tile } from "../checkHelpers.ts";
 import type { TileMap } from "../grid.ts";
 import {
   canPlaceAt,
+  planAreaPlacement,
   planLinearPlacement,
   planPlacement,
   type PlacementSnapshot,
@@ -279,6 +280,57 @@ assert.equal(
   assert.ok(canPlaceAt(hillState, steep, "warehouse"));
   // Roads follow the surface freely too.
   assert.ok(planLinearPlacement(hillState, [steep, { x: steep.x + 1, y: steep.y }], "path"));
+}
+
+// Area placement (plaza paving): blocked cells skip uncharged instead of
+// rejecting; only virgin cells are charged; commit re-validation agrees.
+assert.equal(planAreaPlacement(snapshot(), [{ x: 0, y: 0 }], "road"), null);
+assert.equal(planAreaPlacement(snapshot(), [{ x: 0, y: 0 }], "cottage"), null);
+assert.equal(planAreaPlacement(snapshot(), [], "plaza_paving"), null);
+
+{
+  // A road row and a cottage inside the rect are flooded around, uncharged.
+  const tiles = {
+    "1,1": tile("road", 1, 1),
+    "2,2": tile("cottage", 2, 2),
+  };
+  const rect = [];
+  for (let x = 0; x < 4; x += 1) for (let y = 0; y < 4; y += 1) rect.push({ x, y });
+  const plan = planAreaPlacement(snapshot(tiles), rect, "plaza_paving");
+  assert.ok(plan);
+  assert.equal(plan.positions.length, 14);
+  assert.ok(!plan.freeCells.has("1,1") && !plan.freeCells.has("2,2"));
+  assert.equal(plan.totalCost, BUILDING_METADATA_BY_ID.plaza_paving.baseCost * 14);
+  // Commit round-trip: placeTiles re-validates via planPlacement with the same price.
+  const commit = planPlacement(snapshot(tiles), plan.positions, "plaza_paving");
+  assert.equal(commit?.totalCost, plan.totalCost);
+}
+
+{
+  // Water cells skip uncharged; a fully blocked rect is a valid empty plan.
+  let waterSeed = "";
+  let waterKey = "";
+  for (let i = 0; i < 100 && !waterKey; i += 1) {
+    waterSeed = `area-water-${i}`;
+    waterKey = getWaterCells(waterSeed).values().next().value ?? "";
+  }
+  assert.ok(waterKey);
+  const [wx, wy] = waterKey.split(",").map(Number) as [number, number];
+  const wet = snapshot({}, 10_000, waterSeed);
+  const wetPlan = planAreaPlacement(wet, [{ x: wx, y: wy }, { x: 118, y: 118 }], "plaza_paving");
+  assert.ok(wetPlan);
+  assert.deepEqual(wetPlan.positions, [{ x: 118, y: 118 }]);
+  const blocked = planAreaPlacement(
+    snapshot({ "0,0": tile("cottage", 0, 0) }),
+    [{ x: 0, y: 0 }],
+    "plaza_paving"
+  );
+  assert.ok(blocked && blocked.positions.length === 0 && blocked.totalCost === 0);
+  // Out-of-bounds positions are skipped, not fatal.
+  const oob = planAreaPlacement(snapshot(), [{ x: -1, y: 0 }, { x: 0, y: 0 }], "plaza_paving");
+  assert.deepEqual(oob?.positions, [{ x: 0, y: 0 }]);
+  // Short florins still reject the whole plan.
+  assert.equal(planAreaPlacement(snapshot({}, 11), [{ x: 0, y: 0 }], "plaza_paving"), null);
 }
 
 console.log("placementRules.check: all assertions passed");

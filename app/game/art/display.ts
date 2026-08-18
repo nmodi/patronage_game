@@ -36,7 +36,7 @@ export {
 
 export const SLOT_KINDS_BY_ARTIST: Record<ArtistType, readonly DisplaySlotKind[]> = {
   painter: ["painting"],
-  sculptor: ["statue", "plinth"],
+  sculptor: ["statue", "plinth", "fountain"],
   architect: [], // no display form yet; extend when stained glass etc. exist
 };
 

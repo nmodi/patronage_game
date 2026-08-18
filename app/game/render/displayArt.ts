@@ -23,6 +23,7 @@ import { createStatueMesh } from "./citizenFigures";
 
 export const MAX_FACADE_CANVASES = 2; // filled painting slots beyond this are popup-only
 export const PLINTH_HEIGHT = 0.16; // pedestal base→top; the statue stands on top
+export const FOUNTAIN_CROWN_Y = 0.34; // fountain-slot statue seat: just above the basin rim/finial
 export const SLAB_HEIGHT = 0.08; // wide-statue slab base→top (reclining pieces sit low)
 const STATUE_SCALE = 2.6; // ~1.5× a citizen — heroic but under a cottage's height
 

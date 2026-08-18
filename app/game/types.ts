@@ -45,7 +45,7 @@ export interface Artwork {
   displayedAt?: { key: string; slot: number }; // host origin key + slot index; undefined = in storage
 }
 
-export type DisplaySlotKind = "painting" | "statue" | "plinth";
+export type DisplaySlotKind = "painting" | "statue" | "plinth" | "fountain";
 
 export interface DisplaySlotDef {
   kind: DisplaySlotKind;
@@ -103,6 +103,7 @@ export interface BuildingMetadata {
   artistType?: ArtistType; // workshops: the only artist type that founds/arrives here
   roadWidth?: number; // roads only: cells stamped perpendicular to the drag axis
   linear?: boolean; // drag-placed like roads: each cell is an independent 1×1 segment tile
+  areaDrag?: boolean; // rect-drag placed (plaza paving): blocked cells skipped, only landed cells charged
   paved?: boolean; // render a flagstone apron over the full footprint (joins plazas visually)
   buildCost?: Partial<Record<Material, number>>; // grand buildings: construction materials spent lump-sum from the city pools at placement
   commissionOnly?: boolean; // placeable only via a funded blueprint commission (never in the open palette; placement costs 0ƒ + buildCost)

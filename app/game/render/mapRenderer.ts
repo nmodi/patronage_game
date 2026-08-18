@@ -30,6 +30,7 @@ import {
 import {
   createDisplayArt,
   MAX_FACADE_CANVASES,
+  FOUNTAIN_CROWN_Y,
   PLINTH_HEIGHT,
   SLAB_HEIGHT,
   type DisplayArtHandle,
@@ -305,6 +306,20 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
 
     for (let i = 0; i < slots.length; i += 1) {
       const slot = slots[i]!;
+      // Fountain slot (cell-less): the work crowns the basin at the footprint
+      // center — no pedestal mesh, the basin is the pedestal. No onWide
+      // callback either (no slab swap over a basin; createStatue still
+      // rescales wide pieces via statueFit).
+      if (slot.kind === "fountain") {
+        const work = bySlot?.get(i);
+        if (!work) continue;
+        const statue = displayArt.createStatue(work, (m) => shadowGenerator.addShadowCaster(m));
+        statue.position.set(center.x, gY + FOUNTAIN_CROWN_Y, center.z);
+        statue.rotation.y = yawOfRotation(r); // present toward the building's front
+        shadowGenerator.addShadowCaster(statue);
+        art.push({ mesh: statue });
+        continue;
+      }
       if (slot.kind !== "plinth" || !slot.cell) continue;
       const { x: dx, y: dy } = rotateSlotCell(slot.cell, metadata.footprint, r);
       const { x, z } = gridToWorld(tile.position.x + dx, tile.position.y + dy);
