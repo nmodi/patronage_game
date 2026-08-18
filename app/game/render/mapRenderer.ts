@@ -204,6 +204,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
   const extensionOrigins = new Set<string>();
   // Kept incrementally so dirt-path redraws don't rescan and sort the entire map.
   const dirtCells = new Set<string>();
+  const pavedCells = new Set<string>();
   const occupiedCells = new Set<string>();
 
   // Built lazily on first show so the draped lines see the ground sampler.
@@ -609,6 +610,19 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     }
     if (changedKeys.size === 0) return changedBuildingIds;
 
+    // Cells carrying a hard paved surface get the overlay's worn-earth verge:
+    // streets (any orientation, minus bridges — those hang over water) plus
+    // every cell of a `paved` building, which is exactly what its apron or
+    // plaza pad covers (both are fit-scaled to the footprint). Diagonal
+    // buildings contribute their diamond mask cells, not a bounding box, since
+    // the tile map keys every claimed cell separately.
+    const paved = (t?: Tile) =>
+      t == null
+        ? false
+        : t.type === "road"
+          ? t.buildingId !== "dirt_path" && t.buildingId !== "bridge"
+          : BUILDING_METADATA_BY_ID[t.buildingId]?.paved === true;
+
     for (const key of changedKeys) {
       const previous = renderedTiles[key];
       const next = tiles[key];
@@ -621,12 +635,16 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
       // below, so adjoining cardinal dirt drops its rim against the ribbon.
       const wasDirt = previous?.buildingId === "dirt_path" && previous.rotation == null;
       const isDirt = next?.buildingId === "dirt_path" && next.rotation == null;
-      if (wasOccupied !== isOccupied || wasDirt !== isDirt) {
+      const wasPaved = paved(previous);
+      const isPaved = paved(next);
+      if (wasOccupied !== isOccupied || wasDirt !== isDirt || wasPaved !== isPaved) {
         topologyChangedKeys.add(key);
         if (isOccupied) occupiedCells.add(key);
         else occupiedCells.delete(key);
         if (isDirt) dirtCells.add(key);
         else dirtCells.delete(key);
+        if (isPaved) pavedCells.add(key);
+        else pavedCells.delete(key);
       }
       if (previous && previous.type !== "road") {
         pendingOrigins.add(`${previous.origin.x},${previous.origin.y}`);
@@ -642,7 +660,7 @@ export function createTileRenderer(scene: Scene, shadowGenerator: ShadowGenerato
     renderedTiles = tiles;
     roadRenderer.flush(renderedTiles);
 
-    dirtOverlay.update(dirtCells, occupiedCells, topologyChangedKeys);
+    dirtOverlay.update(dirtCells, pavedCells, occupiedCells, topologyChangedKeys);
     return changedBuildingIds;
   }
 

@@ -26,6 +26,9 @@ export function createDirtPathOverlay(scene: Scene) {
   const px = size / CHUNK_CELLS;
   const r = px / 2; // corner radius: half a cell
   const w = px * 0.18; // width of the dark rim along grass edges
+  const vergeW = px * 0.3; // reach of the worn-earth verge past a paved edge
+  const VERGE_RINGS = 4; // alpha steps in the verge's outward feather
+  const VERGE_TONE = "rgba(201, 161, 114, 0.18)"; // DIRT_BASE at ring alpha
   const worldChunkSize = CHUNK_CELLS * CELL_SIZE;
 
   if (!Number.isInteger(CHUNKS_PER_AXIS)) {
@@ -118,14 +121,15 @@ export function createDirtPathOverlay(scene: Scene) {
     return chunks.get(chunkKey(chunkX, chunkY)) ?? createChunk(chunkX, chunkY);
   }
 
-  function hasDirtNearChunk(chunkX: number, chunkY: number, dirt: Set<string>) {
+  function hasDirtNearChunk(chunkX: number, chunkY: number, dirt: Set<string>, paved: Set<string>) {
     const startX = chunkX * CHUNK_CELLS;
     const startY = chunkY * CHUNK_CELLS;
     const endX = startX + CHUNK_CELLS;
     const endY = startY + CHUNK_CELLS;
     for (let gy = Math.max(0, startY - 1); gy <= Math.min(GRID_SIZE - 1, endY); gy += 1) {
       for (let gx = Math.max(0, startX - 1); gx <= Math.min(GRID_SIZE - 1, endX); gx += 1) {
-        if (dirt.has(`${gx},${gy}`)) return true;
+        const key = `${gx},${gy}`;
+        if (dirt.has(key) || paved.has(key)) return true;
       }
     }
     return false;
@@ -135,7 +139,7 @@ export function createDirtPathOverlay(scene: Scene) {
    * Repaint one chunk. The one-cell source border is important: an inside
    * fillet can cross a chunk edge even though its owning dirt cell is outside.
    */
-  function redrawChunk(chunk: DirtChunk, dirt: Set<string>, occupied: Set<string>) {
+  function redrawChunk(chunk: DirtChunk, dirt: Set<string>, paved: Set<string>, occupied: Set<string>) {
     const startX = chunk.chunkX * CHUNK_CELLS;
     const startY = chunk.chunkY * CHUNK_CELLS;
     const endX = startX + CHUNK_CELLS;
@@ -156,6 +160,44 @@ export function createDirtPathOverlay(scene: Scene) {
     // Include a one-cell source border. Its fill rects clip out, while any
     // fillets extending over the chunk boundary remain visible.
     const open = (cx: number, cy: number) => !occupied.has(`${cx},${cy}`);
+
+    // Pass 0 — worn-earth verge around every hard paved surface (streets,
+    // plaza pads, building aprons): each paved cell's rect, inflated only on
+    // sides facing open ground — flush against dirt, buildings, and other
+    // paved cells — filled as one union path in rings of shrinking inflation
+    // so alpha stacks toward the paved edge and feathers out into the grass.
+    // The cell interiors are erased afterwards: streets (y 0.01) sit above
+    // this sheet and would hide them anyway, but aprons and pads sit BELOW it
+    // (y 0.005), so an unerased fill would smear earth over their flagstone.
+    const pavedCells: Array<[number, number]> = [];
+    for (let gy = Math.max(0, startY - 1); gy <= Math.min(GRID_SIZE - 1, endY); gy += 1) {
+      for (let gx = Math.max(0, startX - 1); gx <= Math.min(GRID_SIZE - 1, endX); gx += 1) {
+        if (paved.has(`${gx},${gy}`)) pavedCells.push([gx, gy]);
+      }
+    }
+    ctx.fillStyle = VERGE_TONE;
+    for (let ring = 1; ring <= VERGE_RINGS; ring += 1) {
+      const k = (vergeW * ring) / VERGE_RINGS;
+      ctx.beginPath();
+      for (const [gx, gy] of pavedCells) {
+        const x0 = edgeX(gx) - (open(gx - 1, gy) ? k : 0);
+        const x1 = edgeX(gx + 1) + (open(gx + 1, gy) ? k : 0);
+        const y0 = edgeY(gy) - (open(gx, gy - 1) ? k : 0);
+        const y1 = edgeY(gy + 1) + (open(gx, gy + 1) ? k : 0);
+        ctx.rect(x0, y0, x1 - x0, y1 - y0);
+      }
+      ctx.fill();
+    }
+    if (pavedCells.length > 0) {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      for (const [gx, gy] of pavedCells) {
+        ctx.rect(edgeX(gx), edgeY(gy), edgeX(gx + 1) - edgeX(gx), edgeY(gy + 1) - edgeY(gy));
+      }
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+    }
+
     const cells: Array<{ gx: number; gy: number; fillets: Array<[number, number]>; rounded: Array<[number, number]> }> = [];
     for (let gy = Math.max(0, startY - 1); gy <= Math.min(GRID_SIZE - 1, endY); gy += 1) {
       for (let gx = Math.max(0, startX - 1); gx <= Math.min(GRID_SIZE - 1, endX); gx += 1) {
@@ -209,7 +251,7 @@ export function createDirtPathOverlay(scene: Scene) {
         cornerNotch(ctx, cornerX(gx, dx) - w * dx, cornerY(gy, dy) - w * dy, -dx, -dy, r - w);
       }
     }
-    chunk.mesh.setEnabled(cells.length > 0);
+    chunk.mesh.setEnabled(cells.length > 0 || pavedCells.length > 0);
     chunk.tex.update();
   }
 
@@ -219,13 +261,17 @@ export function createDirtPathOverlay(scene: Scene) {
   // Sets, mutated in place, so drain-time reads see the current topology.
   const pendingChunks = new Set<string>();
   let latestDirt: Set<string> = new Set();
+  let latestPaved: Set<string> = new Set();
   let latestOccupied: Set<string> = new Set();
 
-  /** dirt = "x,y" cells holding a dirt path; occupied = every tile-holding
-   * cell — rounding is suppressed against any occupied cell so junctions with
-   * paved roads and building fronts stay flush. */
-  function update(dirt: Set<string>, occupied: Set<string>, changedKeys: ReadonlySet<string>) {
+  /** dirt = "x,y" cells holding a dirt path; paved = cells carrying a hard
+   * paved surface — streets, plaza pads, building aprons — which get the
+   * worn-earth verge halo; occupied = every tile-holding cell — rounding is
+   * suppressed against any occupied cell so junctions with paved roads and
+   * building fronts stay flush. */
+  function update(dirt: Set<string>, paved: Set<string>, occupied: Set<string>, changedKeys: ReadonlySet<string>) {
     latestDirt = dirt;
+    latestPaved = paved;
     latestOccupied = occupied;
     if (changedKeys.size === 0) return;
 
@@ -255,8 +301,9 @@ export function createDirtPathOverlay(scene: Scene) {
       const chunk = chunks.get(key);
       // Don't allocate transparent chunks for unrelated buildings. Existing
       // chunks still repaint so removing a nearby path clears stale pixels.
-      if (chunk) redrawChunk(chunk, latestDirt, latestOccupied);
-      else if (hasDirtNearChunk(chunkX, chunkY, latestDirt)) redrawChunk(getChunk(chunkX, chunkY), latestDirt, latestOccupied);
+      if (chunk) redrawChunk(chunk, latestDirt, latestPaved, latestOccupied);
+      else if (hasDirtNearChunk(chunkX, chunkY, latestDirt, latestPaved))
+        redrawChunk(getChunk(chunkX, chunkY), latestDirt, latestPaved, latestOccupied);
       else continue; // skipped chunks don't consume budget
       drawn += 1;
     }
