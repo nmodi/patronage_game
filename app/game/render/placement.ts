@@ -20,12 +20,11 @@ import { getElevation, MAX_RISE } from "~/game/map/elevation";
 import { gridToWorld, worldToGrid, worldToGridFloat, type GridPos, type Tile } from "~/game/grid";
 import { bridgeLiftAt } from "./bridgeProfile";
 import { cellGroundY, footprintGroundRange, worldGroundY } from "./groundLevel";
-import { canPlaceAt, planAreaPlacement,
-  planLinearPlacement } from "~/game/placement/placementRules";
+import { canPlaceAt, planLinearPlacement } from "~/game/placement/placementRules";
 import { getRazeImpact } from "~/game/placement/raze";
 import { findRoadSnap } from "~/game/placement/roadSnap";
 import { playSfx } from "~/game/audio/sfx";
-import { buildRectStretch, buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/placement/roadStretch";
+import { buildRoadStretch, ROAD_DIAG_NE, type RoadRotation } from "~/game/placement/roadStretch";
 import { RAZE_TOOL, useGameStore, type GameState } from "~/stores/useGameStore";
 import {
   instantiateBuilding,
@@ -338,14 +337,10 @@ export function createPlacementController(scene: Scene) {
   }
 
   // Hover tooltip source: track which placed building the pointer is over
-  // whenever we're not in placement mode. Roads are skipped as noise — except
-  // plaza paving, whose tooltip names the surface (each cell is its own origin).
+  // whenever we're not in placement mode. Roads are skipped as noise.
   function updateHoveredTile(state: GameState) {
     const tile = pickHoverTile(state);
-    const key =
-      tile && (tile.type !== "road" || tile.buildingId === "plaza_paving")
-        ? `${tile.origin.x},${tile.origin.y}`
-        : null;
+    const key = tile && tile.type !== "road" ? `${tile.origin.x},${tile.origin.y}` : null;
     if (state.hoveredTileKey !== key) state.setHoveredTile(key);
   }
 
@@ -428,35 +423,6 @@ export function createPlacementController(scene: Scene) {
       // Sounds attach to the input sites, not placeTiles itself, so the demo
       // boot's programmatic placements stay silent.
       if (newCells.length > 0) playSfx("place");
-      roadAnchor = null;
-      clearRoadPreview();
-    }
-  }
-
-  // Rect two-click flow for area surfaces (plaza paving): same anchor dance as
-  // roads, but the box comes from buildRectStretch and blocked cells inside it
-  // are skipped rather than blocking — so only the cells that will actually
-  // place get preview quads; holes over obstacles read as flood-around.
-  function updateAreaPlacement(state: GameState, buildingId: BuildingId, currentPosition: GridPos) {
-    const positions = buildRectStretch(roadAnchor ?? currentPosition, currentPosition);
-    const plan = planAreaPlacement(state, positions, buildingId);
-    if (plan) updateRoadPreview(plan.positions, true);
-    else updateRoadPreview(positions, false); // unaffordable: whole box reads red
-
-    if (!pendingClick) return;
-    pendingClick = false;
-
-    if (!roadAnchor) {
-      if (plan) roadAnchor = { ...currentPosition };
-      else playSfx("deny");
-      return;
-    }
-    if (!plan) {
-      playSfx("deny");
-      return;
-    }
-    if (plan.positions.length === 0 || state.placeTiles(plan.positions, buildingId)) {
-      if (plan.positions.length > 0) playSfx("place");
       roadAnchor = null;
       clearRoadPreview();
     }
@@ -560,12 +526,6 @@ export function createPlacementController(scene: Scene) {
       setGhostVisible(false);
       clearRoadPreview();
       pendingClick = false;
-      return;
-    }
-
-    if (metadata.areaDrag) {
-      clearGhost();
-      updateAreaPlacement(state, selectedBuilding, currentPosition);
       return;
     }
 

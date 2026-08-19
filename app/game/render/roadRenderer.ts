@@ -17,7 +17,6 @@ import {
   getDirtPadMaterial,
   getDirtRibbonMaterial,
   getPavedRibbonMaterial,
-  getPavingMaterial,
   getRoadMaterial,
   ROAD_TEX_VARIANTS,
 } from "./paths";
@@ -45,13 +44,6 @@ export function createRoadRenderer(scene: Scene) {
   const pavedRibbons = Array.from({ length: ROAD_TEX_VARIANTS }, (_, i) => {
     const b = createRoadBatch(`paved-ribbon-batch-${i}`);
     b.mesh.material = getPavedRibbonMaterial(scene, i);
-    return b;
-  });
-  // Freeform plaza paving: directionless slab fill (always cardinal — paving
-  // never sets rotation), variant-hashed like streets so fields don't repeat.
-  const pavingBatches = Array.from({ length: ROAD_TEX_VARIANTS }, (_, i) => {
-    const b = createRoadBatch(`plaza-paving-batch-${i}`);
-    b.mesh.material = getPavingMaterial(scene, i);
     return b;
   });
   const dirtRibbons = createRoadBatch("dirt-ribbon-batch");
@@ -217,9 +209,7 @@ export function createRoadRenderer(scene: Scene) {
     (((t.position.x * 31 + t.position.y * 17) % ROAD_TEX_VARIANTS) + ROAD_TEX_VARIANTS) %
     ROAD_TEX_VARIANTS;
   const batchFor = (t: Tile): RoadBatch | null =>
-    t.buildingId === "plaza_paving"
-      ? pavingBatches[texVariant(t)]
-      : t.buildingId === "dirt_path"
+    t.buildingId === "dirt_path"
       ? t.rotation != null
         ? dirtRibbons
         : null
@@ -521,7 +511,6 @@ export function createRoadRenderer(scene: Scene) {
   /** Flush after any map edit because adjacent civic/road cells affect bridge rails. */
   function flush(tiles: TileMap) {
     for (const b of pavedRoads) flushRoadBatch(b, 0.0115, tiles, null);
-    for (const b of pavingBatches) flushRoadBatch(b, 0.0115, tiles, null);
     // update() dirties all ribbon batches together, so a dirty check on any of
     // them decides whether the pad buffers rebuild this flush.
     const stoneDirty = pavedRibbons.some((b) => b.dirty);
@@ -548,7 +537,6 @@ export function createRoadRenderer(scene: Scene) {
 
   function dispose() {
     disposeBatches(pavedRoads);
-    disposeBatches(pavingBatches);
     disposeBatches(pavedRibbons);
     dirtRibbons.mesh.dispose();
     stonePads.hex.dispose();

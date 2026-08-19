@@ -106,7 +106,6 @@ export const BUILDING_ICONS: Record<BuildingId, IconComponent> = {
   road: Road,
   avenue: Road,
   bridge: Waves,
-  plaza_paving: Landmark,
   tree: TreeDeciduous,
   cypress: TreePine,
   vineyard: Grape,

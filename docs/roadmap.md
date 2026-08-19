@@ -21,7 +21,6 @@ Ranked after the July 2026 cuts (neighborhood zoning was cut outright; the diago
 
 **Tier 3 — small, self-contained gap-fillers:**
 - Per-plaza paving choice (all three drawers ship behind `?plaza=`; needs `Tile.variant` state, click-to-select, style picker)
-- Freeform-plaza leftovers: paving render polish + prefab retirement decision (see backlog)
 - Lake map archetype + hiding grid tiles over water
 - Distinct model for the studio placeholder (graphics)
 - Small carried-over opens: single Town Center Plaza enforcement, real-art roster expansion, boats/banners
@@ -45,11 +44,6 @@ Ranked after the July 2026 cuts (neighborhood zoning was cut outright; the diago
   - **Terracotta herringbone** — warm brick herringbone field at 45° framed by a pale travertine border course; echoes the rooftops, strongest color pop (ref: Siena, Piazza del Campo)
   - **Grand travertine slabs** — large creamy slabs on the diagonal framed by the darker street limestone; quietest, reads as "finer stonework" (ref: Florentine piazzas)
   - Implementation notes: needs per-tile style state (the unused `Tile.variant` field fits), a first click-to-select interaction (`pickGridCell` → `tiles["x,y"]` → origin, same lookup the hover tooltip uses), and a style-picker popover. The renderer diffs tiles by object identity, but `renderOrigin`'s rebuild guard only checks `buildingId`/`extendKey` — the style must join that condition, and the pad batch keys (`pad:<size>:<style>`) already support per-style batches.
-- **Freeform-plaza leftovers** *(core shipped August 2026 — painted paving, centerpiece/open-square hub qualification, fountain display slot; see design-doc.md → Roads → Freeform plazas)*:
-  - **Paving render polish** — move freeform paving from per-cell thin-instance quads to a chunked canvas overlay sheet (the `dirtPathOverlay.ts` machinery: chunking, draping, redraw budgets), unlocking radial sett rings drawn dynamically around a seated centerpiece (`drawPlazaCobble` with a center argument), a border course traced along the blob perimeter, and no repetition on large fields. Layering trap on record: the overlay sheet draws at y 0.008 and paving currently renders at road height 0.01 — the sheet approach needs the surface at or below the sheet.
-  - **Ghost live-count** — while placing a centerpiece, surface the would-be "Piazza hub: N/M" in the placement UI instead of only on the placed tooltip.
-  - **Secondary-prefab retirement decision** — the Plaza/Small Plaza stamps are now redundant with painted piazzas; retire them from the palette for new games (metadata stays for old saves) or keep as one-click stamps. Decide after play.
-  - **Site-bound fountain commissions** — "a Neptune for the piazza": offers gated on an empty fountain slot existing, auto-installing on completion. Touches `maybeOfferCommission`, so the site reference must stamp off existing rng draws (trap rule). Only if the slot version proves not enough — the player choosing which fountain gets the Neptune may be decision enough.
 - Housing tiers 3–5; named family manors
 - **Rank-gated commissions** — a commission may require a **minimum rank** ("requires a Virtuoso architect"). Deferred from architects slice 1 — both launch structures are modest and rank already scales duration/reward; add `minRank` when Dome/Town-Hall-tier asks land. The ordinary offer stream must stay actionable — roll requirements at or below the city's best; asks above it live on the favor ladder's upper rungs and signature chains ([factions.md](factions.md)) (an unmet rank gate never expires a chain or punishes — principle 7).
 - **Capstone structures & the Commune** — Town Hall and the Dome as signature-chain capstones; a civic **Commune** requester (the Signoria asking for civic structures) as its own patron slice on top of the Church/noble pool.

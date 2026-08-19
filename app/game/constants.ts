@@ -24,17 +24,6 @@ export const MAX_STAFFING_BONUS = 0.5; // +50% output at max staffing vs. minimu
 export const PLAZA_CONNECTION_BONUS = 0.25; // at full strength
 export const PLAZA_REACH = 30; // road cells (0.5 world units each) from the nearest hub until the bonus fades to 0
 
-// --- Freeform plazas (connectivity.ts / roadStretch.ts) ---
-// Hub status is a local openness check, never region area: a centerpiece
-// (fountain/obelisk/sculpture display) qualifies with a mostly-paved surround,
-// or a bare campo qualifies via one cell with an almost fully paved window.
-// Monotonic by construction — laying more paving can only turn hubs on.
-export const PLAZA_HUB_RING = 2; // cells of surround around a centerpiece footprint (3×3 → 7×7 window)
-export const PLAZA_HUB_PAVED_FRACTION = 0.6; // paved share of the window for a centerpiece to hub
-export const PLAZA_CAMPO_HALF = 3; // open-square window half-width (7×7)
-export const PLAZA_CAMPO_PAVED_FRACTION = 0.9; // paved share for a bare campo cell (45/49 — 4-cell furnishing slack)
-export const PLAZA_RECT_MAX_SPAN = 24; // rect-drag axis cap (bounds the pooled preview quads)
-
 // --- Foot traffic (traffic.ts) ---
 // Bustle: the decorative-crowd curve (crowdCurve in crowd.ts) normalized —
 // 60 figures ⇔ pop ≈ 64, a solid mid-game city. In the 1:1 crowd regime every

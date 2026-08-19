@@ -2,9 +2,8 @@
 // Run: node --experimental-strip-types app/game/roadStretch.check.ts
 import assert from "node:assert";
 
-import { GRID_SIZE, PLAZA_RECT_MAX_SPAN } from "../constants.ts";
-import {
-  buildRectStretch, buildRoadStretch, ROAD_DIAG_NE, ROAD_DIAG_NW } from "./roadStretch.ts";
+import { GRID_SIZE } from "../constants.ts";
+import { buildRoadStretch, ROAD_DIAG_NE, ROAD_DIAG_NW } from "./roadStretch.ts";
 
 const keys = (r: { positions: Array<{ x: number; y: number }> }) =>
   r.positions.map((p) => `${p.x},${p.y}`);
@@ -75,31 +74,6 @@ const keys = (r: { positions: Array<{ x: number; y: number }> }) =>
   const a = { x: GRID_SIZE - 2, y: GRID_SIZE - 2 };
   const r = buildRoadStretch(a, { x: GRID_SIZE + 3, y: GRID_SIZE + 3 }, 1, true);
   assert.equal(keys(r)[keys(r).length - 1], `${GRID_SIZE - 1},${GRID_SIZE - 1}`);
-}
-
-// Rect stretch: same box from all four drag orientations, single cell when
-// anchor === hover, grid clamp, and the per-axis span cap.
-{
-  const box = (a: { x: number; y: number }, h: { x: number; y: number }) =>
-    buildRectStretch(a, h)
-      .map((p) => `${p.x},${p.y}`)
-      .sort()
-      .join(" ");
-  const want = box({ x: 2, y: 3 }, { x: 5, y: 7 });
-  assert.equal(buildRectStretch({ x: 2, y: 3 }, { x: 5, y: 7 }).length, 4 * 5);
-  assert.equal(box({ x: 5, y: 7 }, { x: 2, y: 3 }), want);
-  assert.equal(box({ x: 5, y: 3 }, { x: 2, y: 7 }), want);
-  assert.equal(box({ x: 2, y: 7 }, { x: 5, y: 3 }), want);
-  assert.deepEqual(buildRectStretch({ x: 4, y: 4 }, { x: 4, y: 4 }), [{ x: 4, y: 4 }]);
-  // Off-grid hover clamps to the map.
-  const edge = buildRectStretch({ x: GRID_SIZE - 2, y: GRID_SIZE - 2 }, { x: GRID_SIZE + 5, y: GRID_SIZE + 5 });
-  assert.equal(edge.length, 4);
-  // A map-diagonal drag caps at PLAZA_RECT_MAX_SPAN per axis.
-  const big = buildRectStretch({ x: 0, y: 0 }, { x: GRID_SIZE - 1, y: GRID_SIZE - 1 });
-  assert.equal(big.length, PLAZA_RECT_MAX_SPAN * PLAZA_RECT_MAX_SPAN);
-  // ...in both directions from the anchor.
-  const bigNeg = buildRectStretch({ x: GRID_SIZE - 1, y: GRID_SIZE - 1 }, { x: 0, y: 0 });
-  assert.equal(bigNeg.length, PLAZA_RECT_MAX_SPAN * PLAZA_RECT_MAX_SPAN);
 }
 
 console.log("roadStretch.check: all assertions passed");

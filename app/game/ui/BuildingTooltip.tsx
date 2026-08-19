@@ -2,10 +2,8 @@ import { useEffect, useRef } from "react";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
 import {
-  CENTERPIECE_IDS,
   computePlazaConnectivity,
   connectionBonusOf,
-  hubRingStatus,
   PLAZA_IDS,
 } from "~/game/city/connectivity";
 import { displayBoost } from "~/game/art/display";
@@ -96,9 +94,7 @@ export function BuildingTooltip() {
   if (!tile) return null;
   const metadata = BUILDING_METADATA_BY_ID[tile.buildingId];
   if (!metadata) return null;
-  // Decorations stay tooltip-free noise — except piazza centerpieces, whose
-  // card carries the hub-qualification readout.
-  if (metadata.type === "decoration" && !CENTERPIECE_IDS.has(tile.buildingId)) return null;
+  if (metadata.type === "decoration") return null;
 
   const required = metadata.workersRequired ?? 0;
   const canBeInactive = required > 0;
@@ -116,8 +112,6 @@ export function BuildingTooltip() {
       metadata.housing != null ||
       metadata.amenities != null);
   const originKey = `${tile.origin.x},${tile.origin.y}`;
-  // Freeform piazza: how close this centerpiece is to qualifying as a hub.
-  const hubStatus = CENTERPIECE_IDS.has(tile.buildingId) ? hubRingStatus(tiles, originKey) : null;
   const plazaStrength = bonusEligible
     ? computePlazaConnectivity(tiles).get(originKey) ?? 0
     : 0;
@@ -153,13 +147,6 @@ export function BuildingTooltip() {
     >
       <div className="panel-parchment max-w-64 rounded-md px-3.5 py-2.5 text-ink">
         <div className="font-display text-base font-semibold">{metadata.name}</div>
-        {hubStatus && (
-          <div className="text-sm text-ink-faint">
-            {hubStatus.qualified
-              ? "Piazza hub ✓"
-              : `Piazza hub: ${hubStatus.paved}/${hubStatus.total} paved cells`}
-          </div>
-        )}
         {required > 0 && (
           <div className="text-sm text-ink-faint">
             Workers {tile.workers}/{required}
