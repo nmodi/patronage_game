@@ -16,6 +16,18 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 - When a roadmap item ships, delete its entry from docs/roadmap.md and document the built system in the design doc, marked *(built)*. Update docs/artifacts/game-mechanics-audit.md in the same change: its Part 1 mechanic rows and Part 2 built/not-built status must track every completed feature. Built-system detail lives in the design doc **only** — this file gains a line only when a change introduces a new trap rule.
 - Commit messages are one line, written in a technical register: lowercase, terse imperative, no conventional-commit prefixes. Add a body only when the change genuinely can't be understood without one — the docs carry the reasoning, not the git log.
 
+
+## Game design conversations
+When I describe a rough feature or mechanic idea, treat it as the start
+of a design conversation, not a spec. Ask what I'm imagining for
+player-facing behavior, what feel or tone I'm going for, and how it
+interacts with existing systems — before writing any code.
+
+Don't implement until I say something like "let's build it," "go ahead,"
+or "implement that." Until then, stay in discussion: propose variations,
+point out tensions with existing mechanics, ask what I've ruled out.
+
+
 ## Current state
 
 Phases 0–12 are built (placement, tick loop, workers, artists + ranks + city-tradition XP pools, artworks, suppliers + five-material stockpiles, commissions + favor-bearing patrons, work display, plaza connectivity, Renaissance soft ending, architects/blueprint pipeline) plus graphics G1–G5 (water archetypes + bridges, diagonal roads, 45° buildings + snap-to-road, decorative crowds, SFX + crowd ambience) and a main menu. The design doc's *(built)* sections are the authority on how every shipped system works — read the relevant one before touching a game system. Next up: docs/roadmap.md.
