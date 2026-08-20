@@ -125,10 +125,10 @@ export function BuildingTooltip() {
           const g = computeGathering(tiles, mapSeed);
           const index = g.plazaCells.get(originKey);
           if (index == null)
-            return { status: "Not yet a piazza — no 4×4 open square fits", inspiration: 0 };
+            return { status: "Not yet a plaza — no 4×4 open square fits", inspiration: 0 };
           const organic = g.plazas[index]!.organic;
           return {
-            status: organic ? "A piazza — the city gathers here" : "A piazza",
+            status: organic ? "A plaza — the city gathers here" : "A plaza",
             inspiration: plazaInspiration(organic),
           };
         })()

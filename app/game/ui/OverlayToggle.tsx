@@ -34,10 +34,10 @@ export function OverlayToggle() {
             </span>
             <span>Where crowds would linger — faint to full</span>
           </div>
-          <LegendRow color={`rgb(${ORGANIC_RGB})`} label="Piazza — formed organically" />
-          <LegendRow color={`rgb(${AUTHORED_RGB})`} label="Piazza — authored" />
+          <LegendRow color={`rgb(${ORGANIC_RGB})`} label="Plaza — formed organically" />
+          <LegendRow color={`rgb(${AUTHORED_RGB})`} label="Plaza — authored" />
           <div className="mt-1 text-ink-faint">
-            Open ground warmer than the palest band, framed by the city, becomes a piazza.
+            Open ground warmer than the palest band, framed by the city, becomes a plaza.
           </div>
         </Panel>
       )}
