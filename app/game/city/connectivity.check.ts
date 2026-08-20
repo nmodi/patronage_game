@@ -186,22 +186,26 @@ function road(tiles: Record<string, ConnectivityTile>, x0: number, x1: number, y
 // gets near-full strength. Severing the link silences the campo entirely.
 {
   const tiles: Record<string, ConnectivityTile> = {};
-  // The lively quarter enclosing bare block (60..63, 60..63): cottages west
-  // and north, the tavern as the south wall, a bounding road column east.
-  put(tiles, "residential", "cottage", 56, 60, 4, 4);
-  put(tiles, "residential", "cottage", 60, 56, 4, 4);
-  put(tiles, "service", "tavern", 58, 64, 9, 7);
-  for (let y = 59; y <= 63; y += 1) put(tiles, "road", "road", 64, y);
-  put(tiles, "artist", "workshop", 65, 60, 2, 2); // touches the road column
+  // The lively quarter enclosing the bare 5×5 organic core (60..64, 60..64):
+  // townhouse wall north, cottage wall west, the tavern as the south wall, a
+  // bounding road column flush east — a street is not fill-out ground and the
+  // block containing it leaks three east lanes, so the campo can't absorb the
+  // road: the workshop must read the plaza THROUGH a road step, at
+  // measurable falloff.
+  put(tiles, "residential", "cottage", 56, 60, 4, 5);
+  put(tiles, "residential", "townhouse", 60, 56, 8, 4);
+  put(tiles, "service", "tavern", 58, 65, 9, 7);
+  for (let y = 60; y <= 64; y += 1) put(tiles, "road", "road", 65, y);
+  put(tiles, "artist", "workshop", 66, 60, 2, 2); // touches the road column
   const silent = computePlazaConnectivity(tiles, null);
-  assert.ok(!silent.has("65,60")); // unreached plaza radiates nothing
+  assert.ok(!silent.has("66,60")); // unreached plaza radiates nothing
   // Fresh object: the computes memoize by tiles identity (like the store,
   // which replaces the object on every change — never mutate and re-ask).
   const linked = { ...tiles };
   put(linked, "city", "town_center_plaza", 48, 58, 2, 2);
   road(linked, 50, 59, 59); // ends corner-adjacent to campo cell (60,60)
   const out = computePlazaConnectivity(linked, null);
-  assert.equal(out.get("65,60"), 1 - 1 / PLAZA_REACH);
+  assert.equal(out.get("66,60"), 1 - 1 / PLAZA_REACH);
 }
 
 console.log("connectivity.check: all assertions passed");

@@ -43,10 +43,32 @@ export const GATHER_INSPIRATION_W = 2; // per generated inspiration/month (fount
 export const GATHER_JUNCTION_W = 3; // per road-junction cell (3+ road neighbors)
 export const GATHER_FORM = 14; // mean field over a core block for organic formation
 // Organic blocks must also be ENCLOSED — a campo is leftover space framed by
-// buildings, streets, or the waterline, never open countryside: every outward
-// lane from each block edge must hit a tile/water/map edge within this many
-// cells. Adding a tile only ever bounds more (monotonic).
+// buildings, streets, or the waterline, never open countryside: an outward
+// lane from a block edge counts as bounded when it hits a tile or water
+// within this many cells (the map edge frames nothing). Adding a tile only
+// ever bounds more (monotonic).
 export const PLAZA_ENCLOSE_REACH = 3;
+// Organic seeds come in two tiers: a SMALL campo is a true courtyard — a 4x4
+// clearing with every outward lane bounded, zero forgiveness — while a GRAND
+// campo needs a generous 5x5 clearing but may keep a modest opening
+// (openLanes of its outward lanes running past the reach). The strictness
+// split is what scales formation with city character WITHOUT any population
+// input: a village court framed flush forms a small campo, while a mature
+// city's incidental pockets essentially never fully enclose (0 of 1917 hot
+// 4x4 blocks in the maxed demo city), so sprawl isn't littered with minis —
+// and since building only ever bounds MORE lanes and raises the field, a
+// formed campo can never be un-formed by growth. The field is NOT the rarity
+// lever (every framed pocket runs far past GATHER_FORM; raising the bar 3x
+// changed nothing in the demo); pocket geometry is — 4x4-forgiving found 13
+// organic pockets there, 5x5-forgiving finds 4. Once seeded, an organic
+// plaza fills out: it floods its open pocket (bare ground, paving, furniture
+// — never streets) up to PLAZA_ENCLOSE_REACH steps from the core, so a
+// formed campo hugs its court walls instead of stranding a core-sized square
+// (a small campo is fully walled, so it has nothing to fill).
+export const ORGANIC_TIERS = [
+  { core: 4, openLanes: 0 }, // small campo: perfectly framed
+  { core: 5, openLanes: 2 }, // grand campo: mass forgives a modest opening
+] as const;
 // Formed-plaza effects: hubs like the premade plazas (connectivity reset), plus
 // a flat Inspiration trickle per plaza — organic ones run slightly hotter, the
 // entire reward for letting the city grow its own piazza (no one-time bonus:

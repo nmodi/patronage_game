@@ -8,21 +8,31 @@
 // services, roads, and decorations (principle 6's spirit; asserted in
 // gathering.check.ts).
 //
-// Formation: a plaza is a connected union of fully-open PLAZA_CORE² blocks
-// (open = bare buildable land, player plaza paving, land road cells — a
-// generous crossing becomes a piazza, the way real ones did — or plaza
-// furniture: stalls, plinths, paved decorations like the fountain). The 4×4 core
-// requirement is the minimum size AND the strip-proofing: no 3-wide avenue
-// ever contains one. Blocks qualify authored (all player paving) or organic
-// (mean field ≥ GATHER_FORM *and* enclosed — every outward lane hits a tile,
-// water, or the map edge within PLAZA_ENCLOSE_REACH cells, because a campo is
-// leftover space framed by the city, never open meadow). A region is ORGANIC
-// when any of its blocks is
+// Formation: a plaza is a connected union of fully-open core blocks (open =
+// bare buildable land, player plaza paving, land road cells — a generous
+// crossing becomes a piazza, the way real ones did — or plaza furniture:
+// stalls, plinths, paved decorations like the fountain). Authored blocks are
+// PLAZA_CORE² (4×4) all player paving; organic blocks come in the
+// ORGANIC_TIERS — a small campo (4×4, every outward lane bounded) or a grand
+// campo (5×5, a modest opening forgiven) — with mean field ≥ GATHER_FORM and
+// enclosure per tier: a lane counts bounded when it hits a tile or water
+// within PLAZA_ENCLOSE_REACH cells (the map edge frames nothing), because a
+// campo is leftover space framed by the city, never open meadow. A formed
+// region must also be PUBLIC: it contains or touches road-type ground
+// (streets, paving, bridges) — a court fully walled by buildings is a
+// private yard and never forms. Building only ever bounds MORE lanes and
+// raises the field, so growth can never un-form a campo. The
+// core requirement is the minimum size AND the strip-proofing: no 3-wide
+// avenue ever contains one. A region is ORGANIC when any of its blocks is
 // field-qualified — paving never lowers the field, so paving more can never
-// demote an organic plaza, and an authored court can grow INTO organic as the
-// city gathers around it. Organic plazas trickle slightly more Inspiration
-// (ORGANIC_PLAZA_MULT); that intrinsic edge is the entire reward — no one-time
-// bonus, so raze-and-reform cycles gain nothing by construction.
+// demote an organic plaza, and an authored court can grow INTO organic as
+// the city gathers around it. An organic region then FILLS OUT: it floods
+// its open pocket — adjacent plaza-able ground except streets, up to
+// PLAZA_ENCLOSE_REACH steps from the core — so a formed campo hugs its court
+// walls instead of stranding a core-sized square. Organic plazas trickle
+// slightly more Inspiration (ORGANIC_PLAZA_MULT); that intrinsic edge is the
+// entire reward — no one-time bonus, so raze-and-reform cycles gain nothing
+// by construction.
 //
 // Everything here is derived each compute and persisted nowhere (principle 8);
 // plaza naming, when it lands, brings the first persistent record.
@@ -41,6 +51,7 @@ import {
   GATHER_REACH,
   GRID_SIZE,
   ORGANIC_PLAZA_MULT,
+  ORGANIC_TIERS,
   PLAZA_CORE,
   PLAZA_ENCLOSE_REACH,
   PLAZA_FORMED_INSPIRATION,
@@ -179,64 +190,93 @@ function computeUncached(tiles: Tiles, mapSeed: string | null): GatheringState {
   const water = getWaterCells(mapSeed);
   const able = new Uint8Array(G * G);
   const paved = new Uint8Array(G * G);
+  // Fill-out ground: able minus streets — an organic plaza floods its pocket
+  // but never runs down a road (streets keep their street-ness; only a core
+  // that spans one converts a crossing).
+  const growable = new Uint8Array(G * G);
+  // Public access: road-type ground (streets, paving, bridges). A campo is a
+  // PUBLIC square — a region that neither contains nor touches any of this is
+  // a walled private yard and never forms.
+  const streetish = new Uint8Array(G * G);
   for (let y = 0; y < G; y += 1) {
     for (let x = 0; x < G; x += 1) {
       const key = `${x},${y}`;
       const tile = tiles[key];
       const i = y * G + x;
+      if (tile?.type === "road") streetish[i] = 1;
       if (!tile) {
-        if (!water.has(key)) able[i] = 1;
+        if (!water.has(key)) {
+          able[i] = 1;
+          growable[i] = 1;
+        }
       } else if (tile.buildingId === "plaza_paving") {
         able[i] = 1;
         paved[i] = 1;
+        growable[i] = 1;
       } else if (tile.type === "road" && tile.buildingId !== "bridge") {
         able[i] = 1;
       } else if (ROAD_OVERLAY_IDS.has(tile.buildingId) || PAVED_DECOR_IDS.has(tile.buildingId)) {
         able[i] = 1;
         paved[i] = 1;
+        growable[i] = 1;
       }
     }
   }
 
-  // Enclosure for organic blocks: from each block edge, every outward lane
-  // must hit a tile (building, street, paving), water, or the map edge within
+  // Enclosure for organic blocks: from each block edge, an outward lane is
+  // bounded when it hits a tile (building, street, paving) or water within
   // PLAZA_ENCLOSE_REACH cells — bare meadow continuing means countryside, not
-  // campo. Adding a tile only ever bounds more, so this stays monotonic.
+  // campo, and the map edge frames nothing (two cottages in a world corner
+  // are not a courtyard; a canal-side campo is). Each tier allows its own
+  // number of open lanes (a grand court keeps one modest opening; fringe
+  // meadow runs 5+). Adding a tile only ever bounds more, so this stays
+  // monotonic.
   const bounding = (x: number, y: number) =>
-    x < 0 || x >= G || y < 0 || y >= G || tiles[`${x},${y}`] != null || water.has(`${x},${y}`);
+    x >= 0 && x < G && y >= 0 && y < G && (tiles[`${x},${y}`] != null || water.has(`${x},${y}`));
   const laneBounded = (x: number, y: number, dx: number, dy: number) => {
     for (let s = 1; s <= PLAZA_ENCLOSE_REACH; s += 1) {
       if (bounding(x + dx * s, y + dy * s)) return true;
     }
     return false;
   };
-  const enclosed = (x: number, y: number): boolean => {
-    for (let i = 0; i < PLAZA_CORE; i += 1) {
-      if (!laneBounded(x + i, y, 0, -1)) return false; // north from the top edge
-      if (!laneBounded(x + i, y + PLAZA_CORE - 1, 0, 1)) return false; // south
-      if (!laneBounded(x, y + i, -1, 0)) return false; // west
-      if (!laneBounded(x + PLAZA_CORE - 1, y + i, 1, 0)) return false; // east
+  const enclosed = (x: number, y: number, size: number, openLanes: number): boolean => {
+    let open = 0;
+    for (let i = 0; i < size; i += 1) {
+      if (!laneBounded(x + i, y, 0, -1)) open += 1; // north from the top edge
+      if (!laneBounded(x + i, y + size - 1, 0, 1)) open += 1; // south
+      if (!laneBounded(x, y + i, -1, 0)) open += 1; // west
+      if (!laneBounded(x + size - 1, y + i, 1, 0)) open += 1; // east
+      if (open > openLanes) return false;
     }
     return true;
   };
 
-  // Qualifying core blocks → union bitmap → connected components.
+  // Qualifying core blocks → union bitmap → connected components. Authored
+  // cores are PLAZA_CORE² of paving; organic cores are open ground, hot and
+  // enclosed per ORGANIC_TIERS (small-and-strict or grand-and-forgiving).
   const A = prefix(able);
   const P = prefix(paved);
   const F = prefix(field);
   const C = PLAZA_CORE;
-  const C2 = C * C;
   const member = new Uint8Array(G * G);
-  const blocks: { x: number; y: number; organic: boolean }[] = [];
+  const organicBlocks: { x: number; y: number }[] = [];
   for (let y = 0; y + C <= G; y += 1) {
     for (let x = 0; x + C <= G; x += 1) {
-      if (blockSum(A, x, y, C) !== C2) continue;
-      const organic = blockSum(F, x, y, C) / C2 >= GATHER_FORM && enclosed(x, y);
-      const authored = blockSum(P, x, y, C) === C2;
-      if (!organic && !authored) continue;
-      blocks.push({ x, y, organic });
+      if (blockSum(P, x, y, C) !== C * C) continue;
       for (let by = y; by < y + C; by += 1) {
         for (let bx = x; bx < x + C; bx += 1) member[by * G + bx] = 1;
+      }
+    }
+  }
+  for (const { core: S, openLanes } of ORGANIC_TIERS) {
+    for (let y = 0; y + S <= G; y += 1) {
+      for (let x = 0; x + S <= G; x += 1) {
+        if (blockSum(A, x, y, S) !== S * S) continue;
+        if (blockSum(F, x, y, S) / (S * S) < GATHER_FORM || !enclosed(x, y, S, openLanes)) continue;
+        organicBlocks.push({ x, y });
+        for (let by = y; by < y + S; by += 1) {
+          for (let bx = x; bx < x + S; bx += 1) member[by * G + bx] = 1;
+        }
       }
     }
   }
@@ -267,11 +307,66 @@ function computeUncached(tiles: Tiles, mapSeed: string | null): GatheringState {
     }
     plazas.push({ cells, anchor, organic: false });
   }
-  for (const b of blocks) {
-    if (b.organic) plazas[comp[b.y * G + b.x]!]!.organic = true;
+  for (const b of organicBlocks) {
+    plazas[comp[b.y * G + b.x]!]!.organic = true;
   }
 
-  return { field, plazas, plazaCells };
+  // Fill-out: organic regions flood their pocket. One multi-source BFS over
+  // growable ground, seeded by every organic region's core cells, capped at
+  // PLAZA_ENCLOSE_REACH steps — the court walls (and streets) bound the rest.
+  // Seed order is region order then cell order, so ties are deterministic;
+  // the comp guard keeps growth out of other regions' cells.
+  const queue: number[] = [];
+  const dist = new Int32Array(G * G).fill(-1);
+  for (let index = 0; index < plazas.length; index += 1) {
+    if (!plazas[index]!.organic) continue;
+    for (const cell of plazas[index]!.cells) {
+      const [cx, cy] = cell.split(",").map(Number) as [number, number];
+      const j = cy * G + cx;
+      dist[j] = 0;
+      queue.push(j);
+    }
+  }
+  for (let qi = 0; qi < queue.length; qi += 1) {
+    const j = queue[qi]!;
+    if (dist[j]! >= PLAZA_ENCLOSE_REACH) continue;
+    const x = j % G;
+    for (const k of [x > 0 ? j - 1 : -1, x < G - 1 ? j + 1 : -1, j - G, j + G]) {
+      if (k < 0 || k >= growable.length || !growable[k] || comp[k] !== -1) continue;
+      dist[k] = dist[j]! + 1;
+      comp[k] = comp[j]!;
+      const cell = `${k % G},${Math.floor(k / G)}`;
+      plazas[comp[k]!]!.cells.push(cell);
+      plazaCells.set(cell, comp[k]!);
+      queue.push(k);
+    }
+  }
+
+  // Public access: keep only regions that contain or touch road-type ground.
+  // Authored paving is itself road-type, so authored plazas always pass; a
+  // court fully walled by buildings is a private yard, not a campo. Access
+  // can arrive through the filled pocket (the square opens onto the street).
+  const accessible = (plaza: FormedPlaza): boolean =>
+    plaza.cells.some((cell) => {
+      const [x, y] = cell.split(",").map(Number) as [number, number];
+      const j = y * G + x;
+      return (
+        streetish[j] === 1 ||
+        (x > 0 && streetish[j - 1] === 1) ||
+        (x < G - 1 && streetish[j + 1] === 1) ||
+        (y > 0 && streetish[j - G] === 1) ||
+        (y < G - 1 && streetish[j + G] === 1)
+      );
+    });
+  const kept = plazas.filter(accessible);
+  if (kept.length !== plazas.length) {
+    plazaCells.clear();
+    for (let index = 0; index < kept.length; index += 1) {
+      for (const cell of kept[index]!.cells) plazaCells.set(cell, index);
+    }
+  }
+
+  return { field, plazas: kept, plazaCells };
 }
 
 // Memoized by tiles object identity (the store replaces the tiles object on

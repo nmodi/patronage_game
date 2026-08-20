@@ -37,7 +37,8 @@ export function OverlayToggle() {
           <LegendRow color={`rgb(${ORGANIC_RGB})`} label="Plaza — formed organically" />
           <LegendRow color={`rgb(${AUTHORED_RGB})`} label="Plaza — authored" />
           <div className="mt-1 text-ink-faint">
-            Open ground warmer than the palest band, framed by the city, becomes a plaza.
+            Warm open ground by the street becomes a plaza: a small court when fully framed, a
+            grand one forgiving an opening.
           </div>
         </Panel>
       )}

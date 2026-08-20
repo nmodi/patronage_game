@@ -7,7 +7,6 @@ import {
   GATHER_FORM,
   GRID_SIZE,
   ORGANIC_PLAZA_MULT,
-  PLAZA_CORE,
   PLAZA_FORMED_INSPIRATION,
 } from "../constants.ts";
 import type { TileMap } from "../grid.ts";
@@ -27,15 +26,22 @@ function surface(buildingId: "plaza_paving" | "road" | "bridge", x0: number, y0:
   return tiles;
 }
 
-/** A lively quarter around the open block at (bx..bx+3, by..by+3): four
- * cottages hugging its sides plus a tavern — comfortably over GATHER_FORM. */
+/** A lively quarter around the open 5×5 organic core at (bx..bx+4, by..by+4):
+ * cottage walls on three sides (pinwheel-interlocked, nothing overlaps), the
+ * street as the south wall — a campo must be PUBLIC, so its frame includes
+ * street frontage — and a tavern beyond it for warmth. Comfortably over
+ * GATHER_FORM, fully enclosed, and with no open ground adjacent for fill-out
+ * (the region stays exactly 25). */
 function quarterAround(bx: number, by: number): TileMap {
   return merge(
-    stamp("cottage", { x: bx - 4, y: by }), // left
-    stamp("cottage", { x: bx + PLAZA_CORE, y: by }), // right
-    stamp("cottage", { x: bx, y: by - 4 }), // top
-    stamp("cottage", { x: bx, y: by + PLAZA_CORE }), // bottom
-    stamp("tavern", { x: bx - 4, y: by + PLAZA_CORE + 4 })
+    stamp("cottage", { x: bx - 3, y: by - 4 }), // north wall
+    stamp("cottage", { x: bx + 1, y: by - 4 }),
+    stamp("cottage", { x: bx + 5, y: by - 3 }), // east wall
+    stamp("cottage", { x: bx + 5, y: by + 1 }),
+    surface("road", bx, by + 5, 5, 1), // south wall: the street it opens onto
+    stamp("tavern", { x: bx + 4, y: by + 6 }),
+    stamp("cottage", { x: bx - 4, y: by }), // west wall
+    stamp("cottage", { x: bx - 4, y: by + 4 })
   );
 }
 
@@ -81,13 +87,13 @@ function quarterAround(bx: number, by: number): TileMap {
   assert.equal(sparse.plazas.length, 0);
 }
 
-// Roads convert: the same quarter around a 4×4 of road cells forms a plaza
+// Roads convert: the same quarter around a 5×5 of road cells forms a plaza
 // over the crossing — but never over bridge decks.
 {
-  const onRoads = computeGathering(merge(quarterAround(60, 60), surface("road", 60, 60, 4, 4)), null);
+  const onRoads = computeGathering(merge(quarterAround(60, 60), surface("road", 60, 60, 5, 5)), null);
   assert.equal(onRoads.plazas.length, 1);
   assert.ok(onRoads.plazaCells.has("61,61"));
-  const onBridge = computeGathering(merge(quarterAround(60, 60), surface("bridge", 60, 60, 4, 4)), null);
+  const onBridge = computeGathering(merge(quarterAround(60, 60), surface("bridge", 60, 60, 5, 5)), null);
   assert.equal(onBridge.plazas.length, 0);
 }
 
@@ -116,8 +122,8 @@ function quarterAround(bx: number, by: number): TileMap {
   }
 }
 
-// Organic status is a field property, not a paving property: fully paving the
-// hot block keeps it organic (paving more never demotes a plaza), while the
+// Organic status is a field property, not a paving property: paving inside the
+// hot court keeps it organic (paving more never demotes a plaza), while the
 // same paving alone in the void stays authored-rate.
 {
   const paved = surface("plaza_paving", 60, 60, 4, 4);
@@ -154,21 +160,107 @@ function quarterAround(bx: number, by: number): TileMap {
   }
 }
 
-// Enclosure, isolated from the field: slide the right cottage out past
-// PLAZA_ENCLOSE_REACH and the east lanes leak to open meadow — no plaza —
-// even though the block's field still clears GATHER_FORM.
+// Grand-tier enclosure + fill-out, isolated from the field: the quarter with
+// its east wall missing leaks all five east lanes (past the tier's allowance
+// of 2) — no plaza, even though the court still clears GATHER_FORM. A helper cottage
+// bounding three east rows (2 open) forms organic, and the plaza fills out
+// through the opening — but only to PLAZA_ENCLOSE_REACH steps, and never onto
+// a cell past it. Bounding two rows (3 open) stays countryside.
 {
-  const leaky = merge(
-    stamp("cottage", { x: 56, y: 60 }),
-    stamp("cottage", { x: 68, y: 60 }), // gap 4 > PLAZA_ENCLOSE_REACH
-    stamp("cottage", { x: 60, y: 56 }),
-    stamp("cottage", { x: 60, y: 64 }),
+  const base = merge(
+    stamp("cottage", { x: 57, y: 56 }), // north wall
+    stamp("cottage", { x: 61, y: 56 }),
+    surface("road", 60, 65, 5, 1), // south wall: street frontage (public access)
+    stamp("tavern", { x: 64, y: 66 }),
+    stamp("cottage", { x: 56, y: 60 }), // west wall
+    stamp("cottage", { x: 56, y: 64 }) // east side open
+  );
+  const leaky = computeGathering(base, null);
+  assert.equal(leaky.plazas.length, 0);
+  let sum = 0;
+  for (let y = 60; y < 65; y += 1) for (let x = 60; x < 65; x += 1) sum += leaky.field[y * GRID_SIZE + x]!;
+  assert.ok(sum / 25 >= GATHER_FORM);
+
+  // Cottage at (65,59) bounds east rows 60..62 at reach 1 → rows 63,64 open.
+  const twoOpen = computeGathering(merge(base, stamp("cottage", { x: 65, y: 59 })), null);
+  assert.equal(twoOpen.plazas.length, 1);
+  assert.equal(twoOpen.plazas[0]!.organic, true);
+  assert.ok(twoOpen.plazaCells.has("60,60"));
+  assert.ok(twoOpen.plazaCells.has("67,63")); // filled out through the opening (3 steps)
+  assert.ok(!twoOpen.plazaCells.has("68,63")); // ...but never past the reach
+
+  // Cottage at (65,58) bounds only rows 60,61 → rows 62..64 open.
+  const threeOpen = computeGathering(merge(base, stamp("cottage", { x: 65, y: 58 })), null);
+  assert.equal(threeOpen.plazas.length, 0);
+}
+
+// Small campo tier: a village green — 4×4 walled flush by cottages on three
+// sides with the street as its fourth wall — forms organic with zero
+// forgiveness and nothing to fill out, and growth elsewhere never un-forms
+// it (building only ever bounds more lanes). The same court walled by
+// buildings on ALL four sides is a private yard — no public access, no
+// campo, however hot. And with the street wall but the east cottage recessed
+// a row, a single lane runs open — one too many for the small tier.
+{
+  const village = merge(
+    stamp("cottage", { x: 56, y: 60 }), // west, flush
+    stamp("cottage", { x: 60, y: 56 }), // north, flush
+    stamp("cottage", { x: 60, y: 64 }), // south, flush
+    surface("road", 64, 60, 1, 4), // east wall: the street (public access)
     stamp("tavern", { x: 56, y: 68 })
   );
-  const g = computeGathering(leaky, null);
+  const g = computeGathering(village, null);
+  assert.equal(g.plazas.length, 1);
+  assert.equal(g.plazas[0]!.organic, true);
+  assert.equal(g.plazas[0]!.cells.length, 16); // fully walled: nothing to fill out
+  assert.ok(g.plazaCells.has("60,60"));
+  const grown = computeGathering(
+    merge(village, stamp("cottage", { x: 70, y: 60 }), stamp("townhouse", { x: 68, y: 68 })),
+    null
+  );
+  assert.ok(grown.plazaCells.has("60,60")); // the village campo survives the city
+
+  const yard = merge(
+    stamp("cottage", { x: 56, y: 60 }), // west, flush
+    stamp("cottage", { x: 64, y: 60 }), // east, flush — walls on all four sides
+    stamp("cottage", { x: 60, y: 56 }), // north, flush
+    stamp("cottage", { x: 60, y: 64 }), // south, flush
+    stamp("tavern", { x: 56, y: 68 })
+  );
+  const p = computeGathering(yard, null);
+  assert.equal(p.plazas.length, 0); // private yard: enclosed but inaccessible
+  let yardSum = 0;
+  for (let y = 60; y < 64; y += 1)
+    for (let x = 60; x < 64; x += 1) yardSum += p.field[y * GRID_SIZE + x]!;
+  assert.ok(yardSum / 16 >= GATHER_FORM);
+
+  const leaky = merge(
+    stamp("cottage", { x: 56, y: 60 }), // west, flush
+    stamp("cottage", { x: 60, y: 56 }), // north, flush
+    surface("road", 60, 64, 4, 1), // south wall: the street (public access)
+    stamp("cottage", { x: 64, y: 61 }), // east, recessed: row 60's lane runs open
+    stamp("tavern", { x: 56, y: 68 })
+  );
+  const l = computeGathering(leaky, null);
+  assert.equal(l.plazas.length, 0);
+  let sum = 0;
+  for (let y = 60; y < 64; y += 1) for (let x = 60; x < 64; x += 1) sum += l.field[y * GRID_SIZE + x]!;
+  assert.ok(sum / 16 >= GATHER_FORM);
+}
+
+// The map edge frames nothing: a hot corner nook (2..5, 2..5) with a street
+// south (public access), a townhouse east, and a tavern beyond leaves the
+// north and west lanes running off the world — no campo, however hot.
+{
+  const nook = merge(
+    surface("road", 2, 6, 4, 1), // south wall: the street
+    stamp("townhouse", { x: 6, y: 2 }), // east wall
+    stamp("tavern", { x: 6, y: 6 }) // diagonal, for warmth
+  );
+  const g = computeGathering(nook, null);
   assert.equal(g.plazas.length, 0);
   let sum = 0;
-  for (let y = 60; y < 64; y += 1) for (let x = 60; x < 64; x += 1) sum += g.field[y * GRID_SIZE + x]!;
+  for (let y = 2; y < 6; y += 1) for (let x = 2; x < 6; x += 1) sum += g.field[y * GRID_SIZE + x]!;
   assert.ok(sum / 16 >= GATHER_FORM);
 }
 
