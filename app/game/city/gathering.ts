@@ -9,8 +9,9 @@
 // gathering.check.ts).
 //
 // Formation: a plaza is a connected union of fully-open PLAZA_CORE² blocks
-// (open = bare buildable land, player plaza paving, or land road cells — a
-// generous crossing becomes a piazza, the way real ones did). The 4×4 core
+// (open = bare buildable land, player plaza paving, land road cells — a
+// generous crossing becomes a piazza, the way real ones did — or plaza
+// furniture: stalls, plinths, paved decorations like the fountain). The 4×4 core
 // requirement is the minimum size AND the strip-proofing: no 3-wide avenue
 // ever contains one. Blocks qualify authored (all player paving) or organic
 // (mean field ≥ GATHER_FORM *and* enclosed — every outward lane hits a tile,
@@ -55,10 +56,17 @@ export interface GatherTile {
 }
 type Tiles = Record<string, GatherTile>;
 
-// connectivity.ts's ROAD_OVERLAY_IDS twin (market stall) — derived the same
-// way rather than imported, to keep this module below connectivity.
+// connectivity.ts's ROAD_OVERLAY_IDS twin (market stall, plinth) — derived the
+// same way rather than imported, to keep this module below connectivity.
 const ROAD_OVERLAY_IDS = new Set<string>(
   BUILDING_TYPES.filter((b) => "placesOnRoads" in b && b.placesOnRoads).map((b) => b.id)
+);
+
+// Paved decorations (fountain, obelisk, colonnade…) are plaza furniture: their
+// footprints are plaza-able ground, so a fountain centred in a paved court sits
+// INSIDE the piazza instead of punching a hole in it.
+const PAVED_DECOR_IDS = new Set<string>(
+  BUILDING_TYPES.filter((b) => b.type === "decoration" && "paved" in b && b.paved).map((b) => b.id)
 );
 
 export interface FormedPlaza {
@@ -164,8 +172,10 @@ function computeUncached(tiles: Tiles, mapSeed: string | null): GatheringState {
 
   // Plaza-able ground: bare buildable land, player paving, land road cells
   // (bridges excluded entirely — no piazza hangs over the river, and a land
-  // causeway reads as a road, not a campo), and road-overlay buildings so a
-  // market stall in the campo never breaks a core.
+  // causeway reads as a road, not a campo), and plaza furniture — road-overlay
+  // buildings and paved decorations. Furniture counts as PAVED too: it stands
+  // on/for paving, so dropping a stall, plinth, or fountain onto an authored
+  // court never breaks a core and never demotes the block to unformed.
   const water = getWaterCells(mapSeed);
   const able = new Uint8Array(G * G);
   const paved = new Uint8Array(G * G);
@@ -181,8 +191,9 @@ function computeUncached(tiles: Tiles, mapSeed: string | null): GatheringState {
         paved[i] = 1;
       } else if (tile.type === "road" && tile.buildingId !== "bridge") {
         able[i] = 1;
-      } else if (ROAD_OVERLAY_IDS.has(tile.buildingId)) {
+      } else if (ROAD_OVERLAY_IDS.has(tile.buildingId) || PAVED_DECOR_IDS.has(tile.buildingId)) {
         able[i] = 1;
+        paved[i] = 1;
       }
     }
   }

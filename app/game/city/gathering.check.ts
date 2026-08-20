@@ -98,6 +98,24 @@ function quarterAround(bx: number, by: number): TileMap {
   assert.ok(computeGathering(tiles, null).plazaCells.has("61,61"));
 }
 
+// Plaza furniture counts as paving: a fountain centred in a paved court sits
+// INSIDE one plaza (its cells included — no hole, no clipped arms), and a
+// stall or plinth dropped onto a lone authored 4×4 never unforms it.
+{
+  const court = merge(surface("plaza_paving", 40, 40, 8, 8), stamp("fountain", { x: 42, y: 40 }));
+  const g = computeGathering(court, null);
+  assert.equal(g.plazas.length, 1);
+  assert.equal(g.plazas[0]!.cells.length, 64);
+  assert.ok(g.plazaCells.has("43,41")); // the fountain's center cell
+
+  for (const furniture of ["market_stall"] as const) {
+    const tiles = merge(surface("plaza_paving", 40, 40, 4, 4), {
+      "41,41": tile(furniture, 41, 41),
+    });
+    assert.equal(computeGathering(tiles, null).plazas.length, 1, furniture);
+  }
+}
+
 // Organic status is a field property, not a paving property: fully paving the
 // hot block keeps it organic (paving more never demotes a plaza), while the
 // same paving alone in the void stays authored-rate.

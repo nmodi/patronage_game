@@ -298,10 +298,12 @@ export function createCitizens(scene: Scene) {
       }
     }
     // Formed freeform plazas are walkable ground too — including bare campo
-    // cells that carry no tile (their paved/road cells are already in).
+    // cells that carry no tile (their paved/road cells are already in). Tiled
+    // plaza cells that aren't already walkable are furniture footprints
+    // (fountain, plinth, obelisk…) — keep walkers out of the furniture.
     gathering = computeGathering(tiles, useGameStore.getState().mapSeed);
     for (const cell of gathering.plazaCells.keys()) {
-      if (walkable.has(cell)) continue;
+      if (walkable.has(cell) || tiles[cell]) continue;
       walkable.add(cell);
       const [x, y] = cell.split(",").map(Number) as [number, number];
       spawnTiles.push({ x, y });
