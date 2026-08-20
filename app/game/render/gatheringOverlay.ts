@@ -19,9 +19,19 @@ import { worldGroundY } from "./groundLevel";
 
 const LIFT = 0.035; // above road quads (0.0115) and plaza pads, below eye-catching
 const PX = 4; // canvas pixels per cell — enough for a crisp 1px region border
-// Heat ramps to full warmth exactly at GATHER_FORM (the formable level).
-const HEAT_RGB = "226,150,60";
-const HEAT_MAX_ALPHA = 0.4;
+// Heat as quantized bands (Civ-style): a continuous alpha wash saturates flat
+// in any built-up quarter, and discrete steps read far better over textured
+// terrain. `min` is a multiple of GATHER_FORM. A mature city runs the field to
+// ~13× GATHER_FORM (demo p50 ≈ 2×, p90 ≈ 9×), so the upper bands spread across
+// that range to give in-city structure; only the palest band is below the
+// formable line — the first color step is the actionable edge. Exported so the
+// legend mirrors the map's own colors.
+export const HEAT_BANDS = [
+  { min: 0.5, rgb: "234,205,130", alpha: 0.15 }, // warming, not yet formable
+  { min: 1, rgb: "228,158,66", alpha: 0.3 }, // formable (field ≥ GATHER_FORM)
+  { min: 2.5, rgb: "219,112,45", alpha: 0.4 },
+  { min: 6, rgb: "196,62,38", alpha: 0.5 }, // heart of the city
+] as const;
 // Formed plazas: organic gold vs authored slate — the legend's two swatches.
 export const ORGANIC_RGB = "224,168,60";
 export const AUTHORED_RGB = "127,155,179";
@@ -96,13 +106,16 @@ export function createGatheringOverlay(scene: Scene) {
     ctx.clearRect(0, 0, size, size);
     const { field, plazas, plazaCells } = computeGathering(tiles, mapSeed);
 
-    // Heat: warm wash ramping to full at the formable level.
+    // Heat: highest band the cell clears, if any.
     for (let y = 0; y < GRID_SIZE; y += 1) {
       for (let x = 0; x < GRID_SIZE; x += 1) {
-        const f = field[y * GRID_SIZE + x]!;
-        if (f <= 0.5) continue;
-        const a = Math.min(1, f / GATHER_FORM) * HEAT_MAX_ALPHA;
-        ctx.fillStyle = `rgba(${HEAT_RGB},${a.toFixed(3)})`;
+        const f = field[y * GRID_SIZE + x]! / GATHER_FORM;
+        let band: (typeof HEAT_BANDS)[number] | null = null;
+        for (const b of HEAT_BANDS) {
+          if (f >= b.min) band = b;
+        }
+        if (!band) continue;
+        ctx.fillStyle = `rgba(${band.rgb},${band.alpha})`;
         ctx.fillRect(x * PX, y * PX, PX, PX);
       }
     }

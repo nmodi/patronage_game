@@ -207,7 +207,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Ground-height samplers (registered terrain surface; seats, skirts, road/walker/dirt drape) | `render/groundLevel.ts` → `setGroundSampler`, `worldGroundY`, `cellGroundY`, `footprintGroundRange` |
 | Water visuals (animated wobbling surface — the codebase's first animated material) | `render/waterMesh.ts` → `createWaterVisuals` |
 | Paving/apron/dirt materials (3 plaza styles behind `?plaza=`; freeform plaza-paving slabs, 4 seed variants) | `render/paths.ts` |
-| Gathering overlay (draped unlit heat + formed-plaza regions + premade-hub highlights, first `activeOverlay` view) | `render/gatheringOverlay.ts` → `createGatheringOverlay` |
+| Gathering overlay (draped unlit heat in four quantized bands + formed-plaza regions + premade-hub highlights, first `activeOverlay` view) | `render/gatheringOverlay.ts` → `createGatheringOverlay` |
 | Masonry wall textures (coursed patterns per category) | `render/wallTexture.ts` |
 | Procedural kit pieces (`proc:` blocks, roofs, surrounds, bifora, rose, portals) | `render/proceduralPieces.ts` |
 | HUD root / one-panel-open enforcement | `ui/GameHUD.tsx` |
