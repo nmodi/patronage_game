@@ -1,7 +1,7 @@
 import type { BuildingId } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
 
-import { BIF_OPENING, DOOR_T, LOUVRES_FILE, LOUVRE_LAP, LOUVRE_T, ROSE_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
+import { BALC_D, BALC_DECK, BIF_OPENING, DOOR_T, HIP_ENVELOPE, LOUVRES_FILE, LOUVRE_LAP, LOUVRE_T, ROOF_ENVELOPE, ROSE_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
 
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
@@ -38,6 +38,9 @@ type ModelDef = {
   parts?: Part[];
   /** Single-piece alternatives picked by position hash (trees etc.). */
   variants?: Part[];
+  /** Whole alternative roofs (shape + its chimneys), one appended to `parts` by
+   * position hash. A form, not a file swap: a hip carries no gable end. */
+  roofForms?: Part[][];
   /** Paved ground quad under the parts, in kit units — square, or [width, depth]
    * for rectangular pads (also sets the design span). Mottled apron stone by
    * default; `padStyle: "plaza"` for showpiece paving. */
@@ -213,8 +216,65 @@ const gableRoof = (
  * the tiles the way procRoofFile exists to prevent. */
 const hipRoof = (
   position: [number, number, number],
-  scale: [number, number, number]
-): Part => ({ file: procRoofFile("roof-hip", scale), position, scale, tint: "roof" });
+  scale: [number, number, number],
+  opts: { buried?: boolean } = {}
+): Part => ({
+  file: procRoofFile("roof-hip", scale),
+  position,
+  scale,
+  tint: "roof",
+  buried: opts.buried,
+});
+
+/** A fumaiolo standing on a roof. `buried` like the roof it rides: a chimney
+ * overhanging its cell is the point, and it must not shrink the house to fit
+ * inside the footprint box. */
+const flue = (position: [number, number, number]): Part => ({
+  file: "proc:flue",
+  position,
+  buried: true,
+});
+/** How far a flue's base sinks under the slope it stands on, so tiles meet its
+ * sides instead of leaving daylight under the downhill corner. Must clear the
+ * slope's fall across the shaft's own width (0.067 at the gable ridge). */
+const FLUE_SINK = 0.09;
+
+/** Ridge height over the wall top, at the house roof scale. */
+const HOUSE_RIDGE = ROOF_ENVELOPE.max[1] * HOUSE_ROOF_SCALE[1];
+/** The hip that replaces a house's gable: square in plan (all four sides are
+ * eaves, so both axes take the gable's verge-to-wall scale), and pitched to the
+ * SAME apex height — a mixed street should vary in roof shape, not skyline. */
+const HOUSE_HIP_SCALE: [number, number, number] = [
+  HOUSE_ROOF_SCALE[0],
+  HOUSE_RIDGE / HIP_ENVELOPE.max[1],
+  HOUSE_ROOF_SCALE[0],
+];
+const HIP_HALF_PLAN = HIP_ENVELOPE.max[2] * HOUSE_HIP_SCALE[0];
+/** Height of the hip's pyramid at plan distance `d` from the centre. */
+const hipSurfaceAt = (d: number) => HOUSE_RIDGE * (1 - d / HIP_HALF_PLAN);
+
+/** House roofs come as whole FORMS, not one shape with a swapped file: a hip
+ * has no gable end and carries its chimneys somewhere else, so the position
+ * hash picks the roof entire (see instantiateBuilding). Repeats weight the
+ * pick, the FACADE_PALETTES idiom — three gables to one hip, so hipped blocks
+ * break up the terrace ridges the way they do across Rialto's roofscape without
+ * dissolving the terrace read the row houses are built around.
+ * `y` is the wall top the roof lands on. */
+const houseRoofForms = (y: number): Part[][] => {
+  const gable = () =>
+    gableRoof([0, y, 0], HOUSE_ROOF_SCALE, { rotationY: Math.PI / 2, buried: true });
+  // The gable's ridge runs along local Z (the roof is turned 90°), so a stack
+  // straddles it at x = 0; on the hip it stands out on one slope.
+  const onRidge = (z: number) => flue([0, y + HOUSE_RIDGE - FLUE_SINK, z]);
+  const onSlope = (x: number, z: number) =>
+    flue([x, y + hipSurfaceAt(Math.max(Math.abs(x), Math.abs(z))) - FLUE_SINK, z]);
+  return [
+    [...gable(), onRidge(0.26)],
+    [...gable(), onRidge(-0.3)],
+    [...gable(), onRidge(0.3), onRidge(-0.12)],
+    [hipRoof([0, y, 0], HOUSE_HIP_SCALE, { buried: true }), onSlope(0.24, 0.1)],
+  ];
+};
 
 // Flat-color material tints per file (Nature Kit has no texture; defaults are teal/orange).
 const MATERIAL_TINTS: Record<string, Record<string, string>> = {
@@ -477,6 +537,36 @@ function biforaWindow(
   return [reveal, frame];
 }
 
+/** Juliet balcony under a window: projecting slab on corbels + balustrade
+ * (`proc:balcony`). Landmark/noble language, deliberately NOT a facade default
+ * — see the piece. The deck lands 0.002 under the opening bottom so the sill
+ * course's own top face stays the proud one; `buried` because the slab reaches
+ * past the footprint the way the open shutters and the loggia do, and the fit
+ * must not shrink the building to swallow it. */
+function balconyOn(
+  face: LocalSide,
+  wall: number,
+  yOpen: number,
+  along: number,
+  s = 1
+): Part {
+  const { rotationY, at } = faceFrame(face);
+  return {
+    file: "proc:balcony",
+    scale: s,
+    position: at(wall - 0.001 + (BALC_D / 2) * s, yOpen - 0.002 - BALC_DECK * s, along),
+    rotationY,
+    buried: true,
+  };
+}
+
+/** The palazzo's piano nobile window: the bifora plus its balcony — the pairing
+ * `houseWindow` is for houses. */
+const nobleWindow = (face: LocalSide, wall: number, yOpen: number, along: number): Part[] => [
+  ...biforaWindow(face, wall, yOpen, along),
+  balconyOn(face, wall, yOpen, along),
+];
+
 /** Rose window on a local face — faceted stone ring + wheel-tracery glazing
  * (proc:rose / proc:rose-glass), both CENTERED pieces: `yCenter` is the rose
  * centre, not an opening bottom. `sy` pre-stretches y so the circle renders
@@ -646,7 +736,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     front: [1, 0],
     parts: [
       { file: "proc:block", position: [0, 0, 0], tint: "facade" },
-      ...gableRoof([0, 1, 0], HOUSE_ROOF_SCALE, { rotationY: Math.PI / 2, buried: true }),
+      // (the roof is a position-hashed form — see roofForms below)
       // Loose fittings, not panels: the door leaf and shutters extracted from
       // the kit's wall panels (scripts/make-plain-openings.py), so the stucco
       // keeps its plain corners. They carry no wall of their own — the offset
@@ -656,6 +746,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...houseSides([0]),
       ...houseBack([0]),
     ],
+    roofForms: houseRoofForms(1),
     fit: HOUSE_FIT,
     // Keeps the ridge at ~2.4 person-heights (~13.7 ft) after the fit bump.
     scaleY: 0.58,
@@ -667,11 +758,11 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       // One 2-storey block, not two stacked — a single continuous AO ramp, so no
       // dark seam where the floors used to meet (see proc:block storeys).
       { file: "proc:block@1x2", position: [0, 0, 0], tint: "facade" },
-      ...gableRoof([0, 2, 0], HOUSE_ROOF_SCALE, { rotationY: Math.PI / 2, buried: true }),
       ...houseFront(1),
       ...houseSides([0, 1]),
       ...houseBack([0, 1]),
     ],
+    roofForms: houseRoofForms(2),
     fit: HOUSE_FIT,
     // ~22.4 ft: cottage story (13.7 ft) plus a ~9 ft second floor.
     scaleY: 0.56,
@@ -807,7 +898,7 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       })),
       // piano nobile front: bifore (the Medici window — twin arched lights
       // under one arch) — four bays; the wider frames run wall-to-wall at five
-      ...[-0.9, -0.3, 0.3, 0.9].flatMap((z) => biforaWindow("posZ", 1, 1.28, z)),
+      ...[-0.9, -0.3, 0.3, 0.9].flatMap((z) => nobleWindow("posZ", 1, 1.28, z)),
       // top floor (main block only): smaller arched windows flanking the
       // banner — the piano nobile's language a size down (round windows
       // read as portholes and were dropped)
@@ -815,13 +906,13 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
       ...archWindow("posZ", 1, 2.35, 0, 0.9),
       { file: TOWN + "banner-red.glb", position: [-0.5, 2, 0.66], rotationY: -Math.PI / 2 },
       // side windows: main block −X face (above the annex) and wing +X face
-      ...biforaWindow("negX", 1.5, 1.28, -0.5),
+      ...nobleWindow("negX", 1.5, 1.28, -0.5),
       ...archWindow("negX", 1.5, 2.35, -0.5, 0.9),
       ...archWindow("negX", 1.5, 2.35, 0.5, 0.9),
-      ...biforaWindow("posX", 1.5, 1.28, -0.5),
-      ...biforaWindow("posX", 1.5, 1.28, 0.5),
+      ...nobleWindow("posX", 1.5, 1.28, -0.5),
+      ...nobleWindow("posX", 1.5, 1.28, 0.5),
       // back windows — the piano nobile's bifora rhythm carries around
-      ...[-0.9, -0.3, 0.3, 0.9].flatMap((z) => biforaWindow("negZ", 1, 1.28, z)),
+      ...[-0.9, -0.3, 0.3, 0.9].flatMap((z) => nobleWindow("negZ", 1, 1.28, z)),
       ...archWindow("negZ", 1, 2.35, -1, 0.9),
       ...archWindow("negZ", 1, 2.35, 0, 0.9),
     ],

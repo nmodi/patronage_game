@@ -400,6 +400,10 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number, salt = 0)
         const z = (d * HIP_HALF) / slope + (lift * HIP_H) / slope;
         // The slope narrows to the apex as |x| <= z, so this drops the tiles the
         // hip cuts off — including the whole top row, where the faces meet.
+        // Strictly: a tile whose centre passes the arris is no longer ON this
+        // slope, it hangs in the air over the next one (half a tile of margin
+        // was tried, to fill the bare wedge under the ridge — it left visibly
+        // detached tiles floating off the hip). Coverage is the RIDGE's job.
         if (Math.abs(x) > z) continue;
         const tile = barrel(`proc-coppo-hip-${f}-${i}-${j}`, step, rowLen * ROW_OVERLAP, hashShade(f, i, j, salt), scene);
         tile.rotation.x = -(Math.PI / 2 - tilt);
@@ -417,7 +421,17 @@ function buildRoofHipMesh(scene: Scene, courses: number, rows: number, salt = 0)
     const foot = new Vector3(cx * HIP_HALF, 0, cz * HIP_HALF);
     const apex = new Vector3(0, HIP_H, 0);
     const axis = apex.subtract(foot);
-    const cap = barrel(`proc-hip-ridge-${cx}-${cz}`, step * 1.5, axis.length() * 1.08, hashShade(9, cx, cz, salt), scene);
+    // Wide enough to bury the staircase the cull leaves along the arris: the
+    // topmost surviving tile in each column has nothing lapping its head, so a
+    // narrow ridge left a row of dark crescents (you see UNDER each exposed
+    // lip) stepping up the hip. A real hip ridge is a fat course for the same
+    // reason — it hides the cut ends. Perpendicular reach is diameter/2, and a
+    // step of the staircase is step/sqrt(2) across the arris. Width and length
+    // trade against each other at the eave corner, where the piece is already
+    // at its envelope: the fatter course is bought by ending the ridge ON the
+    // corner instead of 8% past it (it is thick enough now to cover the eave
+    // tiles' overhang without the extra run).
+    const cap = barrel(`proc-hip-ridge-${cx}-${cz}`, step * 2, axis.length(), hashShade(9, cx, cz, salt), scene);
     cap.rotationQuaternion = Quaternion.FromUnitVectorsToRef(
       Vector3.Up(),
       axis.normalize(),
@@ -470,6 +484,54 @@ function buildGableEnd(scene: Scene, uMul = 1, vMul = 1) {
   // tints, where these UVs never show.
   uvByPosition(mesh, (_x, y, z) => [(z + 0.5) * uMul, y * 0.6 * vMul]);
   return { mesh, material: "stucco", color: "#f3e4c9" };
+}
+
+/** Fumaiolo — the flared Venetian chimney pot. From the overhead camera a roof
+ * is mostly silhouette, and a stack or two breaking every ridge is what Rialto's
+ * roofscape is made of. Square shaft, a crown flaring out over it, a flat cap
+ * slab: the flare IS the piece, a plain stack reads as a fence post.
+ *
+ * Deliberately not named "chimney" — assetLibrary harvests `chimneyTop` off any
+ * mesh whose name contains that word, and that anchor is the production
+ * buildings' smoke plume. Houses carry stacks; they must not smoke. */
+const FLUE_SHAFT = 0.095; // shaft, square in plan (~3/4 of a window's width)
+const FLUE_CROWN = 0.15; // the flare's top
+const FLUE_FLARE: [number, number] = [0.28, 0.34]; // shaft top → crown
+export const FLUE_H = 0.365;
+/** Warm clay-plaster, between the cream facade and the roof's terracotta. Not
+ * SURROUND: the window stone is authored to read as trim against a wall, and a
+ * flue is a box of flat faces standing in open sun on top of one — at SURROUND
+ * the first cut rendered BRIGHTER than the wall it grew out of, a row of white
+ * blocks along the ridge. A stack must sit under its roofline, not over it. */
+const FLUE_CLAY = "#a5866a";
+function buildFlue(scene: Scene) {
+  const half = FLUE_SHAFT / 2;
+  const crown = FLUE_CROWN / 2;
+  const cap = crown + 0.0075;
+  // The flare: a 4-sided frustum, one quad per side between the shaft top and
+  // the crown. Too few faces for the wedge fan the arched fittings use.
+  const positions: number[] = [];
+  for (const [r, y] of [
+    [half, FLUE_FLARE[0]],
+    [crown, FLUE_FLARE[1]],
+  ] as const) {
+    for (const [sx, sz] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
+      positions.push(sx * r, y, sz * r);
+    }
+  }
+  const indices: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    const j = (i + 1) % 4;
+    indices.push(i, j, 4 + j, i, 4 + j, 4 + i);
+  }
+  const parts = [
+    shadedBox("flue-shaft", [-half, half], [0, FLUE_FLARE[0]], [-half, half], 1, scene),
+    meshFrom("flue-flare", positions, indices, 0.93, scene),
+    shadedBox("flue-cap", [-cap, cap], [FLUE_FLARE[1], FLUE_H], [-cap, cap], 0.86, scene),
+  ];
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-flue";
+  return { mesh, material: "stone", color: FLUE_CLAY };
 }
 
 // ---------------------------------------------------------------------------
@@ -1293,6 +1355,69 @@ function buildArchBay(scene: Scene) {
   return { mesh, material: "stone", color: STONE };
 }
 
+/** Juliet balcony — a projecting sill slab on two corbels carrying a stone
+ * balustrade, the detail that marks Rialto's grand facades apart from its
+ * ordinary ones. Deliberately a LANDMARK/noble fitting, not a facade default:
+ * a house window is 0.13 wide, and four balusters across that is a smudge at
+ * gameplay zoom — the houses say their piece with shutters instead. Authored
+ * for the bifora (outer ring 0.175 half-width), so it runs a touch wider.
+ *
+ * Same local frame as the other fittings: x is the wall normal, z runs along
+ * the wall, base at 0. It is x-centered on the DECK, which spans the full
+ * projection — the balustrade rides the deck's outer edge and the corbels tuck
+ * under its inner one, so nothing reaches past it and the piece stays centered
+ * without a recentering bake. */
+const BALC_HALF_Z = 0.19;
+/** Projection off the wall, authored ±BALC_D/2. Shallow on purpose — this is a
+ * parapet at a window, not a standing balcony, and the deeper first cut read as
+ * a shelf bolted to the palazzo. Every x extent below is a fraction of it, and
+ * the balusters must stay inside it or the piece stops being x-centered. */
+export const BALC_D = 0.055;
+/** Deck top — the manifest lands this just under the window's opening bottom
+ * (the sill course's own top face stays proud, so no two faces are coplanar). */
+export const BALC_DECK = 0.06;
+const BALC_H = 0.182; // coping top: the balustrade stands ~a third of the bifora opening
+function buildBalcony(scene: Scene) {
+  const d = BALC_D / 2;
+  // Rails take the outer half of the deck; corbels hang under the inner one.
+  const railX: [number, number] = [0.0025, d];
+  const dieZ = BALC_HALF_Z - 0.018;
+  const parts = [
+    shadedBox("balc-deck", [-d, d], [0.038, BALC_DECK], [-BALC_HALF_Z, BALC_HALF_Z], 1, scene),
+    shadedBox("balc-rail-b", railX, [BALC_DECK, 0.08], [-dieZ - 0.014, dieZ + 0.014], 0.97, scene),
+    shadedBox("balc-coping", railX, [0.162, BALC_H], [-BALC_HALF_Z, BALC_HALF_Z], 1, scene),
+  ];
+  // Stepped brackets: two boxes read as a corbel at this size, and the kit is
+  // chunky enough that a carved profile would be lost anyway.
+  for (const s of [-1, 1]) {
+    const z = s * 0.13;
+    parts.push(
+      shadedBox("balc-corbel-lo", [-d, -0.013], [0, 0.02], [z - 0.016, z + 0.016], 0.86, scene),
+      shadedBox("balc-corbel-hi", [-d, -0.004], [0.02, 0.038], [z - 0.02, z + 0.02], 0.9, scene),
+      // End dies: the coping returns into a square post at each end.
+      shadedBox(`balc-die`, railX, [BALC_DECK, 0.162], [s * dieZ - 0.014, s * dieZ + 0.014], 0.95, scene)
+    );
+  }
+  // Turned balusters: vase, neck, cap. Four of them, so the gap falls at the
+  // centre — under the bifora's colonnette.
+  for (const z of [-0.105, -0.045, 0.045, 0.105]) {
+    // Diameters ride the shallow deck: a baluster's radius about the rail
+    // centre must stay inside ±BALC_D/2, or the piece loses its x-centering.
+    for (const [dia, y0, y1, shade] of [
+      [0.024, 0.08, 0.122, 0.93],
+      [0.015, 0.122, 0.152, 0.88],
+      [0.023, 0.152, 0.162, 0.95],
+    ] as const) {
+      const b = barrel(`balc-baluster`, dia, y1 - y0, [shade, shade, shade], scene);
+      b.bakeTransformIntoVertices(Matrix.Translation((railX[0] + railX[1]) / 2, (y0 + y1) / 2, z));
+      parts.push(b);
+    }
+  }
+  const mesh = Mesh.MergeMeshes(parts, true, true)!;
+  mesh.name = "proc-balcony";
+  return { mesh, material: "stone", color: SURROUND };
+}
+
 /** Fabric awning — the market stalls' canopy language as a wall-mounted shop
  * awning, for refs that were reaching for `gableRoof` to get a lean-to and
  * ending up with a second tiled roof. Same plan as the roof pieces (ridge along
@@ -1379,6 +1504,8 @@ const BUILDERS: Record<string, Builder> = {
   "portal-leaf": buildPortalLeaf,
   "arch-bay": buildArchBay,
   awning: (scene, courses) => buildAwning(scene, courses),
+  flue: buildFlue,
+  balcony: buildBalcony,
 };
 
 export const PROC_FILES = Object.keys(BUILDERS).map((id) => PROC_PREFIX + id);

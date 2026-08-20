@@ -14,7 +14,10 @@ import type { PBRMaterial } from "@babylonjs/core/Materials/PBR/pbrMaterial";
 import {
   AWNING_EAVE,
   AWNING_RISE,
+  BALC_D,
+  BALC_DECK,
   BLOCK_ENVELOPE,
+  FLUE_H,
   HIP_ENVELOPE,
   LOUVRE_T,
   PROC_FILES,
@@ -209,6 +212,34 @@ assert.equal(bounds("proc:rose").material, "stone");
 assert.equal(bounds("proc:rose-glass").material, "glazing");
 assert.equal(bounds("proc:awning").material, "cloth");
 assert.equal(bounds("proc:louvres").material, "wood");
+assert.equal(bounds("proc:flue").material, "stone");
+assert.equal(bounds("proc:balcony").material, "stone");
+
+// Juliet balcony: the deck defines the projection (nothing reaches past it, or
+// the piece stops being x-centered and the manifest's face pick by rotationY
+// breaks), and the manifest lands the window sill on BALC_DECK.
+{
+  const b = bounds("proc:balcony");
+  assert.ok(Math.abs(b.max[0] - BALC_D / 2) < EPS, `balcony projects ${b.max[0]}, want ${BALC_D / 2}`);
+  assert.ok(b.max[2]! > 0.175, "balcony must run wider than the bifora ring it sits under");
+  assert.ok(b.max[1]! > BALC_DECK, "balustrade must stand above the deck");
+}
+
+// Fumaiolo: the crown must flare WIDER than the shaft (that overhang is the
+// whole silhouette — level with the shaft it reads as a post), and the piece's
+// height is what the manifest sinks FLUE_SINK into a roof slope, so pin it.
+{
+  const f = bounds("proc:flue");
+  assert.ok(Math.abs(f.max[1] - FLUE_H) < EPS, `flue height ${f.max[1]}, want ${FLUE_H}`);
+  assert.ok(f.max[0]! > 0.06, `flue crown half-width ${f.max[0]} does not overhang the shaft`);
+}
+
+// A house's flue must clear the ridge it straddles by more than the roof's own
+// tile bulge, or the stack drowns in the coppi it stands between.
+assert.ok(
+  FLUE_H - 0.09 > ROOF_TILE_BULGE * 2,
+  `flue sunk 0.09 leaves ${FLUE_H - 0.09} proud — too little to read over the tiles`
+);
 
 // The awning drops into the roof pieces' plan (a ref swapping gableRoof for it
 // keeps its transform), but rises a fraction as high — cloth, not tile.

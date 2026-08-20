@@ -301,7 +301,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 
 ## `llm-context/procedural-pieces.md` & `llm-context/kitbashing.md` — generated-pieces state
 
-**Status: current, mostly built.** Eleven+ `proc:` pieces generated (blocks, gable/hip roofs, surrounds, door frame/leaf, arch bay, portals, bifora, arch-leaf, rose). Panel-free pass complete (kit door/window/arch panels at 0 refs). **Open:** the organic commission pieces (dome, ivy) — the one thing still flagged as wanting an artist.
+**Status: current, mostly built.** Eleven+ `proc:` pieces generated (blocks, gable/hip roofs, surrounds, door frame/leaf, arch bay, portals, bifora, arch-leaf, rose, louvres, awning, flue, balcony). Panel-free pass complete (kit door/window/arch panels at 0 refs). **Open:** the organic commission pieces (dome, ivy) — the one thing still flagged as wanting an artist.
 
 ## `archive/citizen-population-plan.md` — population-scaled crowds
 

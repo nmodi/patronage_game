@@ -198,6 +198,7 @@ function addModelFiles(files: Set<string>, def: ModelDef | undefined) {
   if (!def) return;
   for (const part of segmentSpecParts(def) ?? def.parts ?? []) for (const f of partFiles(part)) files.add(f);
   for (const part of def.variants ?? []) for (const f of partFiles(part)) files.add(f);
+  for (const form of def.roofForms ?? []) for (const part of form) for (const f of partFiles(part)) files.add(f);
   for (const part of def.extendNegX ?? []) for (const f of partFiles(part)) files.add(f);
   for (const part of def.extendPosX ?? []) for (const f of partFiles(part)) files.add(f);
 }
@@ -308,7 +309,11 @@ function instantiatePart(
 export function hasModel(buildingId: BuildingId) {
   const def = MODEL_MANIFEST[buildingId];
   if (!def) return false;
-  const parts = segmentSpecParts(def) ?? def.parts ?? def.variants ?? [];
+  // Every roof form is preloaded (the hash picks at instantiate time), so all of
+  // them gate: a house whose hip twin hasn't landed must not build roofless.
+  const parts =
+    segmentSpecParts(def) ??
+    [...(def.parts ?? def.variants ?? []), ...(def.roofForms ?? []).flat()];
   return (
     parts.length > 0 &&
     parts.every((part) => partFiles(part).every((f) => containers.has(f)))
@@ -394,6 +399,10 @@ export function instantiateBuilding(
   if (!def.segment) {
     if (extend?.negX && def.extendNegX) parts = [...parts, ...def.extendNegX];
     if (extend?.posX && def.extendPosX) parts = [...parts, ...def.extendPosX];
+    // The roof is picked whole (shape + its chimneys) rather than swapped by
+    // file: a hip carries no gable end. Bits 2-3 — the only ones no other
+    // consumer reads (rotation 0-1, palette 4+, roof tint 7+, mosaic 9+).
+    if (def.roofForms) parts = [...parts, ...def.roofForms[(hash >> 2) % def.roofForms.length]!];
   }
   if (parts.length === 0 && !def.pad) return null;
 
