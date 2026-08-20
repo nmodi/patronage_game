@@ -7,7 +7,7 @@ import {
   PLAZA_IDS,
 } from "~/game/city/connectivity";
 import { displayBoost } from "~/game/art/display";
-import { computeGathering } from "~/game/city/gathering";
+import { computeGathering, plazaInspiration } from "~/game/city/gathering";
 import { materialCaps } from "~/game/art/materials";
 import { supplierRate } from "~/game/city/metrics";
 import { getRazeSalvage } from "~/game/placement/raze";
@@ -119,13 +119,18 @@ export function BuildingTooltip() {
     : 0;
   // Freeform paving: has this ground been recognized as a piazza? (Each paving
   // cell is its own origin, so the hovered origin key IS the cell.)
-  const pavingStatus =
+  const paving =
     tile.buildingId === "plaza_paving"
       ? (() => {
           const g = computeGathering(tiles, mapSeed);
           const index = g.plazaCells.get(originKey);
-          if (index == null) return "Not yet a piazza — no 4×4 open square fits";
-          return g.plazas[index]!.organic ? "A piazza — the city gathers here" : "A piazza";
+          if (index == null)
+            return { status: "Not yet a piazza — no 4×4 open square fits", inspiration: 0 };
+          const organic = g.plazas[index]!.organic;
+          return {
+            status: organic ? "A piazza — the city gathers here" : "A piazza",
+            inspiration: plazaInspiration(organic),
+          };
         })()
       : null;
   const displayedCount = metadata.displaySlots
@@ -160,7 +165,12 @@ export function BuildingTooltip() {
     >
       <div className="panel-parchment max-w-64 rounded-md px-3.5 py-2.5 text-ink">
         <div className="font-display text-base font-semibold">{metadata.name}</div>
-        {pavingStatus && <div className="text-sm text-ink-faint">{pavingStatus}</div>}
+        {paving && <div className="text-sm text-ink-faint">{paving.status}</div>}
+        {paving && paving.inspiration > 0 && (
+          <div className="text-sm text-ink">
+            +{formatAmount(paving.inspiration)} Inspiration / month
+          </div>
+        )}
         {required > 0 && (
           <div className="text-sm text-ink-faint">
             Workers {tile.workers}/{required}

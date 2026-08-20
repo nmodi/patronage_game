@@ -287,12 +287,17 @@ export function computeGathering(tiles: Tiles, mapSeed: string | null): Gatherin
   return state;
 }
 
+/** One formed plaza's monthly Inspiration trickle — the tooltip surfaces this
+ * per plaza, the tick sums it, so the two can't drift. */
+export const plazaInspiration = (organic: boolean): number =>
+  PLAZA_FORMED_INSPIRATION * (organic ? ORGANIC_PLAZA_MULT : 1);
+
 /** The tick's formed-plaza Inspiration term: flat per plaza (the premade
  * plazas' model — workerless, boost-free), organic ones slightly hotter. */
 export function formedPlazaInspiration(tiles: Tiles, mapSeed: string | null): number {
   let sum = 0;
   for (const plaza of computeGathering(tiles, mapSeed).plazas) {
-    sum += PLAZA_FORMED_INSPIRATION * (plaza.organic ? ORGANIC_PLAZA_MULT : 1);
+    sum += plazaInspiration(plaza.organic);
   }
   return sum;
 }
