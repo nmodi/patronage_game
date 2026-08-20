@@ -103,6 +103,9 @@ export interface BuildingMetadata {
   artistType?: ArtistType; // workshops: the only artist type that founds/arrives here
   roadWidth?: number; // roads only: cells stamped perpendicular to the drag axis
   linear?: boolean; // drag-placed like roads: each cell is an independent 1×1 segment tile
+  areaDrag?: boolean; // rect-drag placed (plaza paving): blocked cells skipped, only landed cells charged
+  paletteType?: BuildingType; // palette shelf override (plaza paving sells under Civic); sim semantics stay on `type`
+  retired?: boolean; // no longer offered in the build palette; defs stay so old saves keep working
   paved?: boolean; // render a flagstone apron over the full footprint (joins plazas visually)
   buildCost?: Partial<Record<Material, number>>; // grand buildings: construction materials spent lump-sum from the city pools at placement
   commissionOnly?: boolean; // placeable only via a funded blueprint commission (never in the open palette; placement costs 0ƒ + buildCost)

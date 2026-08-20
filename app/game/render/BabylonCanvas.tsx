@@ -16,6 +16,7 @@ import {
   scatterEnvironment,
 } from "./assetLibrary";
 import { createCitizens } from "./citizens";
+import { createGatheringOverlay } from "./gatheringOverlay";
 import { createTileRenderer } from "./mapRenderer";
 import { createPlacementController } from "./placement";
 import { createRazeFx } from "./razeFx";
@@ -55,6 +56,11 @@ export function BabylonCanvas() {
     const placementController = createPlacementController(scene);
     const razeFx = createRazeFx(scene);
     const citizens = createCitizens(scene);
+    const gatheringOverlay = createGatheringOverlay(scene);
+    const syncOverlay = () => {
+      const s = useGameStore.getState();
+      gatheringOverlay.sync(s.map.tiles, s.mapSeed, s.activeOverlay === "gathering");
+    };
 
     let disposed = false;
     // Terrain waits for store hydration: the run's mapSeed shapes it (river
@@ -200,6 +206,7 @@ export function BabylonCanvas() {
     tileRenderer.syncDisplay(useGameStore.getState().artworks);
     citizens.sync(initialTiles);
     citizens.setPopulation(useGameStore.getState().population);
+    syncOverlay();
 
     // The environment is intentionally non-blocking: it loads after the city
     // had a chance to paint. Emission is thin-instance batches — cheap enough
@@ -229,6 +236,12 @@ export function BabylonCanvas() {
       if (state.map.tiles !== prevState.map.tiles) {
         queueMap(state.map.tiles);
         citizens.sync(state.map.tiles);
+      }
+      if (
+        state.map.tiles !== prevState.map.tiles ||
+        state.activeOverlay !== prevState.activeOverlay
+      ) {
+        syncOverlay();
       }
       if (state.population !== prevState.population) {
         citizens.setPopulation(state.population);
@@ -303,6 +316,7 @@ export function BabylonCanvas() {
       placementController.dispose();
       razeFx.dispose();
       citizens.dispose();
+      gatheringOverlay.dispose();
       tileRenderer.dispose();
       treeScatter?.dispose();
       waterVisuals?.dispose();

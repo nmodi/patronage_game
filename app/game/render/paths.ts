@@ -32,11 +32,12 @@ function drawPaving(
   height: number,
   n: number,
   grout: string,
-  tones: string[]
+  tones: string[],
+  seed = n * 31 + 5 // default preserves the plaza-border callers' exact pixels
 ) {
   ctx.fillStyle = grout;
   ctx.fillRect(0, 0, width, height);
-  const rand = mulberry32(n * 31 + 5);
+  const rand = mulberry32(seed);
   // 2:1 slabs in a running bond (odd courses offset half a slab); the extra
   // leading stone covers the wrapped edge so tiles still join seamlessly.
   const w = width / n;
@@ -304,6 +305,23 @@ export function getApronMaterial(widthCells: number, depthCells: number, scene: 
 /** Seed variants per road cell (hashed by position in roadRenderer) so long
  * straight runs don't visibly repeat one texture when zoomed out. */
 export const ROAD_TEX_VARIANTS = 4;
+
+/** Formed-piazza ground — finished slab bond in the pale plaza limestone
+ * (drawPaving), directionless so any painted blob reads clean. RAW freeform
+ * paving wears the streets' sett texture instead (getRoadMaterial in
+ * roadRenderer): paving alone reads as street ground, and the upgrade to
+ * these finished slabs is the visible "the city recognized a piazza" moment.
+ * Variant seeds only jitter tones — the slab lattice is seed-independent, so
+ * variant boundaries always land on grout joints. */
+export function getPavingMaterial(scene: Scene, variant = 0) {
+  return texturedMaterial(
+    `plaza-paving-${variant}`,
+    128,
+    128,
+    (ctx) => drawPaving(ctx, 128, 128, STONES_PER_CELL, GROUT, STONE_TONES, 1419 + variant * 83),
+    scene
+  );
+}
 
 /** Full-tile street paving — coursed setts in the road limestone. */
 export function getRoadMaterial(scene: Scene, variant = 0) {

@@ -18,25 +18,24 @@ From the doc's "Key Design Principles" — flag it if a change would violate one
 
 
 ## Game design conversations
-When I describe a rough feature or mechanic idea, treat it as the start
-of a design conversation, not a spec. Ask what I'm imagining for
-player-facing behavior, what feel or tone I'm going for, and how it
-interacts with existing systems — before writing any code.
+When I describe a rough feature or mechanic idea, treat it as the start of a design conversation, not a spec. Ask what I'm imagining for player-facing behavior, what feel or tone I'm going for, and how it interacts with existing systems — before writing any code.
 
-Don't implement until I say something like "let's build it," "go ahead,"
-or "implement that." Until then, stay in discussion: propose variations,
-point out tensions with existing mechanics, ask what I've ruled out.
+Don't implement until I say something like "let's build it," "go ahead," or "implement that." Until then, stay in discussion: propose variations, point out tensions with existing mechanics, ask what I've ruled out.
+
+## Commits
+Small fixes, one liners, etc. can be committed automatically, but larger changes (particularly those that come from a game design conversation) should not be committed automatically. When committing, commit in logical chunks that can be rolled back independently if the need arises. 
 
 
 ## Current state
 
-Phases 0–12 are built (placement, tick loop, workers, artists + ranks + city-tradition XP pools, artworks, suppliers + five-material stockpiles, commissions + favor-bearing patrons, work display, plaza connectivity, Renaissance soft ending, architects/blueprint pipeline) plus graphics G1–G5 (water archetypes + bridges, diagonal roads, 45° buildings + snap-to-road, decorative crowds, SFX + crowd ambience) and a main menu. The design doc's *(built)* sections are the authority on how every shipped system works — read the relevant one before touching a game system. Next up: docs/roadmap.md.
+Phases 0–12 are built (placement, tick loop, workers, artists + ranks + city-tradition XP pools, artworks, suppliers + five-material stockpiles, commissions + favor-bearing patrons, work display, plaza connectivity, Renaissance soft ending, architects/blueprint pipeline) plus graphics G1–G5 (water archetypes + bridges, diagonal roads, 45° buildings + snap-to-road, decorative crowds, SFX + crowd ambience), a main menu, and freeform plazas + the map-overlay system (August 2026 — premade Plaza/Small Plaza retired from the palette). The design doc's *(built)* sections are the authority on how every shipped system works — read the relevant one before touching a game system. Next up: docs/roadmap.md.
 
 Trap rules — invariants that break things when missed (details in the design doc):
 
 - Diagonal buildings (`Tile.rotation` 4–7) claim a diamond cell mask (`footprintMask` in `app/game/buildings.ts`) — never treat a diagonal footprint as its bounding box.
 - Offer generation is rng-draw-order-sensitive: `maybeOfferCommission` keeps one fixed sequence of rng calls (new features stamp their data off existing draws — the materialCost and blueprint changes both did), or seeded games and old saves' future offers shift.
-- Derived state stays derived: connectivity, traffic, escalated build costs, and renaissance progress recompute from tiles/state each tick and are never persisted. Any save-shape change needs a `saveMigration.ts` bump (v11 today); prefer designs that need none.
+- Derived state stays derived: connectivity, traffic, escalated build costs, and renaissance progress recompute from tiles/state each tick and are never persisted. Any save-shape change needs a `saveMigration.ts` bump (v13 today); prefer designs that need none.
+- The gathering field and formed plazas (`city/gathering.ts`) derive from tiles + mapSeed ONLY — no occupancy, no clocks, no walker positions (walkers are steered BY the field, never read into it) — and the field is monotonic non-decreasing in buildings/roads (`gathering.check.ts` asserts it). `computePlazaConnectivity`/`computeCityMetrics` now take `mapSeed`; all these computes memoize by tiles object identity, so never mutate a tiles object in place and re-ask (the store always replaces it — check fixtures must too).
 - More of a producer never means less output (principle 6): no diminishing returns on suppliers, and traffic factors are monotonic non-decreasing (`traffic.check.ts` asserts it).
 - The elevation field (`map/elevation.ts`) guarantees gentle slopes and flat ground near water (`elevation.check.ts` asserts both) — road draping, foundation skirts, and the water render pipeline all assume it. Elevation gates placement only (footprint spread), never output or connectivity; and render-side ground heights come exclusively from `render/groundLevel.ts`'s registered sampler (the terrain's own surface), never from re-deriving the field, so meshes and figures can't drift from the rendered ground.
 - Decorative walkers are cosmetic-only (unseeded, frozen on pause) — their sim couplings are the count (`crowdSize`) and the render→audio bustle field, nothing else; bustle-dependent building output is deliberately deferred with blockers on record (see the doc's Ambient bed).

@@ -30,6 +30,7 @@ export const BUILDING_TYPES = [
     type: "city",
     id: "plaza",
     name: "Plaza",
+    retired: true, // superseded by freeform plazas (city/gathering.ts); placed ones keep working
     baseCost: 250,
     size: { width: 3.9, height: 0.05, depth: 3.9 },
     color: "#d9b877",
@@ -51,6 +52,7 @@ export const BUILDING_TYPES = [
     type: "city",
     id: "small_plaza",
     name: "Small Plaza",
+    retired: true, // superseded by freeform plazas (city/gathering.ts); placed ones keep working
     baseCost: 100,
     // Width matches the chapel's short edge (5 cells).
     size: { width: 2.4, height: 0.05, depth: 2.4 },
@@ -414,6 +416,21 @@ export const BUILDING_TYPES = [
     footprint: { width: 1, depth: 1 },
     roadWidth: 2,
   },
+  // Freeform plaza ground: rect-drag surface, cost per cell like other roads.
+  // type "road" buys connectivity conduction, walkability, verge halo, stall
+  // placement, and raze-sweep free; plaza formation is derived in
+  // city/gathering.ts (4×4 open core), never stored here.
+  {
+    type: "road",
+    id: "plaza_paving",
+    name: "Plaza",
+    baseCost: 12, // per cell — drag a rect
+    size: { width: 0.5, height: 0.02, depth: 0.5 },
+    color: "#d9b877",
+    footprint: { width: 1, depth: 1 },
+    areaDrag: true,
+    paletteType: "city", // sells under Civic; type stays "road" for the sim semantics above
+  },
   {
     type: "decoration",
     id: "tree",
@@ -741,12 +758,15 @@ export function buildOrderRank(tiles: TileMap, buildingId: BuildingId, originKey
   return Math.max(0, siblings.findIndex((s) => s.key === originKey));
 }
 
+// Palette shelving: grouped by paletteType when set (plaza paving sells under
+// Civic while staying type "road" in the sim). UI-only — sim code keys off `type`.
 export const BUILDING_METADATA_BY_TYPE = BUILDING_TYPES.reduce(
   (acc, metadata) => {
-    if (!acc[metadata.type]) {
-      acc[metadata.type] = [];
+    const shelf = ("paletteType" in metadata ? metadata.paletteType : undefined) ?? metadata.type;
+    if (!acc[shelf]) {
+      acc[shelf] = [];
     }
-    acc[metadata.type]!.push(metadata);
+    acc[shelf]!.push(metadata);
     return acc;
   },
   {} as Partial<Record<BuildingType, BuildingMetadata[]>>

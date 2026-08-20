@@ -41,6 +41,11 @@ import {
 // grid visibility, and the palette's cancel keys all treat it like placement.
 export const RAZE_TOOL = "raze" as const;
 
+// Map overlay views (Civ-style). One active at a time; session-only UI state,
+// never persisted. "gathering" is the first view — the isochrone overlay is
+// the intended second rider on this plumbing.
+export type OverlayId = "gathering";
+
 export interface MapState {
   tiles: TileMap;  // Key is "x,y"
   selectedBuilding: BuildingId | typeof RAZE_TOOL | null;
@@ -89,6 +94,9 @@ export type GameState = {
   dismissRenaissance: () => void;
   hoveredTileKey: string | null;
   setHoveredTile: (key: string | null) => void;
+  // Active map overlay view; null = none. Transient — never persisted.
+  activeOverlay: OverlayId | null;
+  setActiveOverlay: (id: OverlayId | null) => void;
   // Origin key awaiting raze confirmation (building houses artists or a
   // commission); null = no prompt. Transient — never persisted.
   razeTarget: string | null;
@@ -167,6 +175,7 @@ const createInitialState = (runSeed?: string) => {
     fundedBuilds: [] as string[],
     renaissanceReached: false,
     hoveredTileKey: null as string | null,
+    activeOverlay: null as OverlayId | null,
     razeTarget: null as string | null,
     offerAlert: null as string | null,
     denounceAlert: null as string | null,
@@ -190,6 +199,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   setPopulation: (value: number) => set(() => ({ population: value })),
   dismissRenaissance: () => set(() => ({ renaissanceReached: true })),
   setHoveredTile: (key) => set(() => ({ hoveredTileKey: key })),
+  setActiveOverlay: (id) => set(() => ({ activeOverlay: id })),
   setRazeTarget: (key) => set(() => ({ razeTarget: key })),
   setInspectTarget: (target) => set(() => ({ inspectTarget: target })),
   setOfferAlert: (id) => set(() => ({ offerAlert: id })),
@@ -467,7 +477,7 @@ const initializer: StateCreator<GameState> = (set, get) => ({
   getHousing: () => {
     const tiles = get().map.tiles;
     const counts = computeDisplaySummary(tiles, get().artworks).counts;
-    return computeCityMetrics(tiles, undefined, counts, get().population).housing;
+    return computeCityMetrics(tiles, get().mapSeed, undefined, counts, get().population).housing;
   },
 
   getCalendarLabel: () => formatMonth(get().time.tickCount),

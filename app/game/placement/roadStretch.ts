@@ -1,6 +1,6 @@
 // Road drag rasterization: octant snap + diagonal staircase cells.
 // No Babylon or store imports: roadStretch.check.ts runs this under plain Node.
-import { GRID_SIZE } from "../constants.ts";
+import { GRID_SIZE, PLAZA_RECT_MAX_SPAN } from "../constants.ts";
 import type { GridPos } from "../grid.ts";
 
 // Road tiles (all variants) store their ribbon orientation in Tile.rotation:
@@ -78,4 +78,27 @@ export function buildRoadStretch(
     }
   }
   return { positions };
+}
+
+/**
+ * Rect drag rasterization (plaza paving): anchor and hover are opposite
+ * corners; every cell of the axis-aligned box, clamped to the grid and to
+ * PLAZA_RECT_MAX_SPAN per axis from the anchor (bounds the preview-quad pool —
+ * an unclamped map-diagonal drag would demand 14k pooled meshes). Cardinal
+ * only, no rotation; blocked-cell skipping is planAreaPlacement's job.
+ */
+export function buildRectStretch(anchor: GridPos, hover: GridPos): GridPos[] {
+  const clampSpan = (a: number, h: number) =>
+    Math.max(a - (PLAZA_RECT_MAX_SPAN - 1), Math.min(a + (PLAZA_RECT_MAX_SPAN - 1), h));
+  const hx = clampSpan(anchor.x, hover.x);
+  const hy = clampSpan(anchor.y, hover.y);
+  const x0 = Math.max(0, Math.min(anchor.x, hx));
+  const x1 = Math.min(GRID_SIZE - 1, Math.max(anchor.x, hx));
+  const y0 = Math.max(0, Math.min(anchor.y, hy));
+  const y1 = Math.min(GRID_SIZE - 1, Math.max(anchor.y, hy));
+  const positions: GridPos[] = [];
+  for (let x = x0; x <= x1; x += 1) {
+    for (let y = y0; y <= y1; y += 1) positions.push({ x, y });
+  }
+  return positions;
 }

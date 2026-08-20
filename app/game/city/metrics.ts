@@ -36,7 +36,8 @@ export function supplierRate(
 /** Population caps derived from the current map, using one shared plaza calculation. */
 export function computeCityMetrics(
   tiles: TileMap,
-  connected = computePlazaConnectivity(tiles),
+  mapSeed: string | null, // formed freeform plazas derive from it (gathering.ts)
+  connected = computePlazaConnectivity(tiles, mapSeed),
   displayCounts?: Map<string, number>, // host origin key → displayed-work count
   population = 0 // feeds the foot-traffic factor; omitted = traffic muted
 ): CityMetrics {

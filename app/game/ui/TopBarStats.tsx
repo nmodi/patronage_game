@@ -14,11 +14,12 @@ import { ResourceStat } from "./ResourceStat";
 export function PopulationStat() {
   const population = useGameStore((s) => s.population);
   const tiles = useGameStore((s) => s.map.tiles);
+  const mapSeed = useGameStore((s) => s.mapSeed);
   const artworks = useGameStore((s) => s.artworks);
   const { housing, amenities } = useMemo(
     () =>
-      computeCityMetrics(tiles, undefined, computeDisplaySummary(tiles, artworks).counts, population),
-    [tiles, artworks, population]
+      computeCityMetrics(tiles, mapSeed, undefined, computeDisplaySummary(tiles, artworks).counts, population),
+    [tiles, mapSeed, artworks, population]
   );
 
   // The lower of the two caps is what growth is heading toward.

@@ -8,8 +8,10 @@ import { MeshBuilder } from "@babylonjs/core/Meshes/meshBuilder";
 import type { Scene } from "@babylonjs/core/scene";
 
 import { CELL_SIZE } from "~/game/constants";
+import { computeGathering } from "~/game/city/gathering";
 import { gridToWorld, type Tile, type TileMap } from "~/game/grid";
 import { ROAD_DIAG_NE, ROAD_DIAG_NW } from "~/game/placement/roadStretch";
+import { useGameStore } from "~/stores/useGameStore";
 import { bridgeLiftAt, bridgeStep } from "./bridgeProfile";
 import { cellGroundY, worldGroundY } from "./groundLevel";
 import {
@@ -17,6 +19,7 @@ import {
   getDirtPadMaterial,
   getDirtRibbonMaterial,
   getPavedRibbonMaterial,
+  getPavingMaterial,
   getRoadMaterial,
   ROAD_TEX_VARIANTS,
 } from "./paths";
@@ -46,6 +49,26 @@ export function createRoadRenderer(scene: Scene) {
     b.mesh.material = getPavedRibbonMaterial(scene, i);
     return b;
   });
+  // Freeform plaza paving: directionless slab fill (always cardinal — paving
+  // never sets rotation), variant-hashed like streets so fields don't repeat.
+  // Membership isn't diffed per tile like the street batches — formed-plaza
+  // status is a GLOBAL property (any building can tip a formation), so flush()
+  // rebuilds these wholesale each map edit: raw paving wears the streets' sett
+  // texture (just paved ground), formed plazas upgrade to the pale finished
+  // slabs (the "it's a piazza now" ground change), and a formed plaza's bare
+  // tile-less cells get packed-earth campo quads.
+  const pavingBatches = Array.from({ length: ROAD_TEX_VARIANTS }, (_, i) => {
+    const b = createRoadBatch(`plaza-paving-batch-${i}`);
+    b.mesh.material = getRoadMaterial(scene, i);
+    return b;
+  });
+  const formedPaving = Array.from({ length: ROAD_TEX_VARIANTS }, (_, i) => {
+    const b = createRoadBatch(`plaza-formed-batch-${i}`);
+    b.mesh.material = getPavingMaterial(scene, i);
+    return b;
+  });
+  const campo = createRoadBatch("plaza-campo-batch");
+  campo.mesh.material = getDirtPadMaterial(scene);
   const dirtRibbons = createRoadBatch("dirt-ribbon-batch");
   dirtRibbons.mesh.material = getDirtRibbonMaterial(scene);
   const bridges = createRoadBatch("bridge-deck-batch");
@@ -209,7 +232,9 @@ export function createRoadRenderer(scene: Scene) {
     (((t.position.x * 31 + t.position.y * 17) % ROAD_TEX_VARIANTS) + ROAD_TEX_VARIANTS) %
     ROAD_TEX_VARIANTS;
   const batchFor = (t: Tile): RoadBatch | null =>
-    t.buildingId === "dirt_path"
+    t.buildingId === "plaza_paving"
+      ? null // rebuilt wholesale in flush() — raw vs formed is a global property
+      : t.buildingId === "dirt_path"
       ? t.rotation != null
         ? dirtRibbons
         : null
@@ -510,7 +535,29 @@ export function createRoadRenderer(scene: Scene) {
 
   /** Flush after any map edit because adjacent civic/road cells affect bridge rails. */
   function flush(tiles: TileMap) {
+    // Plaza ground rebuilds wholesale: any edit anywhere can form/unform a
+    // plaza (the gathering compute is memoized by tiles identity, so this is
+    // one cheap lookup per flush). Raw paving vs formed travertine splits by
+    // formed status; bare formed cells get packed-earth campo quads (position
+    // is all flushRoadBatch reads on the cardinal path).
+    const formed = computeGathering(tiles, useGameStore.getState().mapSeed).plazaCells;
+    for (const b of [...pavingBatches, ...formedPaving, campo]) {
+      b.tiles.clear();
+      b.dirty = true;
+    }
+    for (const [key, t] of Object.entries(tiles)) {
+      if (t.buildingId !== "plaza_paving") continue;
+      (formed.has(key) ? formedPaving : pavingBatches)[texVariant(t)]!.tiles.set(key, t);
+    }
+    for (const key of formed.keys()) {
+      if (tiles[key]) continue;
+      const [x, y] = key.split(",").map(Number) as [number, number];
+      campo.tiles.set(key, { position: { x, y } } as Tile);
+    }
     for (const b of pavedRoads) flushRoadBatch(b, 0.0115, tiles, null);
+    for (const b of pavingBatches) flushRoadBatch(b, 0.0115, tiles, null);
+    for (const b of formedPaving) flushRoadBatch(b, 0.0115, tiles, null);
+    flushRoadBatch(campo, 0.0115, tiles, null);
     // update() dirties all ribbon batches together, so a dirty check on any of
     // them decides whether the pad buffers rebuild this flush.
     const stoneDirty = pavedRibbons.some((b) => b.dirty);
@@ -537,6 +584,9 @@ export function createRoadRenderer(scene: Scene) {
 
   function dispose() {
     disposeBatches(pavedRoads);
+    disposeBatches(pavingBatches);
+    disposeBatches(formedPaving);
+    campo.mesh.dispose();
     disposeBatches(pavedRibbons);
     dirtRibbons.mesh.dispose();
     stonePads.hex.dispose();

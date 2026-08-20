@@ -10,7 +10,7 @@ import { computeCityMetrics } from "./metrics.ts";
     "0,0": tile("cottage", 0, 0),
     "1,0": tile("cottage", 1, 0, { origin: { x: 0, y: 0 }, isOrigin: false }),
   };
-  assert.deepEqual(computeCityMetrics(tiles), {
+  assert.deepEqual(computeCityMetrics(tiles, null), {
     housing: 4,
     amenities: BASE_POPULATION_CAP,
   });
@@ -22,7 +22,7 @@ import { computeCityMetrics } from "./metrics.ts";
     "1,0": tile("cottage", 1, 0),
     "0,1": tile("bakery", 0, 1),
   };
-  assert.deepEqual(computeCityMetrics(tiles), {
+  assert.deepEqual(computeCityMetrics(tiles, null), {
     housing: 5,
     amenities: BASE_POPULATION_CAP + 25,
   });
@@ -30,7 +30,7 @@ import { computeCityMetrics } from "./metrics.ts";
 
 {
   const tiles: TileMap = { "0,0": tile("bakery", 0, 0, { isActive: false }) };
-  assert.equal(computeCityMetrics(tiles).amenities, BASE_POPULATION_CAP);
+  assert.equal(computeCityMetrics(tiles, null).amenities, BASE_POPULATION_CAP);
 }
 
 // The stall's amenities scale with foot traffic when population is passed
@@ -45,11 +45,11 @@ import { computeCityMetrics } from "./metrics.ts";
     "0,-1": tile("townhouse", 0, -1),
   };
   // townhouses at strength 1: housing 3 * round(8*1.25) = 30
-  assert.deepEqual(computeCityMetrics(tiles, undefined, undefined, 64), {
+  assert.deepEqual(computeCityMetrics(tiles, null, undefined, undefined, 64), {
     housing: 30,
     amenities: BASE_POPULATION_CAP + 10, // stall 5 * (1 + 1.0*1*1*1)
   });
-  assert.equal(computeCityMetrics(tiles).amenities, BASE_POPULATION_CAP + 5);
+  assert.equal(computeCityMetrics(tiles, null).amenities, BASE_POPULATION_CAP + 5);
 }
 
 console.log("metrics.check: all assertions passed");

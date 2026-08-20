@@ -60,9 +60,11 @@ export function BuildingPalette({
     };
   }, [openCategory, hasOpenPanel, onClosePanel]);
 
-  // Blueprint structures stay hidden until a completed commission funds one.
+  // Blueprint structures stay hidden until a completed commission funds one;
+  // retired buildings (the premade Plaza/Small Plaza) left the shelf but their
+  // defs remain so placed ones keep working.
   const openBuildings = (openCategory ? (BUILDING_METADATA_BY_TYPE[openCategory] ?? []) : []).filter(
-    (b) => !b.commissionOnly || fundedBuilds.includes(b.id)
+    (b) => (!b.commissionOnly || fundedBuilds.includes(b.id)) && !b.retired
   );
   const selectedCategory = selectedBuilding
     ? CATEGORIES.find(({ type }) =>

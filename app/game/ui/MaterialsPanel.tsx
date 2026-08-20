@@ -33,6 +33,7 @@ export function useMaterialsRailVisible(): boolean {
 export function MaterialsPanel() {
   const materials = useGameStore((s) => s.materials);
   const tiles = useGameStore((s) => s.map.tiles);
+  const mapSeed = useGameStore((s) => s.mapSeed);
   const population = useGameStore((s) => s.population);
   const visible = useMaterialsRailVisible();
   const caps = useMemo(() => materialCaps(tiles), [tiles]);
@@ -40,7 +41,7 @@ export function MaterialsPanel() {
   // The tick's own supplier math (supplierRate), off last-tick worker counts —
   // same as the building tooltip.
   const rates = useMemo(() => {
-    const connected = computePlazaConnectivity(tiles);
+    const connected = computePlazaConnectivity(tiles, mapSeed);
     const rates = Object.fromEntries(MATERIALS.map((m) => [m, 0])) as Record<Material, number>;
     for (const [key, tile, metadata] of origins(tiles)) {
       if (!tile.isActive || !metadata.supplies) continue;
@@ -54,7 +55,7 @@ export function MaterialsPanel() {
       );
     }
     return rates;
-  }, [tiles, population]);
+  }, [tiles, mapSeed, population]);
 
   if (!visible) return null;
 

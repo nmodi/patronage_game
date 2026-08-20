@@ -3,7 +3,7 @@ import assert from "node:assert";
 import { tile } from "./checkHelpers.ts";
 import type { TileMap } from "./grid.ts";
 import { XP_RATES } from "./art/artists.ts";
-import { EMPTY_DISCIPLINE_XP, POOL_PER_PRESTIGE } from "./constants.ts";
+import { EMPTY_DISCIPLINE_XP, PLAZA_FORMED_INSPIRATION, POOL_PER_PRESTIGE } from "./constants.ts";
 import { materialCaps } from "./art/materials.ts";
 import { advanceTick, type TickSnapshot } from "./tick.ts";
 import type { Artist, Artwork, Commission } from "./types.ts";
@@ -14,6 +14,7 @@ const inactive = (buildingId: Parameters<typeof tile>[0], x: number, y: number) 
 
 function snapshot(tiles: TileMap, extra: Partial<TickSnapshot> = {}): TickSnapshot {
   return {
+    mapSeed: null,
     florins: 100,
     inspiration: 0,
     prestige: 0,
@@ -377,6 +378,16 @@ const noRandomEvent = () => 1;
     noRandomEvent
   );
   assert.equal(full.materials.marble, caps.marble);
+}
+
+// Formed freeform plazas trickle flat Inspiration through the tick.
+{
+  const tiles: TileMap = {};
+  for (let x = 40; x < 44; x += 1) {
+    for (let y = 40; y < 44; y += 1) tiles[`${x},${y}`] = tile("plaza_paving", x, y);
+  }
+  const out = advanceTick(snapshot(tiles), noRandomEvent);
+  assert.equal(out.inspiration, Math.round(PLAZA_FORMED_INSPIRATION));
 }
 
 console.log("tick.check: all assertions passed");

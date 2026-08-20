@@ -24,6 +24,36 @@ export const MAX_STAFFING_BONUS = 0.5; // +50% output at max staffing vs. minimu
 export const PLAZA_CONNECTION_BONUS = 0.25; // at full strength
 export const PLAZA_REACH = 30; // road cells (0.5 world units each) from the nearest hub until the bonus fades to 0
 
+// --- Freeform plazas (gathering.ts / roadStretch.ts) ---
+export const PLAZA_RECT_MAX_SPAN = 24; // rect-drag axis cap (bounds the pooled preview quads)
+// Formation: a plaza is a connected union of fully-open CORE×CORE cell blocks
+// (open = bare buildable ground, plaza paving, or land road cells). Authored
+// blocks are all player paving; organic blocks additionally need the local
+// gathering field at GATHER_FORM. 4×4 cells = 2×2 wu — wider than a 3-cell
+// avenue (strip-proof by construction), smaller than the old Small Plaza.
+export const PLAZA_CORE = 4;
+// Gathering field: per-cell "would people linger here?", derived from tiles
+// only (no occupancy, no time — the field moves only when the player builds).
+// Additive contributions with linear falloff over GATHER_REACH Chebyshev
+// cells, so the field is monotonic non-decreasing in houses/services/roads.
+export const GATHER_REACH = 12; // cells (6 wu)
+export const GATHER_HOUSING_W = 1; // per point of housing capacity
+export const GATHER_AMENITY_W = 0.5; // per amenity point (well 5 … tavern 25)
+export const GATHER_INSPIRATION_W = 2; // per generated inspiration/month (fountains, plazas — art draws crowds)
+export const GATHER_JUNCTION_W = 3; // per road-junction cell (3+ road neighbors)
+export const GATHER_FORM = 14; // mean field over a core block for organic formation
+// Organic blocks must also be ENCLOSED — a campo is leftover space framed by
+// buildings, streets, or the waterline, never open countryside: every outward
+// lane from each block edge must hit a tile/water/map edge within this many
+// cells. Adding a tile only ever bounds more (monotonic).
+export const PLAZA_ENCLOSE_REACH = 3;
+// Formed-plaza effects: hubs like the premade plazas (connectivity reset), plus
+// a flat Inspiration trickle per plaza — organic ones run slightly hotter, the
+// entire reward for letting the city grow its own piazza (no one-time bonus:
+// razing and re-forming gains nothing by construction).
+export const PLAZA_FORMED_INSPIRATION = 2; // per formed plaza per month (the old Small Plaza's rate)
+export const ORGANIC_PLAZA_MULT = 1.15;
+
 // --- Foot traffic (traffic.ts) ---
 // Bustle: the decorative-crowd curve (crowdCurve in crowd.ts) normalized —
 // 60 figures ⇔ pop ≈ 64, a solid mid-game city. In the 1:1 crowd regime every

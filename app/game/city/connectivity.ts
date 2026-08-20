@@ -11,6 +11,7 @@
 
 import { BUILDING_TYPES } from "../buildings.ts";
 import { PLAZA_CONNECTION_BONUS, PLAZA_REACH } from "../constants.ts";
+import { computeGathering } from "./gathering.ts";
 import type { BuildingMetadata } from "../types.ts";
 export { PLAZA_CONNECTION_BONUS, PLAZA_REACH };
 
@@ -68,22 +69,34 @@ export const NETWORK_NEIGHBORS = [
  */
 // Memoized by tiles object identity: the store replaces the tiles object on
 // every change, so a hit is always current. Covers the tick's second call via
-// getHousing and the per-render tooltip/TopBar calls.
-const memo = new WeakMap<Record<string, ConnectivityTile>, Map<string, number>>();
+// getHousing and the per-render tooltip/TopBar calls. mapSeed rides along for
+// the formed-plaza lookup (fixed within a run; checks vary it across shapes).
+const memo = new WeakMap<
+  Record<string, ConnectivityTile>,
+  { seed: string | null; result: Map<string, number> }
+>();
 
 export function computePlazaConnectivity(
-  tiles: Record<string, ConnectivityTile>
+  tiles: Record<string, ConnectivityTile>,
+  mapSeed: string | null
 ): Map<string, number> {
   const cached = memo.get(tiles);
-  if (cached) return cached;
-  const result = computeUncached(tiles);
-  memo.set(tiles, result);
+  if (cached && cached.seed === mapSeed) return cached.result;
+  const result = computeUncached(tiles, mapSeed);
+  memo.set(tiles, { seed: mapSeed, result });
   return result;
 }
 
-function computeUncached(tiles: Record<string, ConnectivityTile>): Map<string, number> {
+function computeUncached(
+  tiles: Record<string, ConnectivityTile>,
+  mapSeed: string | null
+): Map<string, number> {
   // 0-1 BFS over the network: main-plaza cells seed at distance 0, roads cost
-  // 1 per tile, any plaza cell reached resets to 0 (the refresh).
+  // 1 per tile, any plaza cell reached resets to 0 (the refresh). Formed
+  // freeform plazas (city/gathering.ts) are hubs exactly like the premade
+  // ones — their cells reset to 0 and conduct, including BARE campo cells
+  // that carry no tile at all. Unreached plazas still radiate nothing.
+  const formed = computeGathering(tiles, mapSeed).plazaCells;
   const dist = new Map<string, number>();
   const deque: string[] = [];
   for (const [key, tile] of Object.entries(tiles)) {
@@ -99,10 +112,9 @@ function computeUncached(tiles: Record<string, ConnectivityTile>): Map<string, n
     for (const [dx, dy] of NETWORK_NEIGHBORS) {
       const nkey = `${x! + dx},${y! + dy}`;
       const tile = tiles[nkey];
-      if (!tile) continue;
       let nd: number;
-      if (PLAZA_IDS.has(tile.buildingId)) nd = 0;
-      else if (tile.type === "road" || ROAD_OVERLAY_IDS.has(tile.buildingId)) nd = d + 1;
+      if (formed.has(nkey) || (tile && PLAZA_IDS.has(tile.buildingId))) nd = 0;
+      else if (tile && (tile.type === "road" || ROAD_OVERLAY_IDS.has(tile.buildingId))) nd = d + 1;
       else continue;
       if ((dist.get(nkey) ?? Infinity) <= nd) continue;
       dist.set(nkey, nd);

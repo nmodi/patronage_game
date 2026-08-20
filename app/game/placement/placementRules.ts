@@ -280,3 +280,47 @@ export function planLinearPlacement(
     materialCost: {}, // roads/linear never carry buildCost
   };
 }
+
+/**
+ * Plan a rect-dragged area surface (plaza paving). Unlike planLinearPlacement,
+ * blocked cells — water or any occupied tile, road or building alike — are
+ * SKIPPED uncharged rather than rejecting the plan, so one rect floods around
+ * obstacles and joins existing paving free. Null only for wrong metadata,
+ * empty input, or short florins; a fully blocked rect is a valid empty plan
+ * (the commit path no-ops on zero positions).
+ */
+export function planAreaPlacement(
+  state: PlacementSnapshot,
+  positions: GridPos[],
+  buildingId: BuildingId
+): PlacementPlan | null {
+  const metadata = BUILDING_METADATA_BY_ID[buildingId];
+  if (!metadata || metadata.type !== "road" || !metadata.areaDrag || positions.length === 0) {
+    return null;
+  }
+
+  const water = getWaterCells(state.mapSeed);
+  const newCells: GridPos[] = [];
+  const freeCells = new Set<string>();
+  for (const position of positions) {
+    if (position.x < 0 || position.x >= GRID_SIZE || position.y < 0 || position.y >= GRID_SIZE) {
+      continue;
+    }
+    const key = `${position.x},${position.y}`;
+    if (state.map.tiles[key] || water.has(key) || freeCells.has(key)) continue;
+    freeCells.add(key);
+    newCells.push(position);
+  }
+
+  const totalCost = metadata.baseCost * newCells.length;
+  if (state.florins < totalCost) return null;
+  return {
+    metadata,
+    footprint: metadata.footprint,
+    cells: [{ x: 0, y: 0 }], // 1×1 segments, one origin tile per cell
+    positions: newCells,
+    freeCells,
+    totalCost,
+    materialCost: {},
+  };
+}

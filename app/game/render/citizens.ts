@@ -1,8 +1,9 @@
 import type { Scene } from "@babylonjs/core/scene";
 
 import { BUILDING_METADATA_BY_ID } from "~/game/buildings";
-import { BASE_TICK_INTERVAL, CELL_SIZE } from "~/game/constants";
+import { BASE_TICK_INTERVAL, CELL_SIZE, GATHER_FORM, GRID_SIZE } from "~/game/constants";
 import { createBustleField } from "~/game/city/bustleField";
+import { computeGathering, type GatheringState } from "~/game/city/gathering";
 import { CROWD_TUNING, crowdSize } from "~/game/city/crowd";
 import { gridToWorld, type GridPos, type Tile, type TileMap } from "~/game/grid";
 import { bridgeLiftAt } from "./bridgeProfile";
@@ -40,6 +41,13 @@ const STRAIGHT_BIAS = 0.7;
 const DWELL_CHANCE = 0.12;
 const DWELL_MIN = 1.5; // seconds, at 1x sim speed
 const DWELL_MAX = 4;
+// Steered lingering (sim → render only): on formed freeform plazas and on
+// gathering-hot ground (a spot warming toward formation) walkers dwell far
+// more often, so the player SEES crowds choose the place before it becomes a
+// piazza. The walkers stay unseeded and cosmetic — they read the derived
+// field, never feed it.
+const HOT_DWELL_CHANCE = 0.45;
+const HOT_FIELD_LEVEL = 0.75; // × GATHER_FORM counts as "hot"
 
 type Citizen = {
   figure: CitizenFigure;
@@ -92,6 +100,7 @@ export function createCitizens(scene: Scene) {
 
   let walkable = new Set<string>();
   let spawnTiles: GridPos[] = [];
+  let gathering: GatheringState | null = null;
   // Kept for bridge deck lift sampling (the Rialto hump) — walkers on a bridge
   // follow bridgeLiftAt so they climb the deck instead of clipping through it.
   let tileMap: TileMap = {};
@@ -205,7 +214,13 @@ export function createCitizens(scene: Scene) {
             citizen.from = citizen.to;
             setCell(citizen, key(citizen.from));
             pickDestination(citizen, cameFrom);
-            if (Math.random() < DWELL_CHANCE) {
+            const k = key(citizen.from);
+            const hot =
+              gathering != null &&
+              (gathering.plazaCells.has(k) ||
+                gathering.field[citizen.from.y * GRID_SIZE + citizen.from.x]! >=
+                  GATHER_FORM * HOT_FIELD_LEVEL);
+            if (Math.random() < (hot ? HOT_DWELL_CHANCE : DWELL_CHANCE)) {
               citizen.rest = DWELL_MIN + Math.random() * (DWELL_MAX - DWELL_MIN);
             }
           }
@@ -281,6 +296,15 @@ export function createCitizens(scene: Scene) {
         walkable.add(key(tile.position));
         spawnTiles.push(tile.position);
       }
+    }
+    // Formed freeform plazas are walkable ground too — including bare campo
+    // cells that carry no tile (their paved/road cells are already in).
+    gathering = computeGathering(tiles, useGameStore.getState().mapSeed);
+    for (const cell of gathering.plazaCells.keys()) {
+      if (walkable.has(cell)) continue;
+      walkable.add(cell);
+      const [x, y] = cell.split(",").map(Number) as [number, number];
+      spawnTiles.push({ x, y });
     }
 
     retarget();

@@ -9,6 +9,7 @@ import { FactionBanner } from "./FactionBanner";
 import { GalleryPanel } from "./GalleryPanel";
 import { MaterialsPanel } from "./MaterialsPanel";
 import { OfferAlert } from "./OfferAlert";
+import { OverlayToggle } from "./OverlayToggle";
 import { RazeConfirm } from "./RazeConfirm";
 import { RenaissanceCard } from "./RenaissanceCard";
 import { TopBar } from "./TopBar";
@@ -29,6 +30,7 @@ export function GameHUD() {
       </div>
       <div className="pointer-events-none fixed right-6 top-16 z-40 flex flex-col items-end gap-2">
         <FactionBanner />
+        <OverlayToggle />
       </div>
       {/* Materials rail: docked flush to the left screen edge, own width. */}
       <div className="pointer-events-none fixed left-0 top-1/2 z-40 -translate-y-1/2">

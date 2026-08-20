@@ -11,6 +11,7 @@ import { computeDisplaySummary, displayBoost } from "./art/display.ts";
 import type { TileMap } from "./grid.ts";
 import { addProduction, materialCaps, type MaterialPools } from "./art/materials.ts";
 import { computeCityMetrics, supplierRate } from "./city/metrics.ts";
+import { formedPlazaInspiration } from "./city/gathering.ts";
 import {
   accrueDisciplineXp,
   applyXpFloor,
@@ -25,6 +26,7 @@ import type { Artist, Artwork, BuildingMetadata, Commission, Material } from "./
 import { allocateWorkers, staffingEfficiency, type StaffableBuilding } from "./city/workers.ts";
 
 export interface TickSnapshot {
+  mapSeed: string | null; // formed freeform plazas derive from it (gathering.ts)
   florins: number;
   inspiration: number;
   prestige: number;
@@ -89,7 +91,7 @@ export function advanceTick(
     }
   }
 
-  const connected = computePlazaConnectivity(updatedTiles);
+  const connected = computePlazaConnectivity(updatedTiles, state.mapSeed);
   // Start-of-month population feeds the foot-traffic factor — consistent with
   // the computeCityMetrics call below.
   const boostOf = (key: string, metadata: BuildingMetadata) =>
@@ -100,6 +102,7 @@ export function advanceTick(
 
   const { housing, amenities } = computeCityMetrics(
     updatedTiles,
+    state.mapSeed,
     connected,
     display.counts,
     state.population
@@ -165,6 +168,9 @@ export function advanceTick(
   // Displayed-work trickle (non-church hosts). Added before rounding so it feeds
   // both the same-tick inspiration below and the returned total identically.
   inspirationDelta += display.inspiration;
+  // Formed freeform plazas: flat per plaza like the premade ones (workerless,
+  // boost-free), organic ones slightly hotter (gathering.ts).
+  inspirationDelta += formedPlazaInspiration(updatedTiles, state.mapSeed);
 
   const inspiration = state.inspiration + Math.round(inspirationDelta);
   const isWorkshop = (key: string) => {

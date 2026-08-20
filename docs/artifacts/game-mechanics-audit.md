@@ -13,7 +13,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Monthly tick** | One tick = one game month. Fixed pipeline each tick: gather staffable buildings → allocate workers → activate tiles → plaza connectivity → display summary → city metrics + population drift → occupancy rent → diminishing returns → generation (florins/inspiration + material production) → artist arrival → commission reconcile/offer → artwork progress → tradition-pool accrual + XP floor → funded-build collection → material pools clamp-add. Returns a `TickTransition`, preserving object identity for unchanged arrays. | `app/game/tick.ts` → `advanceTick()` |
+| **Monthly tick** | One tick = one game month. Fixed pipeline each tick: gather staffable buildings → allocate workers → activate tiles → plaza connectivity → display summary → city metrics + population drift → occupancy rent → diminishing returns → generation (florins/inspiration + material production) → formed-plaza inspiration → artist arrival → commission reconcile/offer → artwork progress → tradition-pool accrual + XP floor → funded-build collection → material pools clamp-add. Returns a `TickTransition`, preserving object identity for unchanged arrays. | `app/game/tick.ts` → `advanceTick()` |
 | **Clock / speed** | `BASE_TICK_INTERVAL = 1500`ms real time per tick; speed multipliers `[1, 2, 3]`. | `constants.ts`; store `tick()` in `app/stores/useGameStore.ts` |
 | **Calendar** | Month = `MONTH_NAMES[tick % 12]`, year = `1400 + floor(tick / 12)` → "May 1482". | `useGameStore.ts` → `formatMonth` |
 
@@ -43,8 +43,11 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Connectivity BFS** | The Main Plaza (`town_center_plaza`) radiates through roads via a 0–1 BFS (roads cost 1/cell, any plaza/hub cell resets distance to 0). Building strength = best adjacent network cell with linear falloff: `max(0, 1 − dist/PLAZA_REACH)`. `PLAZA_REACH = 30` road cells; `PLAZA_CONNECTION_BONUS = 0.25` at full strength. Memoized by tiles identity (WeakMap). A nudge, never a gate. | `app/game/city/connectivity.ts` → `computePlazaConnectivity()` |
-| **Hubs / conductors** | Hub set = plazas + `isHub` buildings (bell tower), derived from metadata via `PLAZA_IDS`; road-cost conductors via `ROAD_OVERLAY_IDS` (e.g. market stall). | `connectivity.ts` |
+| **Connectivity BFS** | The Main Plaza (`town_center_plaza`) radiates through roads via a 0–1 BFS (roads cost 1/cell, any plaza/hub/formed-plaza cell resets distance to 0 — formed-plaza cells conduct even when bare, with no tile). Building strength = best adjacent network cell with linear falloff: `max(0, 1 − dist/PLAZA_REACH)`. `PLAZA_REACH = 30` road cells; `PLAZA_CONNECTION_BONUS = 0.25` at full strength. Takes `mapSeed` (formed plazas derive from it); memoized by tiles identity (WeakMap). A nudge, never a gate. | `app/game/city/connectivity.ts` → `computePlazaConnectivity()` |
+| **Hubs / conductors** | Hub set = plazas + `isHub` buildings (bell tower), derived from metadata via `PLAZA_IDS`, **plus formed freeform plazas** (below); road-cost conductors via `ROAD_OVERLAY_IDS` (e.g. market stall). | `connectivity.ts` |
+| **Gathering field** | Per-cell "would people linger here?" score from **tiles only** (no occupancy/time — moves only on build/raze): housing + amenities + generated inspiration + street junctions, additive with linear falloff over `GATHER_REACH` (12 cells, Chebyshev). Monotonic non-decreasing in everything (asserted). Memoized by tiles identity. | `app/game/city/gathering.ts` → `computeGathering()` |
+| **Freeform plaza formation** | A plaza = connected union of fully-open 4×4 core blocks (`PLAZA_CORE`; open = bare buildable land, plaza paving, land road cells — bridges never). Block qualifies **authored** (all paving) or **organic** (mean field ≥ `GATHER_FORM` 14 *and* enclosed — every outward lane hits a tile/water/map edge within `PLAZA_ENCLOSE_REACH` 3). Region organic if any block is field-qualified — paving more never demotes. Fully derived, nothing persisted; `anchor` = row-major-first cell (naming's future key). | `gathering.ts` → `FormedPlaza`, `plazaCells` |
+| **Formed-plaza inspiration** | Flat `PLAZA_FORMED_INSPIRATION` (2/month) per formed plaza, × `ORGANIC_PLAZA_MULT` (1.15) when organic — the entire organic reward (no one-time bonus; raze-and-reform gains nothing). Workerless, boost-free, like the premade plazas. | `gathering.ts` → `formedPlazaInspiration()`; added in `tick.ts` after the generation loop |
 | **Plaza boost application** | `plazaBoost = 1 + connectionBonusOf(meta)·strength·trafficFactor`. Multiplies generation (tick), housing & amenities (metrics), commission pace (artists). Per-building bonus override via `connectionBonus` metadata (default 0.25). | `tick.ts` `plazaBoost`; `metrics.ts`; `artists.ts` `progressArtworks()` |
 
 ## 5. Foot traffic (market stall)
@@ -139,7 +142,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 |---|---|---|
 | **Building catalog** | Single frozen source-of-truth array of every placeable building + derived lookups (`BUILDING_METADATA_BY_ID/TYPE`, `BuildingId` union). Categories: `residential, artist, materials, service, road, city, decoration`. | `app/game/buildings.ts` → `BUILDING_TYPES` |
 | **`BuildingMetadata` shape** | `type, id, name, baseCost, size, color, footprint, generates?{income,inspiration}, housing?, amenities?, prestigeOnBuild?, isHub?, connectionBonus?, footTraffic?, placesOnRoads?, workersRequired?, maxWorkers?, artistCapacity?, artistType?, roadWidth?, linear?, paved?, supplies?, materialStorage?, buildCost?, commissionOnly?, displaySlots?`. | `app/game/types.ts` |
-| **Effect flags** | `isHub` (plazas + bell_tower), `placesOnRoads` (market_stall), `footTraffic` (market_stall), `connectionBonus` (stall 1.0), `paved`, `linear` (colonnade/fence/stone_wall), `prestigeOnBuild` (cathedral 25), `roadWidth` (5 road variants), `buildCost` (landmarks; also future blueprint structures), `commissionOnly` (none currently — the blueprint roster is empty), `materialStorage` (warehouse 50). `costEscalates` is computed from `type`, not a field. | `buildings.ts` |
+| **Effect flags** | `isHub` (plazas + bell_tower), `placesOnRoads` (market_stall), `footTraffic` (market_stall), `connectionBonus` (stall 1.0), `paved`, `linear` (colonnade/fence/stone_wall), `prestigeOnBuild` (cathedral 25), `roadWidth` (5 road variants), `buildCost` (landmarks; also future blueprint structures), `commissionOnly` (none currently — the blueprint roster is empty), `materialStorage` (warehouse 50), `areaDrag` + `paletteType` (plaza_paving — rect-drag surface sold under Civic), `retired` (plaza, small_plaza — off the palette, defs kept for old saves). `costEscalates` is computed from `type`, not a field. | `buildings.ts` |
 | **Footprint mask** | Claimed grid cells + center offset per rotation; cardinal = axis-aligned rect (odd quarters swap w/d), cached per `dims×rotation`. | `buildings.ts` → `footprintMask()`, `footprintMaskFor()` |
 | **Diagonal (45°) mask** | Diagonal rotations claim cells whose centers fall inside the yaw-rotated rect (ε-shrunk), re-anchored row-major — a true diamond, not the bbox. R cycles 8 rotation steps. | `buildings.ts` → `rasterizeDiagonalMask()`; rotation encoding `quarterOf`, `isDiagonalRotation`, `yawOfRotation` |
 
@@ -157,7 +160,7 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 
 | Mechanic | What it does | Code |
 |---|---|---|
-| **Widths & variants** | Path (1 cell), Road (2), Avenue (3) at 25ƒ/cell; Dirt Path (1, 10ƒ); Stone Bridge (2, 80ƒ, only structure on water). Cost per cell. All carry plaza connectivity identically. | `buildings.ts` road defs |
+| **Widths & variants** | Path (1 cell), Road (2), Avenue (3) at 25ƒ/cell; Dirt Path (1, 10ƒ); Stone Bridge (2, 80ƒ, only structure on water); Plaza (rect-drag paving surface, 12ƒ/cell — `areaDrag`, blocked cells skipped uncharged; sells under Civic via `paletteType`, stays type road). Cost per cell. All carry plaza connectivity identically. | `buildings.ts` road defs |
 | **Diagonal stretch** | Road drags snap to 8 octants (edges at 22.5°). Diagonal runs are a staircase of ordinary road cells with ribbon orientation stored in `rotation` (`ROAD_DIAG_NE = 1`, `ROAD_DIAG_NW = 3`; cardinal = undefined, so old saves untouched). Wider roads stamp offset rows to stay orthogonally contiguous. | `app/game/placement/roadStretch.ts` → `buildRoadStretch()` |
 | **Snap-to-road (Shift)** | Snaps a building flush to the nearest road within `SNAP_RANGE = 6`, auto-facing it; diagonal ribbons rotate the building a true 45°. Purely an assist — no candidate falls through to free placement. | `app/game/placement/roadSnap.ts` → `findRoadSnap()` |
 | **Junction plates / ribbons** | Diagonal-owned crossings drop an unrotated junction plate; renderer draws diagonal cells as √2-stretched decals. | `app/game/render/roadRenderer.ts` |
@@ -199,11 +202,12 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Decorative citizens (random-walk network, population→count, speed tracks sim) | `render/citizens.ts` → `createCitizens` |
 | Citizen figures + thin-instance batching (5 variants, 15 draw calls) + statue mesh | `render/citizenFigures.ts` → `createThinInstanceFigureFactory`, `createStatueMesh` |
 | Displayed art (plinths, marble/bronze statues, façade easel canvases) | `render/displayArt.ts` → `createDisplayArt` |
-| Road/bridge/diagonal-ribbon renderer | `render/roadRenderer.ts` |
+| Road/bridge/diagonal-ribbon renderer (+ plaza ground: raw paving in street setts, formed plazas in pale slabs, packed-earth campo quads — rebuilt wholesale per edit) | `render/roadRenderer.ts` |
 | Terrain (seeded hills, fields, analytic water carving, in-grid elevation field) | `render/terrain.ts` → `createTerrain` |
 | Ground-height samplers (registered terrain surface; seats, skirts, road/walker/dirt drape) | `render/groundLevel.ts` → `setGroundSampler`, `worldGroundY`, `cellGroundY`, `footprintGroundRange` |
 | Water visuals (animated wobbling surface — the codebase's first animated material) | `render/waterMesh.ts` → `createWaterVisuals` |
-| Paving/apron/dirt materials (3 plaza styles behind `?plaza=`) | `render/paths.ts` |
+| Paving/apron/dirt materials (3 plaza styles behind `?plaza=`; freeform plaza-paving slabs, 4 seed variants) | `render/paths.ts` |
+| Gathering overlay (draped unlit heat + formed-plaza regions + premade-hub highlights, first `activeOverlay` view) | `render/gatheringOverlay.ts` → `createGatheringOverlay` |
 | Masonry wall textures (coursed patterns per category) | `render/wallTexture.ts` |
 | Procedural kit pieces (`proc:` blocks, roofs, surrounds, bifora, rose, portals) | `render/proceduralPieces.ts` |
 | HUD root / one-panel-open enforcement | `ui/GameHUD.tsx` |
@@ -213,7 +217,8 @@ This is a snapshot of the code as it stands, cross-checked against the design do
 | Commissions panel / assignment UI (eligible-workshop computation mirrors sim guards) | `ui/CommissionsPanel.tsx` |
 | Gallery codex (completed works, Display at…/Recall) | `ui/GalleryPanel.tsx` |
 | Display panel (per-building slot manager, store `inspectTarget`-driven) | `ui/DisplayPanel.tsx` |
-| Building tooltip (status reasons, computed active effects, plaza/traffic hints, raze salvage) | `ui/BuildingTooltip.tsx` |
+| Building tooltip (status reasons, computed active effects, plaza/traffic hints, formed-piazza status on paving, raze salvage) | `ui/BuildingTooltip.tsx` |
+| Overlay toggle + gathering legend | `ui/OverlayToggle.tsx` |
 | Renaissance celebration card | `ui/RenaissanceCard.tsx` |
 | Materials rail (per-material held/cap + live monthly rate, right screen edge) | `ui/MaterialsPanel.tsx` |
 | Faction crest banner (per-patron favor/standing card) | `ui/FactionBanner.tsx` |
@@ -244,7 +249,7 @@ The `docs/` folder holds the main spec plus supplemental design/planning docs. B
 **Built (everything the doc documents as a system):**
 - All numbered phases 0–12: placement, time, building types, population & two-pass workers, artists + ranks, artworks/XP, commissions, work display, plaza connectivity, city tradition pools (replaced artist training/teaching, Aug 2026), Renaissance milestone. (Phase 7's supplier capacity gating was superseded by the material stockpile rework — §3.)
 - Material stockpiles (five pools + construction `buildCost`s), factions slice 1 (patron admission, favor, rungs, denunciation), architects slice 1 (studio, city-teaches pool XP, blueprint-commission pipeline; its two launch structures — Baptistery and Loggia — were removed Aug 2026, leaving the roster empty), sporadic era-based music + interaction SFX + crowd ambience (§20).
-- Graphics G1–G4 + generated kit pieces + category-identity pass; G5 mostly: river + bridge, decorative citizens, obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu.
+- Graphics G1–G4 + generated kit pieces + category-identity pass; G5 mostly: river + bridge, decorative citizens, obelisk, seeded water archetypes, diagonal streets, snap-to-road + 45° buildings, market stall + foot traffic, main menu. Freeform plazas (gathering field, 4×4-core formation, authored/organic, formed-plaza hubs + inspiration) + the map-overlay system's first view (August 2026) — premade Plaza/Small Plaza retired from the palette.
 
 **Cut (July 2026):** neighborhood zoning (individual placement is the permanent model); the diagonal row-house-blending follow-up (closed by construction — houses fill their footprint).
 
