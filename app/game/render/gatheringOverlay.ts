@@ -27,11 +27,15 @@ const PX = 4; // canvas pixels per cell — enough for a crisp 1px region border
 // formable line — the first color step is the actionable edge. Exported so the
 // legend mirrors the map's own colors.
 export const HEAT_BANDS = [
-  { min: 0.5, rgb: "234,205,130", alpha: 0.15 }, // warming, not yet formable
-  { min: 1, rgb: "228,158,66", alpha: 0.3 }, // formable (field ≥ GATHER_FORM)
-  { min: 2.5, rgb: "219,112,45", alpha: 0.4 },
-  { min: 6, rgb: "196,62,38", alpha: 0.5 }, // heart of the city
+  { min: 0.5, rgb: "234,205,130", alpha: 0.18 }, // warming, not yet formable
+  { min: 1, rgb: "228,158,66", alpha: 0.34 }, // formable (field ≥ GATHER_FORM)
+  { min: 2.5, rgb: "214,94,40", alpha: 0.48 },
+  { min: 6, rgb: "178,42,36", alpha: 0.6 }, // heart of the city
 ] as const;
+// Band boundaries get a near-solid contour line (the plaza-border trick):
+// adjacent low-alpha washes blur together over textured terrain, the crisp
+// edge is what makes each step readable.
+const CONTOUR_ALPHA = 0.85;
 // Formed plazas: organic gold vs authored slate — the legend's two swatches.
 export const ORGANIC_RGB = "224,168,60";
 export const AUTHORED_RGB = "127,155,179";
@@ -106,17 +110,34 @@ export function createGatheringOverlay(scene: Scene) {
     ctx.clearRect(0, 0, size, size);
     const { field, plazas, plazaCells } = computeGathering(tiles, mapSeed);
 
-    // Heat: highest band the cell clears, if any.
+    // Heat: highest band the cell clears, if any, then a contour line on
+    // every edge where the neighbor sits in a lower band.
+    const bandOf = new Int8Array(GRID_SIZE * GRID_SIZE).fill(-1);
     for (let y = 0; y < GRID_SIZE; y += 1) {
       for (let x = 0; x < GRID_SIZE; x += 1) {
         const f = field[y * GRID_SIZE + x]! / GATHER_FORM;
-        let band: (typeof HEAT_BANDS)[number] | null = null;
-        for (const b of HEAT_BANDS) {
-          if (f >= b.min) band = b;
+        let band = -1;
+        for (let b = 0; b < HEAT_BANDS.length; b += 1) {
+          if (f >= HEAT_BANDS[b]!.min) band = b;
         }
-        if (!band) continue;
-        ctx.fillStyle = `rgba(${band.rgb},${band.alpha})`;
+        if (band < 0) continue;
+        bandOf[y * GRID_SIZE + x] = band;
+        ctx.fillStyle = `rgba(${HEAT_BANDS[band]!.rgb},${HEAT_BANDS[band]!.alpha})`;
         ctx.fillRect(x * PX, y * PX, PX, PX);
+      }
+    }
+    // Off-map counts as same-band so the grid boundary never draws a rim.
+    const bandAt = (x: number, y: number) =>
+      x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE ? 127 : bandOf[y * GRID_SIZE + x]!;
+    for (let y = 0; y < GRID_SIZE; y += 1) {
+      for (let x = 0; x < GRID_SIZE; x += 1) {
+        const band = bandOf[y * GRID_SIZE + x]!;
+        if (band < 0) continue;
+        ctx.fillStyle = `rgba(${HEAT_BANDS[band]!.rgb},${CONTOUR_ALPHA})`;
+        if (bandAt(x, y - 1) < band) ctx.fillRect(x * PX, y * PX, PX, 1);
+        if (bandAt(x, y + 1) < band) ctx.fillRect(x * PX, y * PX + PX - 1, PX, 1);
+        if (bandAt(x - 1, y) < band) ctx.fillRect(x * PX, y * PX, 1, PX);
+        if (bandAt(x + 1, y) < band) ctx.fillRect(x * PX + PX - 1, y * PX, 1, PX);
       }
     }
 
