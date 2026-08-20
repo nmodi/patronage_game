@@ -120,4 +120,5 @@ export const BUILDING_ICONS: Record<BuildingId, IconComponent> = {
   fence: Fence,
   stone_wall: BrickWall,
   sculpture_display: PersonStanding,
+  plinth: PersonStanding,
 };

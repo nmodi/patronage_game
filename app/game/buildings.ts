@@ -583,6 +583,24 @@ export const BUILDING_TYPES = [
     paved: true,
     footprint: { width: 3, depth: 3 },
     displaySlots: [{ kind: "plinth", cell: { x: 1, y: 1 } }],
+    retired: true, // superseded by the 1×1 plinth below; placed ones keep working
+  },
+  {
+    // Freestanding pedestal — street furniture like the market stall
+    // (placesOnRoads: sits on roads and plaza paving without severing either),
+    // and the freeform plazas' display surface: its slot is how a formed
+    // piazza shows sculpture. Counts as plaza ground (gathering.ts), so it
+    // never breaks a core or unforms an authored court.
+    type: "decoration",
+    id: "plinth",
+    name: "Plinth",
+    baseCost: 40,
+    size: { width: 0.5, height: 0.35, depth: 0.5 },
+    color: "#d8d2c4",
+    paved: true,
+    footprint: { width: 1, depth: 1 },
+    placesOnRoads: true,
+    displaySlots: [{ kind: "plinth", cell: { x: 0, y: 0 } }],
   },
 ] as const satisfies ReadonlyArray<BuildingMetadata>;
 

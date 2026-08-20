@@ -108,7 +108,7 @@ function quarterAround(bx: number, by: number): TileMap {
   assert.equal(g.plazas[0]!.cells.length, 64);
   assert.ok(g.plazaCells.has("43,41")); // the fountain's center cell
 
-  for (const furniture of ["market_stall"] as const) {
+  for (const furniture of ["market_stall", "plinth"] as const) {
     const tiles = merge(surface("plaza_paving", 40, 40, 4, 4), {
       "41,41": tile(furniture, 41, 41),
     });

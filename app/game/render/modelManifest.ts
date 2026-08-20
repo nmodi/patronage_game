@@ -1317,6 +1317,11 @@ export const MODEL_MANIFEST: Partial<Record<BuildingId, ModelDef>> = {
     pad: 3,
     fit: 1,
   },
+  // Same pad-only trick, one cell — the pedestal itself comes from displayArt.
+  plinth: {
+    pad: 0.5,
+    fit: 1,
+  },
   // Freestanding campanile (Giotto's, at street zoom): a slim marble-panelled
   // shaft — five stretched-cube storeys in the campanile inlay texture
   // (wallTexture.ts) — with the palazzo's arched pietra-serena windows growing
