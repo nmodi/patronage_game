@@ -950,6 +950,76 @@ function buildArchLeaf(scene: Scene) {
   return { mesh, material: "glazing", color: "#ffffff" };
 }
 
+/** Louvred shutter pair over a house window — the Tuscan street's sign of life
+ * (NOT proc:shutter, which despite its name is the glazed casement above).
+ * Both states are one piece: `proc:louvres` closed, `proc:louvres~1` open, so
+ * instantiateBuilding can swap them per window through the same `~salt` path
+ * the roof mosaics use, and the manifest carries one part at one position.
+ *
+ * Open leaves lie back toward the facade but never fold flat on it, and the
+ * swing is at its physical ceiling: sideways reach is w(1 − cos swing) + t·sin
+ * swing, and two facing leaves must not cross between windows a townhouse
+ * column pitch (0.25) apart. A leaf is half a window wide, so folding flat
+ * would want a full window-width of bare wall beside each opening and the
+ * townhouse only leaves 0.12 — every degree flatter has to be bought sideways,
+ * and the lap is trimmed to 0.002 to buy the last few. The hinge plane stays at
+ * local x = 0 in BOTH states — that is what lets one manifest position serve
+ * either — so the open piece is deliberately not x-centered like every other
+ * piece is. */
+export const LOUVRE_T = 0.012; // leaf thickness; the manifest's stack rides it
+export const LOUVRE_LAP = 0.002; // lap onto the surround, all four sides
+export const LOUVRES_FILE = `${PROC_PREFIX}louvres`;
+const LOUVRE_SWING = (142 * Math.PI) / 180;
+const LOUVRE_GREEN = "#6f7a58"; // weathered shutter green, the reference facades'
+const SLATS = 7;
+
+/** One leaf, hinged at its local origin and hanging in −z: the closed RIGHT
+ * leaf. The left is this same mesh turned 180°, so the louvres are cut into
+ * both faces — a flipped leaf must not show a blank back. */
+function louvreLeaf(scene: Scene): Mesh {
+  const w = WIN_OPENING.w / 2 + LOUVRE_LAP;
+  const h = WIN_OPENING.h + 2 * LOUVRE_LAP;
+  const t = LOUVRE_T / 2;
+  const stile = 0.011;
+  const rail = 0.013;
+  const parts = [
+    // Back slab, thinner than the frame: the grooves between slats show it as a
+    // shadow line instead of a hole through to the glass.
+    shadedBox("slab", [-t + 0.003, t - 0.003], [0, h], [-w, 0], 0.5, scene),
+    shadedBox("stile-o", [-t, t], [0, h], [-w, -w + stile], 1, scene),
+    shadedBox("stile-i", [-t, t], [0, h], [-stile, 0], 0.95, scene),
+    shadedBox("rail-b", [-t, t], [0, rail], [-w, 0], 0.92, scene),
+    shadedBox("rail-t", [-t, t], [h - rail, h], [-w, 0], 1, scene),
+  ];
+  const pitch = (h - 2 * rail) / SLATS;
+  for (let i = 0; i < SLATS; i++)
+    parts.push(
+      shadedBox(
+        `slat-${i}`,
+        [-t + 0.0015, t - 0.0015],
+        [rail + i * pitch, rail + (i + 1) * pitch - 0.004],
+        [-w + stile, -stile],
+        i % 2 ? 0.78 : 0.9,
+        scene
+      )
+    );
+  return Mesh.MergeMeshes(parts, true, true)!;
+}
+
+function buildLouvres(scene: Scene, _courses: number, _rows: number, salt = 0) {
+  const hinge = WIN_OPENING.w / 2 + LOUVRE_LAP;
+  const swing = salt ? LOUVRE_SWING : 0;
+  const right = louvreLeaf(scene);
+  right.position.z = hinge;
+  right.rotation.y = -swing;
+  const left = louvreLeaf(scene);
+  left.position.z = -hinge;
+  left.rotation.y = Math.PI + swing; // the mirror: turned, then swung the other way
+  const mesh = Mesh.MergeMeshes([right, left], true, true)!;
+  mesh.name = "proc-louvres";
+  return { mesh, material: "wood", color: LOUVRE_GREEN };
+}
+
 /** Rose window (proc:rose ring + proc:rose-glass glazing) — the cathedral
  * west-front circle (Santa Maria Novella reference): a faceted stone annulus
  * with alternating voussoir shades and a recessed darker inner step, over a
@@ -1299,6 +1369,7 @@ const BUILDERS: Record<string, Builder> = {
   "surround-arch": buildSurroundArch,
   bifora: buildBifora,
   shutter: buildShutter,
+  louvres: buildLouvres,
   "arch-leaf": buildArchLeaf,
   rose: buildRose,
   "rose-glass": buildRoseGlass,
@@ -1324,7 +1395,8 @@ export const ROOF_MOSAIC_VARIANTS = 3;
  * counts (`proc:roof-gable@51x7`, see procRoofFile); bare ids build the house
  * roof's density. */
 export function buildProceduralContainer(file: string, scene: Scene): AssetContainer {
-  // `~salt` (roof mosaic variant) comes after the counts: `proc:roof-gable@51x7~2`.
+  // `~salt` (roof mosaic variant, or the louvres' open state) comes after the
+  // counts: `proc:roof-gable@51x7~2`, `proc:louvres~1`.
   const [spec, saltStr] = file.slice(PROC_PREFIX.length).split("~");
   const [id, counts] = spec!.split("@");
   const builder = BUILDERS[id!];

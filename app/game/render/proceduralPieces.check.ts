@@ -16,6 +16,7 @@ import {
   AWNING_RISE,
   BLOCK_ENVELOPE,
   HIP_ENVELOPE,
+  LOUVRE_T,
   PROC_FILES,
   ROOF_ENVELOPE,
   TILE_RANGE,
@@ -135,6 +136,37 @@ assertEnvelope("proc:shutter", { min: [-0.0035, 0, -0.06], max: [0.0035, 0.33, 0
 // Arched leaf: same width/depth contract as the shutter; the wood ring's apex
 // vertex tops out at spring 0.335 + lunette radius 0.06.
 assertEnvelope("proc:arch-leaf", { min: [-0.0035, 0, -0.06], max: [0.0035, 0.395, 0.06] });
+// Louvred shutters, closed: the pair laps LOUVRE_LAP onto the surround all
+// round (0.067 half-width over the 0.065 opening, 0.344 over 0.34), thin enough
+// that louvresOn's stack clears the frame front.
+assertEnvelope("proc:louvres", {
+  min: [-LOUVRE_T / 2, 0, -0.067],
+  max: [LOUVRE_T / 2, 0.344, 0.067],
+});
+// ...and open: same base and height, still symmetric across the window centre,
+// but the leaves swing OUT (+x) about a hinge plane that must stay at x = 0 in
+// both states — one manifest position serves either, so a hinge that drifts
+// sinks the open shutters into the wall. Sideways reach is the hard ceiling and
+// the swing sits just under it: two facing leaves must not cross between
+// windows a townhouse column pitch (0.25) apart, so reach < half of that.
+{
+  const closed = bounds("proc:louvres");
+  const open = bounds("proc:louvres~1");
+  assert.equal(open.meshCount, 1, "proc:louvres~1: expected 1 mesh");
+  assert.ok(open.colors, "proc:louvres~1: no vertex colors");
+  assert.ok(Math.abs(open.min[1]!) < EPS, `open louvres base ${open.min[1]}, want 0`);
+  assert.ok(
+    Math.abs(open.max[1]! - closed.max[1]!) < EPS,
+    `open louvres height ${open.max[1]} != closed ${closed.max[1]}`
+  );
+  assert.ok(Math.abs(open.min[2]! + open.max[2]!) < EPS, "open louvres not centered on z");
+  assert.ok(open.max[2]! < 0.125, `open louvres reach ${open.max[2]} sideways, want under 0.125`);
+  assert.ok(open.max[0]! > 0.02, `open louvres jut only ${open.max[0]} — no longer read as ajar`);
+  assert.ok(
+    open.min[0]! > -LOUVRE_T,
+    `open louvres swing ${open.min[0]} back through the hinge plane`
+  );
+}
 // Rose: the CENTERED pieces (position = circle centre, not base) — ring
 // radius 0.35, glass rim 0.30 tucked under the band. roseWindow's depth
 // stack and the cathedral slot ride these.
@@ -176,6 +208,7 @@ assert.equal(bounds("proc:arch-leaf").material, "glazing");
 assert.equal(bounds("proc:rose").material, "stone");
 assert.equal(bounds("proc:rose-glass").material, "glazing");
 assert.equal(bounds("proc:awning").material, "cloth");
+assert.equal(bounds("proc:louvres").material, "wood");
 
 // The awning drops into the roof pieces' plan (a ref swapping gableRoof for it
 // keeps its transform), but rises a fraction as high — cloth, not tile.

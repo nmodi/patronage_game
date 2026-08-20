@@ -36,7 +36,12 @@ import {
   SCATTER_FILES,
   scatterEnvironment as buildEnvironmentScatter,
 } from "./environmentScatter";
-import { PROC_PREFIX, ROOF_MOSAIC_VARIANTS, buildProceduralContainer } from "./proceduralPieces";
+import {
+  LOUVRES_FILE,
+  PROC_PREFIX,
+  ROOF_MOSAIC_VARIANTS,
+  buildProceduralContainer,
+} from "./proceduralPieces";
 import { disposePathMaterials, getPadMaterial, getPlazaMaterial } from "./paths";
 import { prepareThinInstanceHost } from "./thinInstanceHost";
 import { STONE_TINTS, disposeWallTextures, getStoneTexture } from "./wallTexture";
@@ -197,11 +202,12 @@ function addModelFiles(files: Set<string>, def: ModelDef | undefined) {
   for (const part of def.extendPosX ?? []) for (const f of partFiles(part)) files.add(f);
 }
 
-/** A part's file plus, for roof pieces, its mosaic-variant twins (the bare id
- * is variant 0) — instantiateBuilding picks one by position hash and
+/** A part's file plus its `~salt` twins — roof mosaics, and the louvres' open
+ * state (the bare id is variant 0 for both). instantiateBuilding picks one and
  * instantiatePart resolves containers synchronously, so loading and the
  * hasModel gate must both cover every variant. */
 function partFiles(part: Part): string[] {
+  if (part.file === LOUVRES_FILE) return [part.file, `${part.file}~1`];
   if (!part.file.startsWith(`${PROC_PREFIX}roof-`)) return [part.file];
   const files = [part.file];
   for (let v = 1; v < ROOF_MOSAIC_VARIANTS; v += 1) files.push(`${part.file}~${v}`);
@@ -345,6 +351,19 @@ function recenterOffset(vx: number, vz: number, diagonal: boolean) {
   return { offsetX: -(vx + vz) * Math.SQRT1_2, offsetZ: (vx - vz) * Math.SQRT1_2 };
 }
 
+/** Shutters are the one thing in the city that is NOT position-hashed: a fresh
+ * seed per page load, so the same save wakes up differently every session. The
+ * cell keeps one house's windows from all matching, the part slot keeps that
+ * house's windows from matching each other. Render-only — no sim reads it, no
+ * save carries it, and a model rebuilt mid-session (placeholder box upgrading
+ * once its kit files stream in) simply re-rolls. */
+const SHUTTER_SEED = (Math.random() * 0x7fffffff) | 0;
+function shuttersOpen(cell: number, slot: number) {
+  let n = Math.imul(cell ^ SHUTTER_SEED, 2654435761) ^ Math.imul(slot + 1, 40503);
+  n ^= n >>> 13;
+  return (n & 1) === 1;
+}
+
 /**
  * Build the model for a building, scaled to its footprint with the base at y=0.
  * Returns null when the building has no manifest entry (caller falls back to a box).
@@ -382,7 +401,7 @@ export function instantiateBuilding(
   const buried = new Set<AbstractMesh>();
   type PartInstance = { part: Part; roots: TransformNode[]; meshes: AbstractMesh[] };
   const partInstances: PartInstance[] = [];
-  for (const p of parts) {
+  parts.forEach((p, slot) => {
     // Roof mosaics are baked vertex colors, so a position-hashed `~salt` picks
     // one of a few reshuffled builds — without it every same-size roof in the
     // city twins tile-for-tile. Shifted off the other hash consumers' bits.
@@ -390,11 +409,13 @@ export function instantiateBuilding(
     const part =
       mosaic > 0 && p.file.startsWith(`${PROC_PREFIX}roof-`)
         ? { ...p, file: `${p.file}~${mosaic}` }
-        : p;
+        : p.file === LOUVRES_FILE && shuttersOpen(hash, slot)
+          ? { ...p, file: `${p.file}~1` }
+          : p;
     const { roots, meshes: partMeshes } = instantiatePart(part, root);
     if (part.buried) for (const mesh of partMeshes) buried.add(mesh);
     partInstances.push({ part, roots, meshes: partMeshes });
-  }
+  });
   if (!def.pad && !partInstances.some((pi) => pi.meshes.length > 0)) {
     root.dispose();
     return null;

@@ -1,7 +1,7 @@
 import type { BuildingId } from "~/game/buildings";
 import { CELL_SIZE } from "~/game/constants";
 
-import { BIF_OPENING, DOOR_T, ROSE_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
+import { BIF_OPENING, DOOR_T, LOUVRES_FILE, LOUVRE_LAP, LOUVRE_T, ROSE_T, SHUTTER_T, SILL_H, WIN_OPENING, WIN_SILL_T, WIN_T, procRoofFile } from "./proceduralPieces";
 
 /** Local horizontal face of a composed prefab, pre-rotation. */
 export type LocalSide = "posX" | "negX" | "posZ" | "negZ";
@@ -367,6 +367,31 @@ function windowOn(face: LocalSide, y: number, along: number, wall = 0.5): Part[]
   return [reveal, surround, leaf];
 }
 
+/** Louvred shutters over a house window, hinged on the surround's outer edge —
+ * the whole pair is one generated piece, and instantiateBuilding swaps in its
+ * open twin per window per page load (see SHUTTER_SEED in assetLibrary). Houses
+ * only: the workshops and stores that share windowOn stay bare.
+ *
+ * `buried` because the open leaves stand ~0.06 off the wall and the footprint
+ * fit must not shrink the house to swallow them — a shutter overhanging its
+ * cell is the point. `y` is the storey, as windowOn's. */
+const LOUVRES_OUT = 0.5005 + WIN_T + 0.001 + LOUVRE_T / 2; // just proud of the frame front
+function louvresOn(face: LocalSide, y: number, along: number): Part {
+  const { rotationY, at } = faceFrame(face);
+  return {
+    file: LOUVRES_FILE,
+    position: at(LOUVRES_OUT, y + 0.3 - LOUVRE_LAP, along),
+    rotationY,
+    buried: true,
+  };
+}
+
+/** A house window: the shared stack plus its shutters. */
+const houseWindow = (face: LocalSide, y: number, along: number): Part[] => [
+  ...windowOn(face, y, along),
+  louvresOn(face, y, along),
+];
+
 /** Arched pietra-serena window for the stone buildings (the palazzo reference):
  * generated voussoir surround + dark reveal, no shutters. The civic prefabs'
  * wall faces aren't at ±0.5, so `wall` is the face plane's distance from the
@@ -535,18 +560,18 @@ const houseFront = (upper: number | null): Part[] => [
   // Stone doorway + planked leaf recessed in it (batch-1 fittings — the kit's
   // extracted leaf alone never quite read as a door).
   ...doorOn("posX", DOOR_COL, 0.5, HOUSE_DOOR_SCALE),
-  ...windowOn("posX", 0, WIN_COL),
+  ...houseWindow("posX", 0, WIN_COL),
   ...(upper == null
     ? []
-    : [DOOR_COL, 0, WIN_COL].flatMap((c) => windowOn("posX", upper, c))),
+    : [DOOR_COL, 0, WIN_COL].flatMap((c) => houseWindow("posX", upper, c))),
 ];
 const houseSides = (floors: number[]): Part[] =>
   floors.flatMap((y) =>
-    SIDE_COLS.flatMap((c) => [...windowOn("posZ", y, c), ...windowOn("negZ", y, c)])
+    SIDE_COLS.flatMap((c) => [...houseWindow("posZ", y, c), ...houseWindow("negZ", y, c)])
   );
 // Back gable: no door, so the columns sit symmetrically.
 const houseBack = (floors: number[]): Part[] =>
-  floors.flatMap((y) => SIDE_COLS.flatMap((c) => windowOn("negX", y, c)));
+  floors.flatMap((y) => SIDE_COLS.flatMap((c) => houseWindow("negX", y, c)));
 
 // Long workshop hall: two bays, 3x2 footprint. Walls/openings are shared by
 // both workshop types; roofs are per-workshop (the painter runs the full
