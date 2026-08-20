@@ -109,6 +109,13 @@ export function createDisplayArt(scene: Scene) {
     const modelUrl = STATUE_MODELS[artwork.name];
     if (modelUrl) {
       const holder = new Mesh(`statue-${artwork.id}`, scene);
+      // Geometry-less container meshes leave subMeshes undefined, and the
+      // scene's ready-check (scene.pure.js, checkRenderTargets path) iterates
+      // mesh.subMeshes UNGUARDED for any mesh falling back to the default
+      // material — per-frame console errors whenever a ready-loop is pending
+      // (model streaming, a new material compiling). Babylon's own
+      // releaseSubMeshes() uses [] for "none"; seed containers the same way.
+      holder.subMeshes = [];
       holder.scaling.setAll(STATUE_DISPLAY_HEIGHT); // GLB is normalized to height 1, feet at origin
       void getContainer(modelUrl, scene).then((container) => {
         if (!container || holder.isDisposed()) return;
@@ -117,6 +124,7 @@ export function createDisplayArt(scene: Scene) {
         });
         for (const node of entries.rootNodes) {
           node.parent = holder;
+          if (node instanceof Mesh && !node.subMeshes) node.subMeshes = []; // GLB __root__, same bug
           for (const mesh of (node as TransformNode).getChildMeshes(false)) {
             mesh.material = mat;
             mesh.isPickable = false;
