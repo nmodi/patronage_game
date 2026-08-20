@@ -61,6 +61,7 @@ Ranked after the July 2026 cuts (neighborhood zoning was cut outright; the diago
 - **Single Town Center Plaza enforcement** — carried over from phases 9/10: the Main Plaza should be one per city; nothing enforces it yet.
 - **Real-art roster expansion** — both title pools are real works with real assets now (design doc → Commissions & Works); remaining is content depth: cut more statues from [artifacts/statue-scan-catalog.md](artifacts/statue-scan-catalog.md) at 600 tris (the Pietà/Saint George/Baptist shortlist needs a MyMiniFactory account), and pull further paintings from the 60-work roster in [artifacts/painting-source-catalog.md](artifacts/painting-source-catalog.md) — each is one `SOURCES` line plus one `ART_IMAGES` line. A `focal_y` knob would unlock the tall altarpieces currently benched for cropping to a midriff band.
 - Distinct model for the architect studio placeholder (workshop hall minus dormer + drafting yard)
+- **Organic touches** *(added August 2026)* — a pool of ~16 render-only ideas that apply the freeform-plazas pattern (the city recognizes what the player built) to visuals: weathering by `builtTick`, garden courtyards, street furniture on narrow streets, worn desire paths, tall-building shadows, emergent quarters. Designed in [organic-touches.md](organic-touches.md); each is independently shippable and touches no sim system. Suggested first slice: weathering + courtyards + street furniture. Absorbs the "boats, banners" graphics leftovers (water life, idea 14).
 - Graphics stretch leftovers: boats, banners
 - Campaign scenarios
 
