@@ -143,12 +143,8 @@ export function SettingsMenu({ onClose }: { onClose: () => void }) {
             {seedCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
           </button>
           <span>·</span>
-          {/* Build date is the version players quote; the commit behind it is in
-              the tooltip, so a bug report maps to an exact tree. Stamped by
-              vite.config.ts — never hand-edited. */}
-          <span title={`build ${import.meta.env.VITE_BUILD_SHA}`}>
-            v{import.meta.env.VITE_BUILD_DATE}
-          </span>
+          {/* Stamped by vite.config.ts at build time — never hand-edited. */}
+          <span>v{import.meta.env.VITE_BUILD_DATE}</span>
         </div>
       </Panel>
     </div>
